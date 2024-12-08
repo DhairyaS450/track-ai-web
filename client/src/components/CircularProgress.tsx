@@ -13,7 +13,7 @@ export function CircularProgress({
 }: CircularProgressProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (value / max) * circumference;
+  const offset = circumference - ((value || 0) / (max || 1)) * circumference;
 
   return (
     <div className="relative inline-flex items-center justify-center">
@@ -41,7 +41,7 @@ export function CircularProgress({
         />
       </svg>
       <span className="absolute text-sm font-medium">
-        {Math.round((value / max) * 100)}%
+        {Math.round(((value || 0) / (max || 1)) * 100)}%
       </span>
     </div>
   );
