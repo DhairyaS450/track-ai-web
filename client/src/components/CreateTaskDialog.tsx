@@ -63,7 +63,7 @@ export function CreateTaskDialog({
       setTitle(initialTask.title);
       setDescription(initialTask.description);
       setPriority(initialTask.priority);
-      setDeadline(new Date(initialTask.deadline).toISOString().slice(0, 16));
+      setDeadline(initialTask.deadline);
       setSubject(initialTask.subject || "");
       setResources(initialTask.resources || "");
       setTimeSlots(initialTask.timeSlots || [{ startDate: "", endDate: "" }]);
