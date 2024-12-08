@@ -62,6 +62,16 @@ export function Dashboard() {
     setDeleteTaskOpen(false);
   };
 
+  const handleCreateTask = () => {
+    setEditTask(null);
+    setCreateTaskOpen(true);
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditTask(task);
+    setCreateTaskOpen(true);
+  };
+
   const completedTasks = tasks.filter(task => task.status === 'completed').length;
 
   const motivationalQuotes = [
@@ -93,7 +103,7 @@ export function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tasks</CardTitle>
-            <Button variant="outline" size="icon" onClick={() => setCreateTaskOpen(true)}>
+            <Button variant="outline" size="icon" onClick={handleCreateTask}>
               <Plus className="h-4 w-4" />
             </Button>
           </CardHeader>
@@ -128,7 +138,7 @@ export function Dashboard() {
                     <div>
                       <h3 className="font-medium">{task.title}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Due {format(new Date(task.endDate), "p")}
+                        Due {format(new Date(task.deadline), "p")}
                       </p>
                     </div>
                   </div>
@@ -146,10 +156,7 @@ export function Dashboard() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => {
-                            setEditTask(task);
-                            setCreateTaskOpen(true);
-                          }}
+                          onClick={() => handleEditTask(task)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -254,8 +261,9 @@ export function Dashboard() {
         onTaskCreated={(task) => {
           fetchData();
           setEditTask(null);
+          setCreateTaskOpen(false);
         }}
-        initialTask={editTask || undefined}
+        initialTask={editTask}
         mode={editTask ? 'edit' : 'create'}
       />
 

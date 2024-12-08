@@ -1,12 +1,20 @@
+export interface TimeSlot {
+  startDate: string;
+  endDate: string;
+}
+
 export interface Task {
   id: string;
   title: string;
   description: string;
   priority: 'High' | 'Medium' | 'Low';
-  startDate: string;
-  endDate: string;
+  deadline: string;
+  timeSlots: TimeSlot[];
   status: 'todo' | 'in-progress' | 'completed';
   subject?: string;
+  resources?: string;
+  recurrence?: 'daily' | 'weekly' | 'monthly';
+  completion: number;
 }
 
 export interface StudySession {

@@ -28,7 +28,7 @@ export function ViewAllTasksDialog({
               <div>
                 <h3 className="font-medium">{task.title}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Due {format(new Date(task.endDate), "PPp")}
+                  Due {format(new Date(task.deadline), "PPp")}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Status: {task.status}

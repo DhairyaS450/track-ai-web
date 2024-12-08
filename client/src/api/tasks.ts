@@ -1,5 +1,5 @@
 import api from './api';
-import { Task } from '@/types';
+import { Task, TimeSlot } from '@/types';
 
 // Helper functions for local storage
 const getLocalTasks = (): Task[] => {
@@ -18,12 +18,12 @@ export const getTasks = (includeCompleted: boolean = false) => {
   return new Promise<{ tasks: Task[] }>((resolve) => {
     setTimeout(() => {
       const localTasks = getLocalTasks();
-      
+
       if (localTasks.length > 0) {
         resolve({
           tasks: localTasks.filter(task =>
             includeCompleted ||
-            new Date(task.endDate) > new Date()
+            new Date(task.deadline) > new Date()
           )
         });
         return;
@@ -35,37 +35,62 @@ export const getTasks = (includeCompleted: boolean = false) => {
           title: 'Math Assignment',
           description: 'Complete calculus homework',
           priority: 'High' as const,
-          startDate: '2024-03-20T10:00:00',
-          endDate: '2024-03-20T12:00:00',
+          deadline: '2024-03-20T23:59:59',
+          timeSlots: [
+            {
+              startDate: '2024-03-20T10:00:00',
+              endDate: '2024-03-20T12:00:00'
+            },
+            {
+              startDate: '2024-03-20T14:00:00',
+              endDate: '2024-03-20T16:00:00'
+            }
+          ],
           status: 'completed' as const,
-          subject: 'Mathematics'
+          subject: 'Mathematics',
+          resources: 'https://example.com/math-resources',
+          completion: 100
         },
         {
           id: '2',
           title: 'Physics Lab Report',
           description: 'Write up experiment results',
           priority: 'Medium' as const,
-          startDate: '2024-03-21T14:00:00',
-          endDate: '2024-03-21T16:00:00',
+          deadline: '2024-03-21T23:59:59',
+          timeSlots: [
+            {
+              startDate: '2024-03-21T14:00:00',
+              endDate: '2024-03-21T16:00:00'
+            }
+          ],
           status: 'completed' as const,
-          subject: 'Physics'
+          subject: 'Physics',
+          resources: 'https://example.com/physics-resources',
+          completion: 100
         },
         {
           id: '3',
           title: 'Literature Essay',
           description: 'Write analysis of Shakespeare',
           priority: 'Low' as const,
-          startDate: '2024-05-22T09:00:00',
-          endDate: '2024-05-22T11:00:00',
+          deadline: '2024-05-22T23:59:59',
+          timeSlots: [
+            {
+              startDate: '2024-05-22T09:00:00',
+              endDate: '2024-05-22T11:00:00'
+            }
+          ],
           status: 'todo' as const,
-          subject: 'English'
+          subject: 'English',
+          resources: 'https://example.com/literature-resources',
+          completion: 0
         }
       ];
 
       resolve({
         tasks: mockTasks.filter(task =>
           includeCompleted ||
-          new Date(task.endDate) > new Date()
+          new Date(task.deadline) > new Date()
         )
       });
     }, 500);
@@ -79,9 +104,11 @@ export const getTasks = (includeCompleted: boolean = false) => {
 export const addTask = (task: Omit<Task, 'id'>) => {
   return new Promise<{ task: Task }>((resolve) => {
     setTimeout(() => {
-      const newTask = {
+      const newTask: Task = {
         ...task,
-        id: Math.random().toString(36).substring(7)
+        id: Math.random().toString(36).substring(7),
+        completion: task.completion || 0,
+        status: task.completion === 100 ? 'completed' : task.status || 'todo'
       };
 
       // Save to local storage
@@ -103,25 +130,35 @@ export const updateTask = (id: string, updates: Partial<Task>) => {
     setTimeout(() => {
       const tasks = getLocalTasks();
       const taskIndex = tasks.findIndex(t => t.id === id);
-      
+
       if (taskIndex !== -1) {
+        // Update task and automatically set status to completed if completion is 100%
         const updatedTask = {
           ...tasks[taskIndex],
-          ...updates
+          ...updates,
+          completion: updates.completion ?? tasks[taskIndex].completion,
+          status: updates.completion === 100 ? 'completed' : (updates.status ?? tasks[taskIndex].status)
         };
         tasks[taskIndex] = updatedTask;
         saveLocalTasks(tasks);
         resolve({ task: updatedTask });
       } else {
-        const newTask = {
+        const newTask: Task = {
           id,
           title: 'Updated Task',
           description: 'Updated description',
           priority: 'Medium' as const,
-          startDate: '2024-03-20T10:00:00',
-          endDate: '2024-03-20T12:00:00',
-          status: 'in-progress' as const,
+          deadline: '2024-03-20T23:59:59',
+          timeSlots: [
+            {
+              startDate: '2024-03-20T10:00:00',
+              endDate: '2024-03-20T12:00:00'
+            }
+          ],
+          status: updates.completion === 100 ? 'completed' : 'in-progress',
           subject: 'Mathematics',
+          resources: '',
+          completion: 0,
           ...updates
         };
         resolve({ task: newTask });

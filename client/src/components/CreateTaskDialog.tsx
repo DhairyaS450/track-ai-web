@@ -1,200 +1,304 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "./ui/dialog";
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Slider } from "./ui/slider";
 import { addTask, updateTask } from "@/api/tasks";
 import { useToast } from "@/hooks/useToast";
-import { Task } from "@/types";
+import { Task, TimeSlot } from "@/types";
+import { Plus, Trash } from "lucide-react";
+import { ScrollArea } from "./ui/scroll-area";
+import { Slider } from "./ui/slider";
+
+type Priority = "High" | "Medium" | "Low";
+type Recurrence = "daily" | "weekly" | "monthly";
 
 interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onTaskCreated: (task: Task) => void;
-  initialTask?: Task;
-  mode?: 'create' | 'edit';
+  initialTask?: Task | null;
+  mode?: "create" | "edit";
 }
-
-type Priority = 'High' | 'Medium' | 'Low';
 
 export function CreateTaskDialog({
   open,
   onOpenChange,
   onTaskCreated,
   initialTask,
-  mode = 'create'
+  mode = "create",
 }: CreateTaskDialogProps) {
   const [title, setTitle] = useState(initialTask?.title || "");
   const [description, setDescription] = useState(initialTask?.description || "");
-  const [priority, setPriority] = useState<Priority>(initialTask?.priority || "Medium");
-  const [startDate, setStartDate] = useState(initialTask?.startDate ? new Date(initialTask.startDate).toISOString().slice(0, 16) : "");
-  const [endDate, setEndDate] = useState(initialTask?.endDate ? new Date(initialTask.endDate).toISOString().slice(0, 16) : "");
-  const [recurrence, setRecurrence] = useState("none");
-  const [resources, setResources] = useState("");
-  const [completion, setCompletion] = useState([initialTask?.status === 'completed' ? 100 : initialTask?.status === 'in-progress' ? 50 : 0]);
+  const [priority, setPriority] = useState<Priority>(
+    initialTask?.priority || "Medium"
+  );
+  const [deadline, setDeadline] = useState(
+    initialTask?.deadline
+      ? new Date(initialTask.deadline).toISOString().slice(0, 16)
+      : ""
+  );
+  const [subject, setSubject] = useState(initialTask?.subject || "");
+  const [resources, setResources] = useState(initialTask?.resources || "");
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(
+    initialTask?.timeSlots || [{ startDate: "", endDate: "" }]
+  );
+  const [recurrence, setRecurrence] = useState<Recurrence | undefined>(
+    initialTask?.recurrence
+  );
+  const [completion, setCompletion] = useState(initialTask?.completion || 0);
+
   const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const completionStatus = completion[0] === 100
-        ? "completed" as const
-        : completion[0] > 0
-        ? "in-progress" as const
-        : "todo" as const;
+  useEffect(() => {
+    if (initialTask) {
+      setTitle(initialTask.title);
+      setDescription(initialTask.description);
+      setPriority(initialTask.priority);
+      setDeadline(new Date(initialTask.deadline).toISOString().slice(0, 16));
+      setSubject(initialTask.subject || "");
+      setResources(initialTask.resources || "");
+      setTimeSlots(initialTask.timeSlots || [{ startDate: "", endDate: "" }]);
+      setRecurrence(initialTask.recurrence);
+      setCompletion(initialTask.completion || 0);
+    } else {
+      setTitle("");
+      setDescription("");
+      setPriority("Medium");
+      setDeadline("");
+      setSubject("");
+      setResources("");
+      setTimeSlots([{ startDate: "", endDate: "" }]);
+      setRecurrence(undefined);
+      setCompletion(0);
+    }
+  }, [initialTask]);
 
+  const addTimeSlot = () => {
+    setTimeSlots([...timeSlots, { startDate: "", endDate: "" }]);
+  };
+
+  const removeTimeSlot = (index: number) => {
+    setTimeSlots(timeSlots.filter((_, i) => i !== index));
+  };
+
+  const updateTimeSlot = (index: number, field: keyof TimeSlot, value: string) => {
+    const newTimeSlots = [...timeSlots];
+    newTimeSlots[index] = { ...newTimeSlots[index], [field]: value };
+    setTimeSlots(newTimeSlots);
+  };
+
+  const handleSubmit = async () => {
+    try {
+      var status_field : 'completed' | 'in-progress' | 'todo';
+      if (completion == 100) {
+        status_field = 'completed'
+      } else if (completion < 100 && completion > 0) {
+        status_field = 'in-progress'
+      } else {
+        status_field = 'todo'
+      } 
       const taskData = {
         title,
         description,
         priority,
-        startDate: new Date(startDate).toISOString(),
-        endDate: new Date(endDate).toISOString(),
-        status: completionStatus,
-        subject: "General",
+        deadline,
+        subject,
+        resources,
+        status: status_field,
+        timeSlots,
+        recurrence,
+        completion,
       };
 
-      let response;
-      if (mode === 'create') {
-        response = await addTask(taskData);
+      if (mode === "edit" && initialTask?.id) {
+        await updateTask(initialTask.id, taskData);
+        toast({
+          title: "Success",
+          description: "Task updated successfully",
+        });
       } else {
-        response = await updateTask(initialTask!.id, taskData);
+        await addTask(taskData);
+        toast({
+          title: "Success",
+          description: "Task created successfully",
+        });
       }
 
-      toast({
-        title: "Success",
-        description: `Task ${mode === 'create' ? 'created' : 'updated'} successfully`,
-      });
-      
-      setTitle("");
-      setDescription("");
-      setPriority("Medium");
-      setStartDate("");
-      setEndDate("");
-      setRecurrence("none");
-      setResources("");
-      setCompletion([0]);
-      
+      onTaskCreated(taskData as Task);
       onOpenChange(false);
-      onTaskCreated(response.task);
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: `Failed to ${mode === 'create' ? 'create' : 'update'} task`,
+        description: "Failed to save task",
       });
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px]">
         <DialogHeader>
-          <DialogTitle>{mode === 'create' ? 'Create New Task' : 'Edit Task'}</DialogTitle>
-          <DialogDescription>
-            {mode === 'create'
-              ? 'Add a new task to your list'
-              : 'Update the details of your task'}
-          </DialogDescription>
+          <DialogTitle>{mode === "edit" ? "Edit Task" : "Create Task"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter task title"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter task description"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="priority">Priority</Label>
-            <Select value={priority} onValueChange={(value: Priority) => setPriority(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="High">High</SelectItem>
-                <SelectItem value="Medium">Medium</SelectItem>
-                <SelectItem value="Low">Low</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date/Time</Label>
+        <ScrollArea className="max-h-[60vh] pr-4">
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="title">Title</Label>
               <Input
-                id="startDate"
-                type="datetime-local"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Enter task title"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="endDate">End Date/Time</Label>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
               <Input
-                id="endDate"
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Enter task description"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Priority</Label>
+              <RadioGroup value={priority} onValueChange={(value: Priority) => setPriority(value)}>
+                <div className="flex space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="High" id="priority-high" />
+                    <Label htmlFor="priority-high">High</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Medium" id="priority-medium" />
+                    <Label htmlFor="priority-medium">Medium</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Low" id="priority-low" />
+                    <Label htmlFor="priority-low">Low</Label>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="deadline">Deadline</Label>
+              <Input
+                id="deadline"
                 type="datetime-local"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Time Slots</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addTimeSlot}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Time Slot
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-2">
+                <Label>Start Time</Label>
+                <Label>End Time</Label>
+              </div>
+
+              {timeSlots.map((slot, index) => (
+                <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-4">
+                  <Input
+                    type="datetime-local"
+                    value={slot.startDate}
+                    onChange={(e) => updateTimeSlot(index, "startDate", e.target.value)}
+                  />
+                  <Input
+                    type="datetime-local"
+                    value={slot.endDate}
+                    onChange={(e) => updateTimeSlot(index, "endDate", e.target.value)}
+                  />
+                  {timeSlots.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeTimeSlot(index)}
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Recurrence</Label>
+              <Select value={recurrence} onValueChange={(value: Recurrence) => setRecurrence(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select recurrence" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="subject">Subject</Label>
+              <Input
+                id="subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Enter subject"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="resources">Resources</Label>
+              <Input
+                id="resources"
+                value={resources}
+                onChange={(e) => setResources(e.target.value)}
+                placeholder="Enter resource links"
               />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="recurrence">Recurrence</Label>
-            <Select value={recurrence} onValueChange={setRecurrence}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select recurrence" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-              </SelectContent>
-            </Select>
+
+          <div className="grid gap-2">
+              <Label>Completion ({completion}%)</Label>
+              <Slider
+                value={[completion]}
+                onValueChange={(values) => {
+                  const newValue = values[0];
+                  setCompletion(newValue);
+                }}
+                max={100}
+                step={1}
+              />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="resources">Linked Resources</Label>
-            <Input
-              id="resources"
-              value={resources}
-              onChange={(e) => setResources(e.target.value)}
-              placeholder="Enter resource URLs"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Completion Status ({completion[0]}%)</Label>
-            <Slider
-              value={completion}
-              onValueChange={setCompletion}
-              max={100}
-              step={1}
-            />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              {mode === 'create' ? 'Create Task' : 'Save Changes'}
-            </Button>
-          </DialogFooter>
-        </form>
+        </ScrollArea>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit}>
+            {mode === "edit" ? "Save Changes" : "Create Task"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
