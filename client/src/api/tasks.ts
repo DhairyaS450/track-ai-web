@@ -16,7 +16,7 @@ export const getTasks = () => {
             priority: 'High',
             startDate: '2024-03-20T10:00:00',
             endDate: '2024-03-20T12:00:00',
-            status: 'todo',
+            status: 'completed',
             subject: 'Mathematics'
           },
           {
@@ -26,8 +26,18 @@ export const getTasks = () => {
             priority: 'Medium',
             startDate: '2024-03-21T14:00:00',
             endDate: '2024-03-21T16:00:00',
-            status: 'in-progress',
+            status: 'completed',
             subject: 'Physics'
+          },
+          {
+            id: '3',
+            title: 'Literature Essay',
+            description: 'Write analysis of Shakespeare',
+            priority: 'Low',
+            startDate: '2024-03-22T09:00:00',
+            endDate: '2024-03-22T11:00:00',
+            status: 'todo',
+            subject: 'English'
           }
         ]
       });
@@ -37,7 +47,7 @@ export const getTasks = () => {
 
 // Add Task
 // POST /tasks
-// Request: Task
+// Request: Omit<Task, 'id'>
 // Response: { task: Task }
 export const addTask = (task: Omit<Task, 'id'>) => {
   return new Promise<{ task: Task }>((resolve) => {
@@ -48,6 +58,41 @@ export const addTask = (task: Omit<Task, 'id'>) => {
           id: Math.random().toString(36).substring(7)
         }
       });
+    }, 500);
+  });
+};
+
+// Update Task
+// PUT /tasks/:id
+// Request: Partial<Task>
+// Response: { task: Task }
+export const updateTask = (id: string, updates: Partial<Task>) => {
+  return new Promise<{ task: Task }>((resolve) => {
+    setTimeout(() => {
+      resolve({
+        task: {
+          id,
+          title: 'Updated Task',
+          description: 'Updated description',
+          priority: 'Medium',
+          startDate: '2024-03-20T10:00:00',
+          endDate: '2024-03-20T12:00:00',
+          status: 'in-progress',
+          subject: 'Mathematics',
+          ...updates
+        }
+      });
+    }, 500);
+  });
+};
+
+// Delete Task
+// DELETE /tasks/:id
+// Response: { success: boolean }
+export const deleteTask = (id: string) => {
+  return new Promise<{ success: boolean }>((resolve) => {
+    setTimeout(() => {
+      resolve({ success: true });
     }, 500);
   });
 };

@@ -4,7 +4,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
-import { Bell, Calendar, Mail, Moon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Bell, Calendar, Moon, User } from "lucide-react";
 
 export function Settings() {
   const [notifications, setNotifications] = useState({
@@ -16,12 +18,129 @@ export function Settings() {
 
   const [theme, setTheme] = useState("system");
   const [calendar, setCalendar] = useState("google");
+  const [profile, setProfile] = useState({
+    studyLevel: "highschool",
+    major: "",
+    extracurriculars: "",
+    strengths: "",
+    weaknesses: "",
+    goals: "",
+    preferredStudyTimes: "",
+  });
 
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Settings</h1>
 
       <div className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Student Profile
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Level of Study</Label>
+              <RadioGroup
+                value={profile.studyLevel}
+                onValueChange={(value) =>
+                  setProfile((prev) => ({ ...prev, studyLevel: value }))
+                }
+                className="flex space-x-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="highschool" id="study-highschool" />
+                  <Label htmlFor="study-highschool">High School</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="postsecondary" id="study-postsecondary" />
+                  <Label htmlFor="study-postsecondary">Post-Secondary</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="major">Subjects/Major</Label>
+              <Input
+                id="major"
+                value={profile.major}
+                onChange={(e) =>
+                  setProfile((prev) => ({ ...prev, major: e.target.value }))
+                }
+                placeholder="e.g., Computer Science, Biology"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="extracurriculars">Extracurricular Activities</Label>
+              <Textarea
+                id="extracurriculars"
+                value={profile.extracurriculars}
+                onChange={(e) =>
+                  setProfile((prev) => ({
+                    ...prev,
+                    extracurriculars: e.target.value,
+                  }))
+                }
+                placeholder="List your extracurricular activities"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="strengths">Academic Strengths</Label>
+              <Textarea
+                id="strengths"
+                value={profile.strengths}
+                onChange={(e) =>
+                  setProfile((prev) => ({ ...prev, strengths: e.target.value }))
+                }
+                placeholder="What are your academic strengths?"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="weaknesses">Areas for Improvement</Label>
+              <Textarea
+                id="weaknesses"
+                value={profile.weaknesses}
+                onChange={(e) =>
+                  setProfile((prev) => ({ ...prev, weaknesses: e.target.value }))
+                }
+                placeholder="What areas would you like to improve?"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="goals">Academic Goals</Label>
+              <Textarea
+                id="goals"
+                value={profile.goals}
+                onChange={(e) =>
+                  setProfile((prev) => ({ ...prev, goals: e.target.value }))
+                }
+                placeholder="What are your academic goals?"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="studyTimes">Preferred Study Times</Label>
+              <Input
+                id="studyTimes"
+                value={profile.preferredStudyTimes}
+                onChange={(e) =>
+                  setProfile((prev) => ({
+                    ...prev,
+                    preferredStudyTimes: e.target.value,
+                  }))
+                }
+                placeholder="e.g., Mornings 9-11 AM, Evenings 6-8 PM"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -124,9 +243,7 @@ export function Settings() {
                 <Label htmlFor="calendar-outlook">Outlook Calendar</Label>
               </div>
             </RadioGroup>
-            <Button className="w-full">
-              Connect Calendar
-            </Button>
+            <Button className="w-full">Connect Calendar</Button>
           </CardContent>
         </Card>
       </div>
