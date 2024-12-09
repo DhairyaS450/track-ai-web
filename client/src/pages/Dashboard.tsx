@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { getTasks, deleteTask } from "@/api/tasks";
 import { getStudySessions } from "@/api/sessions";
 import { Task, StudySession } from "@/types";
-import { format } from "date-fns";
+import { format, isSameDay, parseISO } from "date-fns";
 import { Plus, Edit, Trash2, ChevronRight } from "lucide-react";
 import { CircularProgress } from "@/components/CircularProgress";
 import { useToast } from "@/hooks/useToast";
@@ -74,10 +74,36 @@ export function Dashboard() {
 
   const completedTasks = tasks.filter(task => task.status === 'completed').length;
 
+  const todaysTasks = () => {
+    const today = new Date();
+    return tasks.filter(task =>
+      task.timeSlots.some(timeSlot => 
+        isSameDay(today, parseISO(timeSlot.startDate))
+      )
+    )
+  }
+
   const motivationalQuotes = [
     "Success is not final, failure is not fatal: it is the courage to continue that counts.",
     "The future depends on what you do today.",
     "Don't watch the clock; do what it does. Keep going.",
+    "Believe you can and you're halfway there.",
+    "Hardships often prepare ordinary people for an extraordinary destiny.",
+    "The only way to do great work is to love what you do.",
+    "Your limitation—it's only your imagination.",
+    "Push yourself, because no one else is going to do it for you.",
+    "Great things never come from comfort zones.",
+    "Dream it. Wish it. Do it.",
+    "Don't stop when you're tired. Stop when you're done.",
+    "Work hard in silence, let success be your noise.",
+    "Success doesn't just find you. You have to go out and get it.",
+    "The harder you work for something, the greater you’ll feel when you achieve it.",
+    "Dream bigger. Do bigger.",
+    "Do something today that your future self will thank you for.",
+    "Little things make big days.",
+    "It’s going to be hard, but hard does not mean impossible.",
+    "Don't wait for opportunity. Create it.",
+    "Sometimes later becomes never. Do it now."
   ];
 
   const randomQuote = motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
@@ -138,7 +164,7 @@ export function Dashboard() {
                     <div>
                       <h3 className="font-medium">{task.title}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Due {format(new Date(task.deadline), "p")}
+                      {`Start Time: ${format(new Date(task.timeSlots[0].startDate), "p")}`}
                       </p>
                     </div>
                   </div>
