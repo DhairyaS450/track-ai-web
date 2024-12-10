@@ -1,5 +1,6 @@
 import api from './api';
 import { Task, TimeSlot } from '@/types';
+import { isSameDay, parseISO } from 'date-fns';
 
 // Helper functions for local storage
 const getLocalTasks = (): Task[] => {
@@ -38,18 +39,18 @@ export const getTasks = (includeCompleted: boolean = false) => {
           deadline: '2024-03-20T23:59:59',
           timeSlots: [
             {
-              startDate: '2024-03-20T10:00:00',
-              endDate: '2024-03-20T12:00:00'
+              startDate: new Date().toISOString().split('T')[0] + 'T10:00:00',
+              endDate: new Date().toISOString().split('T')[0] + 'T12:00:00'
             },
             {
-              startDate: '2024-03-20T14:00:00',
-              endDate: '2024-03-20T16:00:00'
+              startDate: new Date().toISOString().split('T')[0] + 'T14:00:00',
+              endDate: new Date().toISOString().split('T')[0] + 'T16:00:00'
             }
           ],
-          status: 'completed' as const,
+          status: 'todo' as const,
           subject: 'Mathematics',
           resources: 'https://example.com/math-resources',
-          completion: 100
+          completion: 0
         },
         {
           id: '2',
@@ -59,14 +60,14 @@ export const getTasks = (includeCompleted: boolean = false) => {
           deadline: '2024-03-21T23:59:59',
           timeSlots: [
             {
-              startDate: '2024-03-21T14:00:00',
-              endDate: '2024-03-21T16:00:00'
+              startDate: new Date().toISOString().split('T')[0] + 'T16:00:00',
+              endDate: new Date().toISOString().split('T')[0] + 'T18:00:00'
             }
           ],
-          status: 'completed' as const,
+          status: 'todo' as const,
           subject: 'Physics',
           resources: 'https://example.com/physics-resources',
-          completion: 100
+          completion: 0
         },
         {
           id: '3',
@@ -93,6 +94,71 @@ export const getTasks = (includeCompleted: boolean = false) => {
           new Date(task.deadline) > new Date()
         )
       });
+    }, 500);
+  });
+};
+
+export const getTodayTasks = () => {
+  return new Promise<{ tasks: Task[] }>((resolve) => {
+    setTimeout(() => {
+      const allTasks = getLocalTasks();
+      const today = new Date();
+
+      const todayTasks = allTasks.filter(task =>
+        task.timeSlots.some(slot => isSameDay(parseISO(slot.startDate), today))
+      ).sort((a, b) => {
+        const aTime = new Date(a.timeSlots[0].startDate).getTime();
+        const bTime = new Date(b.timeSlots[0].startDate).getTime();
+        return aTime - bTime;
+      });
+
+      if (todayTasks.length > 0) {
+        resolve({ tasks: todayTasks });
+        return;
+      }
+
+      const mockTasks = [
+        {
+          id: '1',
+          title: 'Math Assignment',
+          description: 'Complete calculus homework',
+          priority: 'High' as const,
+          deadline: '2024-03-20T23:59:59',
+          timeSlots: [
+            {
+              startDate: new Date().toISOString().split('T')[0] + 'T10:00:00',
+              endDate: new Date().toISOString().split('T')[0] + 'T12:00:00'
+            }
+          ],
+          status: 'todo' as const,
+          subject: 'Mathematics',
+          resources: 'https://example.com/math-resources',
+          completion: 0
+        },
+        {
+          id: '2',
+          title: 'Physics Lab Report',
+          description: 'Write up experiment results',
+          priority: 'Medium' as const,
+          deadline: '2024-03-21T23:59:59',
+          timeSlots: [
+            {
+              startDate: new Date().toISOString().split('T')[0] + 'T14:00:00',
+              endDate: new Date().toISOString().split('T')[0] + 'T16:00:00'
+            }
+          ],
+          status: 'todo' as const,
+          subject: 'Physics',
+          resources: 'https://example.com/physics-resources',
+          completion: 0
+        }
+      ].sort((a, b) => {
+        const aTime = new Date(a.timeSlots[0].startDate).getTime();
+        const bTime = new Date(b.timeSlots[0].startDate).getTime();
+        return aTime - bTime;
+      });
+
+      resolve({ tasks: mockTasks });
     }, 500);
   });
 };
@@ -132,7 +198,6 @@ export const updateTask = (id: string, updates: Partial<Task>) => {
       const taskIndex = tasks.findIndex(t => t.id === id);
 
       if (taskIndex !== -1) {
-        // Update task and automatically set status to completed if completion is 100%
         const updatedTask = {
           ...tasks[taskIndex],
           ...updates,
