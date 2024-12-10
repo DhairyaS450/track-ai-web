@@ -15,7 +15,8 @@ if (!process.env.DATABASE_URL || !process.env.SESSION_SECRET) {
 }
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = parseInt(process.env.PORT) || 3000;
+
 // Pretty-print JSON responses
 app.enable('json spaces');
 // We want to be consistent with URL paths, so we enable strict routing
@@ -90,6 +91,17 @@ app.use((err, req, res, next) => {
   res.status(500).send("There was an error serving your request.");
 });
 
-app.listen(port, () => {
+// Start the server
+const server = app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
+});
+
+// Handle server errors
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${port} is already in use. Please use a different port.`);
+    process.exit(1);
+  } else {
+    console.error('Server error:', error);
+  }
 });
