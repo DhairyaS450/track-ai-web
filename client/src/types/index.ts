@@ -39,3 +39,22 @@ export interface MoodEntry {
   timestamp: string;
   sessionId?: string;
 }
+
+export interface Event {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  isAllDay: boolean;
+  isFlexible: boolean;
+  location?: string;
+  description?: string;
+  category?: string;
+  reminders?: {
+    type: 'days' | 'hours' | 'minutes';
+    amount: number;
+  }[];
+  priority?: 'High' | 'Medium' | 'Low';
+  recurrence?: 'daily' | 'weekly' | 'monthly';
+  associatedTaskIds?: string[];
+}
