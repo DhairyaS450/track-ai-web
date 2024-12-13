@@ -25,6 +25,17 @@ export interface StudySession {
   technique: string;
   status: 'scheduled' | 'in-progress' | 'completed';
   scheduledFor: string;
+  isFlexible?: boolean;
+  breakInterval?: number;
+  breakDuration?: number;
+  materials?: string;
+  priority?: 'High' | 'Medium' | 'Low';
+  reminders?: Array<{
+    type: 'minutes' | 'hours' | 'days';
+    amount: number;
+  }>;
+  linkedTaskIds?: string[];
+  linkedEventIds?: string[];
 }
 
 export interface User {
