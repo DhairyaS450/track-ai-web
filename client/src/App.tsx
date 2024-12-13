@@ -14,8 +14,8 @@ import { ProtectedRoute } from "./components/ProtectedRoute"
 
 function App() {
   return (
-    <AuthProvider>
-      <ThemeProvider defaultTheme="light" storageKey="ui-theme">
+    <ThemeProvider defaultTheme="system" storageKey="ui-theme">
+      <AuthProvider>
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -30,8 +30,8 @@ function App() {
           </Routes>
           <Toaster />
         </Router>
-      </ThemeProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 

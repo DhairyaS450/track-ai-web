@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode } from "react";
 import { login as apiLogin, register as apiRegister } from "@/api/auth";
 
@@ -9,7 +8,12 @@ type AuthContextType = {
   logout: () => void;
 };
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType>({
+  isAuthenticated: false,
+  login: async () => {},
+  register: async () => {},
+  logout: () => {},
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {

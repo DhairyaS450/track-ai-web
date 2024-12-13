@@ -1,29 +1,71 @@
-
-import { Bell, LogOut } from "lucide-react"
-import { Button } from "./ui/button"
-import { ThemeToggle } from "./ui/theme-toggle"
-import { useAuth } from "@/contexts/AuthContext"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import { format } from "date-fns";
+import { Search } from "lucide-react";
+import { Input } from "./ui/input";
+import { UserNotifications } from "./UserNotifications";
+import { UserProfileMenu } from "./UserProfileMenu";
+import { cn } from "@/lib/utils";
 
 export function Header() {
-  const { logout } = useAuth()
-  const navigate = useNavigate()
+  const [date, setDate] = useState(new Date());
+  const [search, setSearch] = useState("");
+  const location = useLocation();
 
-  const handleLogout = () => {
-    logout()
-    navigate("/login")
-  }
+  useEffect(() => {
+    const timer = setInterval(() => setDate(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const getPageTitle = (pathname: string) => {
+    switch (pathname) {
+      case "/":
+        return "Dashboard";
+      case "/calendar":
+        return "Calendar";
+      case "/study":
+        return "Study Sessions";
+      case "/analytics":
+        return "Analytics";
+      case "/settings":
+        return "Settings";
+      default:
+        return "Track AI Web";
+    }
+  };
+
   return (
-    <header className="fixed top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
-      <div className="flex h-16 items-center justify-between px-6">
-        <div className="text-xl font-bold">Home</div>
-        <div className="flex items-center gap-4">
-          <ThemeToggle />
-          <Button variant="ghost" size="icon" onClick={handleLogout}>
-            <LogOut className="h-5 w-5" />
-          </Button>
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center px-4">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <img src="/logo.png" alt="Track AI Web" className="h-8 w-auto" />
+        </div>
+
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center gap-4 max-w-2xl w-full">
+            <div className="text-sm text-muted-foreground">
+              {format(date, "EEEE, MMMM d, yyyy")}
+              <span className="ml-2 font-medium">
+                {format(date, "h:mm:ss a")}
+              </span>
+            </div>
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tasks, events, or deadlines..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 flex-shrink-0 ml-4">
+          <UserNotifications />
+          <UserProfileMenu />
         </div>
       </div>
     </header>
-  )
+  );
 }
