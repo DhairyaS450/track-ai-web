@@ -19,6 +19,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { EventsTimeline } from "@/components/EventsTimeline";
+import { CreateEventDialog } from "@/components/CreateEventDialog";
 
 export function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -32,6 +34,8 @@ export function Dashboard() {
   const [deleteTaskOpen, setDeleteTaskOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [editTask, setEditTask] = useState<Task | null>(null);
+  const [eventToEdit, setEventToEdit] = useState<Event | null>(null);
+  const [createEventOpen, setCreateEventOpen] = useState(false);
   const [isOverdueOpen, setIsOverdueOpen] = useState(true);
   const [isTodayOpen, setIsTodayOpen] = useState(true);
   const [isHighPriorityOpen, setIsHighPriorityOpen] = useState(true);
@@ -431,6 +435,14 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
+        <EventsTimeline
+          events={events}
+          onEventClick={(event) => {
+            setEventToEdit(event);
+            setCreateEventOpen(true);
+          }}
+        />
+        
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Daily Motivation</CardTitle>
@@ -479,6 +491,19 @@ export function Dashboard() {
         open={deleteTaskOpen}
         onOpenChange={setDeleteTaskOpen}
         onConfirm={handleDeleteTask}
+      />
+
+      <CreateEventDialog
+        open={createEventOpen}
+        onOpenChange={setCreateEventOpen}
+        onEventCreated={() => {
+          fetchData();
+          setCreateEventOpen(false);
+          setEventToEdit(null);
+        }}
+        initialEvent={eventToEdit}
+        mode={eventToEdit ? 'edit' : 'create'}
+        tasks={tasks}
       />
     </div>
   );
