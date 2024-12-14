@@ -12,7 +12,7 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-import { addStudySession } from "@/api/sessions";
+import { addStudySession, updateStudySession } from "@/api/sessions";
 import { useToast } from "@/hooks/useToast";
 import { StudySession, Task, Event } from "@/types";
 import {
@@ -47,19 +47,57 @@ export function CreateStudySessionDialog({
   const [topic, setTopic] = useState(initialSession?.subject || "");
   const [startTime, setStartTime] = useState(initialSession?.scheduledFor || "");
   const [endTime, setEndTime] = useState("");
-  const [isFlexible, setIsFlexible] = useState(false);
+  const [isFlexible, setIsFlexible] = useState(initialSession?.isFlexible || false);
   const [duration, setDuration] = useState(initialSession?.duration || 60);
   const [goal, setGoal] = useState(initialSession?.goal || "");
   const [technique, setTechnique] = useState(initialSession?.technique || "pomodoro");
-  const [breakInterval, setBreakInterval] = useState(25);
-  const [breakDuration, setBreakDuration] = useState(5);
-  const [materials, setMaterials] = useState("");
-  const [priority, setPriority] = useState<"High" | "Medium" | "Low">("Medium");
-  const [reminders, setReminders] = useState<Array<{ type: 'minutes' | 'hours' | 'days', amount: number }>>([]);
-  const [linkedTaskIds, setLinkedTaskIds] = useState<string[]>([]);
-  const [linkedEventIds, setLinkedEventIds] = useState<string[]>([]);
+  const [breakInterval, setBreakInterval] = useState(initialSession?.breakInterval || 25);
+  const [breakDuration, setBreakDuration] = useState(initialSession?.breakDuration || 5);
+  const [materials, setMaterials] = useState(initialSession?.materials || "");
+  const [priority, setPriority] = useState<"High" | "Medium" | "Low">(initialSession?.priority || "Medium");
+  const [reminders, setReminders] = useState<Array<{ type: 'minutes' | 'hours' | 'days', amount: number }>>(
+    initialSession?.reminders || []
+  );
+  const [linkedTaskIds, setLinkedTaskIds] = useState<string[]>(
+    initialSession?.linkedTaskIds || []
+  );
+  const [linkedEventIds, setLinkedEventIds] = useState<string[]>(
+    initialSession?.linkedEventIds || []
+  );
 
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (initialSession && mode === "edit") {
+      setTopic(initialSession.subject);
+      setStartTime(initialSession.scheduledFor);
+      setIsFlexible(initialSession.isFlexible || false);
+      setDuration(initialSession.duration);
+      setGoal(initialSession.goal);
+      setTechnique(initialSession.technique);
+      setBreakInterval(initialSession.breakInterval || 25);
+      setBreakDuration(initialSession.breakDuration || 5);
+      setMaterials(initialSession.materials || "");
+      setPriority(initialSession.priority || "Medium");
+      setReminders(initialSession.reminders || []);
+      setLinkedTaskIds(initialSession.linkedTaskIds || []);
+      setLinkedEventIds(initialSession.linkedEventIds || []);
+    } else {
+      setTopic("");
+      setStartTime("");
+      setIsFlexible(false);
+      setDuration(60);
+      setGoal("");
+      setTechnique("pomodoro");
+      setBreakInterval(25);
+      setBreakDuration(5);
+      setMaterials("");
+      setPriority("Medium");
+      setReminders([]);
+      setLinkedTaskIds([]);
+      setLinkedEventIds([]);
+    }
+  }, [initialSession, mode, open]);
 
   useEffect(() => {
     if (startTime && endTime) {
@@ -79,6 +117,15 @@ export function CreateStudySessionDialog({
   };
 
   const handleSubmit = async () => {
+    if (!startTime) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Start time is required",
+      });
+      return;
+    }
+
     try {
       const sessionData = {
         subject: topic,
@@ -97,18 +144,27 @@ export function CreateStudySessionDialog({
         status: 'scheduled' as const,
       };
 
-      const response = await addStudySession(sessionData);
-      toast({
-        title: "Success",
-        description: "Study session created successfully",
-      });
-      onSessionCreated(response.session);
+      if (mode === "edit" && initialSession?.id) {
+        const response = await updateStudySession(initialSession.id, sessionData);
+        toast({
+          title: "Success",
+          description: "Study session updated successfully",
+        });
+        onSessionCreated(response.session);
+      } else {
+        const response = await addStudySession(sessionData);
+        toast({
+          title: "Success",
+          description: "Study session created successfully",
+        });
+        onSessionCreated(response.session);
+      }
       onOpenChange(false);
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to create study session",
+        description: "Failed to save study session",
       });
     }
   };

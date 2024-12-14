@@ -3,20 +3,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getTasks, deleteTask, getTodayTasks } from "@/api/tasks";
 import { getStudySessions } from "@/api/sessions";
-import { Task, StudySession } from "@/types";
-import { format } from "date-fns";
-import { Plus, Edit, Trash2, ChevronRight } from "lucide-react";
+import { getEvents } from "@/api/events";
+import { Task, StudySession, Event } from "@/types";
+import { format, isPast, isToday, isValid } from "date-fns";
+import { Plus, Edit, Trash2, ChevronRight, AlertTriangle, Clock, Bell, ChevronDown, ChevronUp } from "lucide-react";
 import { CircularProgress } from "@/components/CircularProgress";
 import { useToast } from "@/hooks/useToast";
 import { Input } from "@/components/ui/input";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { ViewAllTasksDialog } from "@/components/ViewAllTasksDialog";
 import { DeleteTaskDialog } from "@/components/DeleteTaskDialog";
+import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 export function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
@@ -24,17 +32,22 @@ export function Dashboard() {
   const [deleteTaskOpen, setDeleteTaskOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [editTask, setEditTask] = useState<Task | null>(null);
+  const [isOverdueOpen, setIsOverdueOpen] = useState(true);
+  const [isTodayOpen, setIsTodayOpen] = useState(true);
+  const [isHighPriorityOpen, setIsHighPriorityOpen] = useState(true);
   const { toast } = useToast();
 
   const fetchData = async () => {
-    const [currentTasks, allTasksData, sessionsData] = await Promise.all([
+    const [currentTasks, allTasksData, sessionsData, eventsData] = await Promise.all([
       getTodayTasks(),
       getTasks(true),
       getStudySessions(),
+      getEvents(),
     ]);
     setTasks(currentTasks.tasks);
     setAllTasks(allTasksData.tasks);
     setSessions(sessionsData.sessions);
+    setEvents(eventsData.events);
   };
 
   useEffect(() => {
@@ -95,9 +108,191 @@ export function Dashboard() {
     input.value = '';
   };
 
+  // Filter priority items
+  const overdueTasks = allTasks.filter(task =>
+    task.deadline &&
+    isValid(new Date(task.deadline)) &&
+    isPast(new Date(task.deadline)) &&
+    !isToday(new Date(task.deadline)) &&
+    task.status !== 'completed'
+  );
+
+  const todayTasks = allTasks.filter(task =>
+    task.deadline &&
+    isValid(new Date(task.deadline)) &&
+    isToday(new Date(task.deadline)) &&
+    task.status !== 'completed'
+  );
+
+  const highPriorityItems = [
+    ...allTasks.filter(task =>
+      task.deadline &&
+      isValid(new Date(task.deadline)) &&
+      !isPast(new Date(task.deadline)) &&
+      !isToday(new Date(task.deadline)) &&
+      task.status !== 'completed' &&
+      task.priority === 'High'
+    ),
+    ...sessions.filter(session =>
+      session.scheduledFor &&
+      isValid(new Date(session.scheduledFor)) &&
+      session.priority === 'High' &&
+      session.status !== 'completed'
+    ),
+    ...events.filter(event =>
+      event.startTime &&
+      isValid(new Date(event.startTime)) &&
+      event.priority === 'High'
+    )
+  ];
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      if (!isValid(date)) {
+        return 'Invalid date';
+      }
+      return format(date, 'PPp');
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Welcome back!</h1>
+
+      <Card className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950 dark:to-red-900">
+        <CardHeader>
+          <CardTitle className="text-lg font-medium flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-red-500" />
+            Priority Items
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {overdueTasks.length > 0 && (
+            <Collapsible open={isOverdueOpen} onOpenChange={setIsOverdueOpen} className="mb-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                  Overdue Tasks ({overdueTasks.length})
+                </h3>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    {isOverdueOpen ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+              <CollapsibleContent className="space-y-2">
+                {overdueTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm"
+                  >
+                    <div>
+                      <p className="font-medium">{task.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Due: {formatDate(task.deadline)}
+                      </p>
+                    </div>
+                    <Badge variant="destructive">Overdue</Badge>
+                  </div>
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+
+          {todayTasks.length > 0 && (
+            <Collapsible open={isTodayOpen} onOpenChange={setIsTodayOpen} className="mb-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-yellow-500" />
+                  Due Today ({todayTasks.length})
+                </h3>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    {isTodayOpen ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+              <CollapsibleContent className="space-y-2">
+                {todayTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm"
+                  >
+                    <div>
+                      <p className="font-medium">{task.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Due: {formatDate(task.deadline)}
+                      </p>
+                    </div>
+                    <Badge variant="secondary">Today</Badge>
+                  </div>
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+
+          {highPriorityItems.length > 0 && (
+            <Collapsible open={isHighPriorityOpen} onOpenChange={setIsHighPriorityOpen}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-orange-500" />
+                  High Priority Items ({highPriorityItems.length})
+                </h3>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    {isHighPriorityOpen ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+              <CollapsibleContent className="space-y-2">
+                {highPriorityItems.map((item) => (
+                  <div
+                    key={'id' in item ? item.id : ''}
+                    className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {'title' in item ? item.title : 'subject' in item ? item.subject : item.name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {'deadline' in item && item.deadline
+                          ? `Due: ${formatDate(item.deadline)}`
+                          : 'scheduledFor' in item && item.scheduledFor
+                          ? `Scheduled: ${formatDate(item.scheduledFor)}`
+                          : 'startTime' in item && item.startTime
+                          ? `Event: ${formatDate(item.startTime)}`
+                          : ''}
+                      </p>
+                    </div>
+                    <Badge variant="default">High Priority</Badge>
+                  </div>
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+
+          {overdueTasks.length === 0 && todayTasks.length === 0 && highPriorityItems.length === 0 && (
+            <p className="text-center text-muted-foreground py-4">
+              No priority items to display
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card>
@@ -115,7 +310,7 @@ export function Dashboard() {
               </span>
             </div>
             <div className="space-y-4">
-            {tasks.map((task) => (
+              {tasks.map((task) => (
                 <div
                   key={task.id}
                   className={`flex items-center justify-between rounded-lg border p-4 transition-colors
@@ -141,19 +336,22 @@ export function Dashboard() {
                         {task.title}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Start Time: {format(new Date(task.timeSlots[0].startDate), "h:mm a")}
+                        {task.timeSlots[0] && format(new Date(task.timeSlots[0].startDate), "h:mm a")}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs font-medium
-                        ${task.priority === 'High' ? 'bg-red-100 text-red-700' : ''}
-                        ${task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-700' : ''}
-                        ${task.priority === 'Low' ? 'bg-green-100 text-green-700' : ''}`}
+                    <Badge
+                      variant={
+                        task.priority === 'High'
+                          ? 'destructive'
+                          : task.priority === 'Medium'
+                          ? 'default'
+                          : 'secondary'
+                      }
                     >
                       {task.priority}
-                    </span>
+                    </Badge>
                     {selectedTasks.has(task.id) && (
                       <div className="flex items-center space-x-1">
                         <Button
@@ -224,7 +422,7 @@ export function Dashboard() {
                       {session.goal}
                     </p>
                     <div className="mt-2 text-sm">
-                      {format(new Date(session.scheduledFor), "PPp")}
+                      {formatDate(session.scheduledFor)}
                     </div>
                   </div>
                 </div>
@@ -274,6 +472,7 @@ export function Dashboard() {
         open={viewAllTasksOpen}
         onOpenChange={setViewAllTasksOpen}
         tasks={allTasks}
+        onTasksChange={fetchData}
       />
 
       <DeleteTaskDialog
