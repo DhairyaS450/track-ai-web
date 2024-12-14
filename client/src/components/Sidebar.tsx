@@ -6,6 +6,7 @@ import {
   BookOpen,
   BarChart2,
   Settings,
+  MessageSquare,
 } from "lucide-react";
 
 const navigation = [
@@ -13,6 +14,7 @@ const navigation = [
   { name: "Calendar", href: "/calendar", icon: Calendar },
   { name: "Study Sessions", href: "/study", icon: BookOpen },
   { name: "Analytics", href: "/analytics", icon: BarChart2 },
+  { name: "Chatbot", href: "/chatbot", icon: MessageSquare },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

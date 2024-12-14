@@ -10,6 +10,7 @@ import { Calendar } from "./pages/Calendar"
 import { StudySessions } from "./pages/StudySessions"
 import { Analytics } from "./pages/Analytics"
 import { Settings } from "./pages/Settings"
+import { Chatbot } from "./pages/Chatbot"
 import { ProtectedRoute } from "./components/ProtectedRoute"
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
               <Route path="study" element={<StudySessions />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="chatbot" element={<Chatbot />} />
             </Route>
           </Routes>
           <Toaster />
