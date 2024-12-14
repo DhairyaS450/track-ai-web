@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   LineChart
 } from "lucide-react";
+import { useLocation } from "react-router-dom";
 
 interface Message {
   id: string;
@@ -32,6 +33,7 @@ interface Suggestion {
 }
 
 export function Chatbot() {
+  const location = useLocation()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -44,6 +46,14 @@ export function Chatbot() {
   const [isRecording, setIsRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (location.state?.message) {
+      handleSend(location.state.message);
+      // Clear the state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state?.message]);
 
   const suggestions: Suggestion[] = [
     {

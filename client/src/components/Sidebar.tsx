@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
   Calendar,
@@ -7,7 +7,15 @@ import {
   BarChart2,
   Settings,
   MessageSquare,
+  Plus,
+  Send,
+  MessageCircle,
 } from "lucide-react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { useState } from "react";
+import { AddItemDialog } from "./AddItemDialog";
+import { FeedbackDialog } from "./FeedbackDialog";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -20,6 +28,32 @@ const navigation = [
 
 export function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [addItemOpen, setAddItemOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [quickMessage, setQuickMessage] = useState("");
+
+  const handleQuickMessage = () => {
+    if (quickMessage.trim()) {
+      navigate("/chatbot", { state: { message: quickMessage } });
+      setQuickMessage("");
+    }
+  };
+
+  const handleAddItemSelect = (option: 'task' | 'event' | 'session') => {
+    setAddItemOpen(false);
+    switch (option) {
+      case 'task':
+        navigate('/calendar', { state: { openAddTask: true } });
+        break;
+      case 'event':
+        navigate('/calendar', { state: { openAddEvent: true } });
+        break;
+      case 'session':
+        navigate('/study', { state: { openAddSession: true } });
+        break;
+    }
+  };
 
   return (
     <div className="flex h-full w-64 flex-col bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-r">
@@ -46,6 +80,49 @@ export function Sidebar() {
           );
         })}
       </nav>
+      <div className="border-t p-4 space-y-4">
+        <Button
+          className="w-full justify-start"
+          onClick={() => setAddItemOpen(true)}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add New
+        </Button>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Quick message..."
+            value={quickMessage}
+            onChange={(e) => setQuickMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleQuickMessage();
+              }
+            }}
+          />
+          <Button size="icon" onClick={handleQuickMessage}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={() => setFeedbackOpen(true)}
+        >
+          <MessageCircle className="h-4 w-4 mr-2" />
+          Send Feedback
+        </Button>
+      </div>
+
+      <AddItemDialog
+        open={addItemOpen}
+        onOpenChange={setAddItemOpen}
+        onSelectOption={handleAddItemSelect}
+      />
+
+      <FeedbackDialog
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+      />
     </div>
   );
 }
