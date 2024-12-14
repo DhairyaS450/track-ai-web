@@ -5,7 +5,7 @@ import { getTasks, deleteTask } from "@/api/tasks";
 import { getStudySessions, deleteStudySession } from "@/api/sessions";
 import { getEvents, deleteEvent } from "@/api/events";
 import { Task, StudySession, Event } from "@/types";
-import { format, isSameDay } from "date-fns";
+import { format, isSameDay, addWeeks, startOfWeek } from "date-fns";
 import {
   Calendar as CalendarIcon,
   Loader2,
@@ -22,10 +22,12 @@ import { CreateStudySessionDialog } from "@/components/CreateStudySessionDialog"
 import { DeleteTaskDialog } from "@/components/DeleteTaskDialog";
 import { DeleteStudySessionDialog } from "@/components/DeleteStudySessionDialog";
 import { AddItemDialog } from "@/components/AddItemDialog";
+import { WeeklyTimeline } from "@/components/WeeklyTimeline";
 import { useToast } from "@/hooks/useToast";
 
 export function Calendar() {
   const [date, setDate] = useState<Date>(new Date());
+  const [currentWeek, setCurrentWeek] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [tasks, setTasks] = useState<Task[]>([]);
   const [deadlines, setDeadlines] = useState<Task[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
@@ -159,6 +161,11 @@ export function Calendar() {
     }
   };
 
+  const handleWeekChange = (direction: "prev" | "next") => {
+    const newWeek = addWeeks(currentWeek, direction === "next" ? 1 : -1);
+    setCurrentWeek(newWeek);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -171,6 +178,16 @@ export function Calendar() {
           <CalendarIcon className="h-6 w-6 text-muted-foreground" />
         </div>
       </div>
+
+      <WeeklyTimeline
+        currentDate={date}
+        onDateSelect={setDate}
+        onWeekChange={handleWeekChange}
+        tasks={tasks}
+        events={events}
+        sessions={sessions}
+        deadlines={deadlines}
+      />
 
       <div className="grid gap-6 md:grid-cols-[380px,1fr]">
         <Card className="bg-card">
