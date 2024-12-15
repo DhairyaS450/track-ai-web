@@ -24,6 +24,7 @@ import {
 } from "./ui/select";
 import { ScrollArea } from "./ui/scroll-area";
 import { Plus, X } from "lucide-react";
+import { addMinutes, format } from "date-fns";
 
 interface CreateStudySessionDialogProps {
   open: boolean;
@@ -48,7 +49,7 @@ export function CreateStudySessionDialog({
 
   const [topic, setTopic] = useState(initialSession?.subject || "");
   const [startTime, setStartTime] = useState(initialSession?.scheduledFor || defaultTime);
-  const [endTime, setEndTime] = useState(initialSession?.scheduledFor || defaultTime + initialSession?.duration || defaultTime);
+  const [endTime, setEndTime] = useState("");
   const [isFlexible, setIsFlexible] = useState(initialSession?.isFlexible || false);
   const [duration, setDuration] = useState(initialSession?.duration || 60);
   const [goal, setGoal] = useState(initialSession?.goal || "");
@@ -72,7 +73,7 @@ export function CreateStudySessionDialog({
   useEffect(() => {
     if (initialSession && mode === "edit") {
       setTopic(initialSession.subject);
-      setStartTime(initialSession.scheduledFor);
+      setStartTime(initialSession.scheduledFor?.slice(0, 16) || defaultTime);
       setIsFlexible(initialSession.isFlexible || false);
       setDuration(initialSession.duration);
       setGoal(initialSession.goal);
@@ -84,9 +85,15 @@ export function CreateStudySessionDialog({
       setReminders(initialSession.reminders || []);
       setLinkedTaskIds(initialSession.linkedTaskIds || []);
       setLinkedEventIds(initialSession.linkedEventIds || []);
+
+      // Calculate end time based on start time and duration
+      const startDate = new Date(initialSession.scheduledFor);
+      const endDate = addMinutes(startDate, initialSession.duration);
+      setEndTime(format(endDate, "yyyy-MM-dd HH:mm"));
     } else {
+      // Reset form for create mode
       setTopic("");
-      setStartTime("");
+      setStartTime(defaultTime);
       setIsFlexible(false);
       setDuration(60);
       setGoal("");
@@ -98,17 +105,38 @@ export function CreateStudySessionDialog({
       setReminders([]);
       setLinkedTaskIds([]);
       setLinkedEventIds([]);
+      
+      // Set initial end time for new session
+      const start = new Date(defaultTime);
+      const end = addMinutes(start, 60);
+      setEndTime(end.toISOString().slice(0, 16));
     }
   }, [initialSession, mode, open]);
 
-  useEffect(() => {
-    if (startTime && endTime) {
-      const start = new Date(startTime).getTime();
-      const end = new Date(endTime).getTime();
-      const durationInMinutes = Math.round((end - start) / 1000 / 60);
-      setDuration(durationInMinutes);
+  // Update duration when end time changes
+  const handleEndTimeChange = (newEndTime: string) => {
+    setEndTime(newEndTime);
+    if (startTime && newEndTime) {
+      const start = new Date(startTime);
+      const end = new Date(newEndTime);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        const durationInMinutes = Math.round((end.getTime() - start.getTime()) / 1000 / 60);
+        setDuration(durationInMinutes);
+      }
     }
-  }, [startTime, endTime]);
+  };
+
+  // Update end time when duration changes
+  const handleDurationChange = (newDuration: number) => {
+    setDuration(newDuration);
+    if (startTime) {
+      const start = new Date(startTime);
+      if (!isNaN(start.getTime())) {
+        const end = addMinutes(start, newDuration);
+        setEndTime(end.toISOString().slice(0, 16));
+      }
+    }
+  };
 
   const addReminder = () => {
     setReminders([...reminders, { type: 'minutes', amount: 15 }]);
@@ -209,7 +237,7 @@ export function CreateStudySessionDialog({
                   id="endTime"
                   type="datetime-local"
                   value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
+                  onChange={(e) => handleEndTimeChange(e.target.value)}
                   required
                 />
               </div>
@@ -230,7 +258,7 @@ export function CreateStudySessionDialog({
                 id="duration"
                 type="number"
                 value={duration}
-                onChange={(e) => setDuration(parseInt(e.target.value))}
+                onChange={(e) => handleDurationChange(parseInt(e.target.value))}
                 min="1"
               />
             </div>
