@@ -44,9 +44,11 @@ export function CreateStudySessionDialog({
   tasks = [],
   events = [],
 }: CreateStudySessionDialogProps) {
+  const defaultTime = new Date().toISOString().slice(0, 16);
+
   const [topic, setTopic] = useState(initialSession?.subject || "");
-  const [startTime, setStartTime] = useState(initialSession?.scheduledFor || "");
-  const [endTime, setEndTime] = useState("");
+  const [startTime, setStartTime] = useState(initialSession?.scheduledFor || defaultTime);
+  const [endTime, setEndTime] = useState(initialSession?.scheduledFor || defaultTime + initialSession?.duration || defaultTime);
   const [isFlexible, setIsFlexible] = useState(initialSession?.isFlexible || false);
   const [duration, setDuration] = useState(initialSession?.duration || 60);
   const [goal, setGoal] = useState(initialSession?.goal || "");

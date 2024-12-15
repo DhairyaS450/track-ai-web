@@ -36,6 +36,10 @@ export function CreateTaskDialog({
   initialTask,
   mode = "create",
 }: CreateTaskDialogProps) {
+  const now = new Date();
+  now.setHours(23, 59, 0, 0);
+  const defaultDeadline = now.toISOString().slice(0, 16)
+
   const [title, setTitle] = useState(initialTask?.title || "");
   const [description, setDescription] = useState(initialTask?.description || "");
   const [priority, setPriority] = useState<Priority>(
@@ -44,7 +48,7 @@ export function CreateTaskDialog({
   const [deadline, setDeadline] = useState(
     initialTask?.deadline
       ? new Date(initialTask.deadline).toISOString().slice(0, 16)
-      : ""
+      : defaultDeadline
   );
   const [subject, setSubject] = useState(initialTask?.subject || "");
   const [resources, setResources] = useState(initialTask?.resources || "");
