@@ -1,13 +1,18 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { format } from "date-fns";
-import { Search } from "lucide-react";
+import { Search, Menu } from "lucide-react";
 import { Input } from "./ui/input";
 import { UserNotifications } from "./UserNotifications";
 import { UserProfileMenu } from "./UserProfileMenu";
+import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const [date, setDate] = useState(new Date());
   const [search, setSearch] = useState("");
   const location = useLocation();
@@ -37,13 +42,22 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center px-4">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="md:hidden mr-2"
+          onClick={onMenuClick}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+
         <div className="flex items-center gap-2 flex-shrink-0">
           <img src="/logo.png" alt="Track AI Web" className="h-8 w-auto" />
         </div>
 
         <div className="flex-1 flex items-center justify-center">
           <div className="flex items-center gap-4 max-w-2xl w-full">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground hidden sm:block">
               {format(date, "EEEE, MMMM d, yyyy")}
               <span className="ml-2 font-medium">
                 {format(date, "h:mm:ss a")}

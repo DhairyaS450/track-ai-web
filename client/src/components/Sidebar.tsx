@@ -10,6 +10,7 @@ import {
   Plus,
   Send,
   MessageCircle,
+  X,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -20,6 +21,12 @@ import { CreateTaskDialog } from "./CreateTaskDialog";
 import { CreateEventDialog } from "./CreateEventDialog";
 import { CreateStudySessionDialog } from "./CreateStudySessionDialog";
 import { Task, Event } from "@/types";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+
+interface SidebarProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -30,7 +37,7 @@ const navigation = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-export function Sidebar() {
+export function Sidebar({ open, onOpenChange }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [addItemOpen, setAddItemOpen] = useState(false);
@@ -39,11 +46,15 @@ export function Sidebar() {
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [createEventOpen, setCreateEventOpen] = useState(false);
   const [createSessionOpen, setCreateSessionOpen] = useState(false);
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   const handleQuickMessage = () => {
     if (quickMessage.trim()) {
       navigate("/chatbot", { state: { message: quickMessage } });
       setQuickMessage("");
+      if (isMobile) {
+        onOpenChange(false);
+      }
     }
   };
 
@@ -63,61 +74,84 @@ export function Sidebar() {
   };
 
   return (
-    <div className="flex h-full w-64 flex-col bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-r">
-      <div className="flex h-16 items-center border-b px-6">
-        <h1 className="text-xl font-bold">Track AI</h1>
-      </div>
-      <nav className="flex-1 space-y-1 px-4 py-4">
-        {navigation.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.name}
-              to={item.href}
-              className={cn(
-                "flex items-center gap-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                location.pathname === item.href
-                  ? "bg-secondary text-secondary-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
-              )}
-            >
-              <Icon className="h-5 w-5" />
-              {item.name}
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="border-t p-4 space-y-4">
-        <Button
-          className="w-full justify-start"
-          onClick={() => setAddItemOpen(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add New
-        </Button>
-        <div className="flex gap-2">
-          <Input
-            placeholder="Quick message..."
-            value={quickMessage}
-            onChange={(e) => setQuickMessage(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleQuickMessage();
-              }
-            }}
-          />
-          <Button size="icon" onClick={handleQuickMessage}>
-            <Send className="h-4 w-4" />
+    <>
+      <div 
+        className={cn(
+          "fixed inset-0 z-40 bg-black/80 md:hidden",
+          open ? "block" : "hidden"
+        )}
+        onClick={() => onOpenChange(false)}
+      />
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-64 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-r transition-transform duration-200 ease-in-out md:translate-x-0 md:relative",
+          open ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="flex h-16 items-center border-b px-6 justify-between">
+          <h1 className="text-xl font-bold">Track AI</h1>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => onOpenChange(false)}
+          >
+            <X className="h-5 w-5" />
           </Button>
         </div>
-        <Button
-          variant="outline"
-          className="w-full justify-start"
-          onClick={() => setFeedbackOpen(true)}
-        >
-          <MessageCircle className="h-4 w-4 mr-2" />
-          Send Feedback
-        </Button>
+        <nav className="flex-1 space-y-1 px-4 py-4">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.name}
+                to={item.href}
+                onClick={() => isMobile && onOpenChange(false)}
+                className={cn(
+                  "flex items-center gap-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  location.pathname === item.href
+                    ? "bg-secondary text-secondary-foreground"
+                    : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                )}
+              >
+                <Icon className="h-5 w-5" />
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="border-t p-4 space-y-4">
+          <Button
+            className="w-full justify-start"
+            onClick={() => setAddItemOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add New
+          </Button>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Quick message..."
+              value={quickMessage}
+              onChange={(e) => setQuickMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleQuickMessage();
+                }
+              }}
+            />
+            <Button size="icon" onClick={handleQuickMessage}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => setFeedbackOpen(true)}
+          >
+            <MessageCircle className="h-4 w-4 mr-2" />
+            Send Feedback
+          </Button>
+        </div>
       </div>
 
       <AddItemDialog
@@ -160,6 +194,6 @@ export function Sidebar() {
         tasks={[]}
         events={[]}
       />
-    </div>
+    </>
   );
 }
