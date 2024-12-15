@@ -24,7 +24,7 @@ export const getTasks = (includeCompleted: boolean = false) => {
         resolve({
           tasks: localTasks.filter(task =>
             includeCompleted ||
-            new Date(task.deadline) > new Date()
+            task.status != 'completed'
           )
         });
         return;

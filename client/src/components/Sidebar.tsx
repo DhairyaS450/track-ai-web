@@ -16,6 +16,10 @@ import { Input } from "./ui/input";
 import { useState } from "react";
 import { AddItemDialog } from "./AddItemDialog";
 import { FeedbackDialog } from "./FeedbackDialog";
+import { CreateTaskDialog } from "./CreateTaskDialog";
+import { CreateEventDialog } from "./CreateEventDialog";
+import { CreateStudySessionDialog } from "./CreateStudySessionDialog";
+import { Task, Event } from "@/types";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -32,6 +36,9 @@ export function Sidebar() {
   const [addItemOpen, setAddItemOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [quickMessage, setQuickMessage] = useState("");
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [createEventOpen, setCreateEventOpen] = useState(false);
+  const [createSessionOpen, setCreateSessionOpen] = useState(false);
 
   const handleQuickMessage = () => {
     if (quickMessage.trim()) {
@@ -44,13 +51,13 @@ export function Sidebar() {
     setAddItemOpen(false);
     switch (option) {
       case 'task':
-        navigate('/calendar', { state: { openAddTask: true } });
+        setCreateTaskOpen(true);
         break;
       case 'event':
-        navigate('/calendar', { state: { openAddEvent: true } });
+        setCreateEventOpen(true);
         break;
       case 'session':
-        navigate('/study', { state: { openAddSession: true } });
+        setCreateSessionOpen(true);
         break;
     }
   };
@@ -122,6 +129,36 @@ export function Sidebar() {
       <FeedbackDialog
         open={feedbackOpen}
         onOpenChange={setFeedbackOpen}
+      />
+
+      <CreateTaskDialog
+        open={createTaskOpen}
+        onOpenChange={setCreateTaskOpen}
+        onTaskCreated={() => {
+          setCreateTaskOpen(false);
+        }}
+        mode="create"
+      />
+
+      <CreateEventDialog
+        open={createEventOpen}
+        onOpenChange={setCreateEventOpen}
+        onEventCreated={() => {
+          setCreateEventOpen(false);
+        }}
+        mode="create"
+        tasks={[]}
+      />
+
+      <CreateStudySessionDialog
+        open={createSessionOpen}
+        onOpenChange={setCreateSessionOpen}
+        onSessionCreated={() => {
+          setCreateSessionOpen(false);
+        }}
+        mode="create"
+        tasks={[]}
+        events={[]}
       />
     </div>
   );
