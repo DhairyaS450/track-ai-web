@@ -28,6 +28,7 @@ import { AddItemDialog } from "@/components/AddItemDialog";
 import { WeeklyTimeline } from "@/components/WeeklyTimeline";
 import { useToast } from "@/hooks/useToast";
 import { ChronologicalView } from "@/components/ChronologicalView";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   ToggleGroup,
   ToggleGroupItem,
@@ -55,6 +56,7 @@ export function Calendar() {
   const [addItemOpen, setAddItemOpen] = useState(false);
   const [viewType, setViewType] = useState<"categorized" | "chronological">("categorized");
   const { toast } = useToast();
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   const fetchEvents = async (selectedDate: Date) => {
     try {
@@ -193,33 +195,33 @@ export function Calendar() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Calendar</h1>
         <div className="flex items-center gap-4">
-          <ToggleGroup type="single" value={viewType} onValueChange={(value) => value && setViewType(value as "categorized" | "chronological")}>
-            <ToggleGroupItem value="categorized">
-              <Grid className="h-4 w-4 mr-2" />
-              Categorized
-            </ToggleGroupItem>
-            <ToggleGroupItem value="chronological">
-              <List className="h-4 w-4 mr-2" />
-              Chronological
-            </ToggleGroupItem>
-          </ToggleGroup>
-          {/* <Button onClick={() => setAddItemOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add New
-          </Button> */}
+          {!isMobile && (
+            <ToggleGroup type="single" value={viewType} onValueChange={(value) => value && setViewType(value as "categorized" | "chronological")}>
+              <ToggleGroupItem value="categorized">
+                <Grid className="h-4 w-4 mr-2" />
+                Categorized
+              </ToggleGroupItem>
+              <ToggleGroupItem value="chronological">
+                <List className="h-4 w-4 mr-2" />
+                Chronological
+              </ToggleGroupItem>
+            </ToggleGroup>
+          )}
           <CalendarIcon className="h-6 w-6 text-muted-foreground" />
         </div>
       </div>
 
-      <WeeklyTimeline
-        currentDate={date}
-        onDateSelect={setDate}
-        onWeekChange={handleWeekChange}
-        tasks={tasks}
-        events={events}
-        sessions={sessions}
-        deadlines={deadlines}
-      />
+      {!isMobile && (
+        <WeeklyTimeline
+          currentDate={date}
+          onDateSelect={setDate}
+          onWeekChange={handleWeekChange}
+          tasks={tasks}
+          events={events}
+          sessions={sessions}
+          deadlines={deadlines}
+        />
+      )}
 
       <div className="grid gap-6 md:grid-cols-[380px,1fr]">
         <Card className="bg-card">
@@ -239,7 +241,19 @@ export function Calendar() {
 
         <Card className="bg-card">
           <CardHeader>
-            <CardTitle>Events for {format(date, 'MMMM d, yyyy')}</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              <span>Events for {format(date, 'MMMM d, yyyy')}</span>
+              {isMobile && (
+                <ToggleGroup type="single" value={viewType} onValueChange={(value) => value && setViewType(value as "categorized" | "chronological")}>
+                  <ToggleGroupItem value="categorized">
+                    <Grid className="h-4 w-4" />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="chronological">
+                    <List className="h-4 w-4" />
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -261,7 +275,6 @@ export function Calendar() {
               />
             ) : (
               <div className="space-y-6">
-                {/* Categorized view content (existing code) */}
                 {deadlines.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-3 flex items-center">
