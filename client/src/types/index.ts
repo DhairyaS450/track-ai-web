@@ -36,6 +36,8 @@ export interface StudySession {
   }>;
   linkedTaskIds?: string[];
   linkedEventIds?: string[];
+  isAIRecommended?: boolean;
+  aiReason?: string;
 }
 
 export interface User {

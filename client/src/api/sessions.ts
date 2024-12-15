@@ -1,14 +1,36 @@
 import api from './api';
 import { StudySession } from '@/types';
+import { isToday } from 'date-fns';
 
-// Get Study Sessions
-// GET /sessions
+// Helper functions for local storage
+const getLocalSessions = (): StudySession[] => {
+  const sessions = localStorage.getItem('study_sessions');
+  return sessions ? JSON.parse(sessions) : [];
+};
+
+const saveLocalSessions = (sessions: StudySession[]) => {
+  localStorage.setItem('study_sessions', JSON.stringify(sessions));
+};
+
+// Get Today's Study Sessions
+// GET /sessions/today
 // Response: { sessions: StudySession[] }
-export const getStudySessions = () => {
+export const getTodayStudySessions = () => {
   return new Promise<{ sessions: StudySession[] }>((resolve) => {
     setTimeout(() => {
-      const storedSessions = localStorage.getItem('study_sessions');
-      const sessions = storedSessions ? JSON.parse(storedSessions) : [
+      const storedSessions = getLocalSessions();
+
+      // If there are stored sessions, filter them for today
+      if (storedSessions.length > 0) {
+        const todaySessions = storedSessions.filter(session =>
+          isToday(new Date(session.scheduledFor))
+        );
+        resolve({ sessions: todaySessions });
+        return;
+      }
+
+      // Mock data including AI recommendations
+      const mockSessions = [
         {
           id: '1',
           subject: 'Mathematics',
@@ -16,15 +38,15 @@ export const getStudySessions = () => {
           duration: 60,
           technique: 'pomodoro',
           status: 'scheduled',
-          scheduledFor: '2024-03-20T15:00:00',
+          scheduledFor: new Date().toISOString(),
           breakInterval: 25,
           breakDuration: 5,
           materials: 'https://example.com/math-materials',
-          priority: 'High',
+          priority: 'High' as const,
           isFlexible: false,
           reminders: [
-            { type: 'minutes', amount: 15 },
-            { type: 'hours', amount: 1 }
+            { type: 'minutes' as const, amount: 15 },
+            { type: 'hours' as const, amount: 1 }
           ],
           linkedTaskIds: ['1'],
           linkedEventIds: ['1']
@@ -32,18 +54,32 @@ export const getStudySessions = () => {
         {
           id: '2',
           subject: 'Physics',
-          goal: 'Review quantum mechanics',
-          duration: 90,
+          goal: 'Review quantum mechanics concepts',
+          duration: 45,
           technique: 'deepwork',
-          status: 'completed',
-          scheduledFor: '2024-03-19T10:00:00',
-          priority: 'Medium',
+          status: 'scheduled',
+          scheduledFor: new Date().toISOString(),
+          priority: 'Medium' as const,
           isFlexible: true,
-          materials: 'https://example.com/physics-materials'
+          materials: 'https://example.com/physics-materials',
+          isAIRecommended: true,
+          aiReason: 'Based on your past performance and upcoming test schedule'
         }
       ];
 
-      resolve({ sessions });
+      resolve({ sessions: [] });
+    }, 500);
+  });
+};
+
+// Get Study Sessions
+// GET /sessions
+// Response: { sessions: StudySession[] }
+export const getStudySessions = () => {
+  return new Promise<{ sessions: StudySession[] }>((resolve) => {
+    setTimeout(() => {
+      const storedSessions = getLocalSessions();
+      resolve({ sessions: storedSessions.length > 0 ? storedSessions : [] });
     }, 500);
   });
 };
@@ -60,15 +96,10 @@ export const addStudySession = (session: Omit<StudySession, 'id'>) => {
         id: Math.random().toString(36).substring(7)
       };
 
-      // Get existing sessions
-      const storedSessions = localStorage.getItem('study_sessions');
-      const sessions = storedSessions ? JSON.parse(storedSessions) : [];
-      
-      // Add new session
+      // Save to local storage
+      const sessions = getLocalSessions();
       sessions.push(newSession);
-      
-      // Save back to localStorage
-      localStorage.setItem('study_sessions', JSON.stringify(sessions));
+      saveLocalSessions(sessions);
 
       resolve({ session: newSession });
     }, 500);
@@ -82,22 +113,16 @@ export const addStudySession = (session: Omit<StudySession, 'id'>) => {
 export const updateStudySession = (id: string, updates: Partial<StudySession>) => {
   return new Promise<{ session: StudySession }>((resolve) => {
     setTimeout(() => {
-      // Get existing sessions
-      const storedSessions = localStorage.getItem('study_sessions');
-      const sessions = storedSessions ? JSON.parse(storedSessions) : [];
-      
-      // Find and update session
-      const sessionIndex = sessions.findIndex((s: StudySession) => s.id === id);
+      const sessions = getLocalSessions();
+      const sessionIndex = sessions.findIndex(s => s.id === id);
+
       if (sessionIndex !== -1) {
         const updatedSession = {
           ...sessions[sessionIndex],
           ...updates
         };
         sessions[sessionIndex] = updatedSession;
-        
-        // Save back to localStorage
-        localStorage.setItem('study_sessions', JSON.stringify(sessions));
-        
+        saveLocalSessions(sessions);
         resolve({ session: updatedSession });
       } else {
         const newSession: StudySession = {
@@ -122,17 +147,65 @@ export const updateStudySession = (id: string, updates: Partial<StudySession>) =
 export const deleteStudySession = (id: string) => {
   return new Promise<{ success: boolean }>((resolve) => {
     setTimeout(() => {
-      // Get existing sessions
-      const storedSessions = localStorage.getItem('study_sessions');
-      const sessions = storedSessions ? JSON.parse(storedSessions) : [];
-      
-      // Remove session
-      const filteredSessions = sessions.filter((s: StudySession) => s.id !== id);
-      
-      // Save back to localStorage
-      localStorage.setItem('study_sessions', JSON.stringify(filteredSessions));
-      
+      const sessions = getLocalSessions();
+      const filteredSessions = sessions.filter(s => s.id !== id);
+      saveLocalSessions(filteredSessions);
       resolve({ success: true });
+    }, 500);
+  });
+};
+
+// Start Study Session
+// POST /sessions/:id/start
+// Response: { session: StudySession }
+export const startStudySession = (id: string) => {
+  return new Promise<{ session: StudySession }>((resolve) => {
+    setTimeout(() => {
+      const sessions = getLocalSessions();
+      const sessionIndex = sessions.findIndex(s => s.id === id);
+
+      if (sessionIndex !== -1) {
+        const updatedSession = {
+          ...sessions[sessionIndex],
+          status: 'in-progress' as const
+        };
+        sessions[sessionIndex] = updatedSession;
+        saveLocalSessions(sessions);
+        resolve({ session: updatedSession });
+      }
+    }, 500);
+  });
+};
+
+// Postpone Study Session
+// POST /sessions/:id/postpone
+// Request: { minutes?: number, hours?: number, days?: number }
+// Response: { session: StudySession }
+export const postponeStudySession = (
+  id: string,
+  postponeData: { minutes?: number; hours?: number; days?: number }
+) => {
+  return new Promise<{ session: StudySession }>((resolve) => {
+    setTimeout(() => {
+      const sessions = getLocalSessions();
+      const sessionIndex = sessions.findIndex(s => s.id === id);
+
+      if (sessionIndex !== -1) {
+        const currentDate = new Date(sessions[sessionIndex].scheduledFor);
+        const minutes = (postponeData.minutes || 0) + 
+                       ((postponeData.hours || 0) * 60) + 
+                       ((postponeData.days || 0) * 24 * 60);
+        
+        const newDate = new Date(currentDate.getTime() + minutes * 60000);
+        
+        const updatedSession = {
+          ...sessions[sessionIndex],
+          scheduledFor: newDate.toISOString()
+        };
+        sessions[sessionIndex] = updatedSession;
+        saveLocalSessions(sessions);
+        resolve({ session: updatedSession });
+      }
     }, 500);
   });
 };
