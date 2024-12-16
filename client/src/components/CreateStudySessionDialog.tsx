@@ -25,6 +25,7 @@ import {
 import { ScrollArea } from "./ui/scroll-area";
 import { Plus, X } from "lucide-react";
 import { addMinutes, format } from "date-fns";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface CreateStudySessionDialogProps {
   open: boolean;
@@ -46,6 +47,7 @@ export function CreateStudySessionDialog({
   events = [],
 }: CreateStudySessionDialogProps) {
   const defaultTime = new Date().toISOString().slice(0, 16);
+  const isMobile = useMediaQuery("(max-width: 640px)");
 
   const [topic, setTopic] = useState(initialSession?.subject || "");
   const [startTime, setStartTime] = useState(initialSession?.scheduledFor || defaultTime);
@@ -220,7 +222,7 @@ export function CreateStudySessionDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-2 gap-4'}`}>
               <div className="grid gap-2">
                 <Label htmlFor="startTime">Start Time*</Label>
                 <Input

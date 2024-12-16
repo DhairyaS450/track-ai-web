@@ -17,6 +17,8 @@ import { Task, TimeSlot } from "@/types";
 import { Plus, Trash } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { Slider } from "./ui/slider";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { cn } from "@/lib/utils";
 
 type Priority = "High" | "Medium" | "Low";
 type Recurrence = "daily" | "weekly" | "monthly";
@@ -38,7 +40,8 @@ export function CreateTaskDialog({
 }: CreateTaskDialogProps) {
   const now = new Date();
   now.setHours(23, 59, 0, 0);
-  const defaultDeadline = now.toISOString().slice(0, 16)
+  const defaultDeadline = now.toISOString().slice(0, 16);
+  const isMobile = useMediaQuery("(max-width: 640px)");
 
   const [title, setTitle] = useState(initialTask?.title || "");
   const [description, setDescription] = useState(initialTask?.description || "");
@@ -77,14 +80,14 @@ export function CreateTaskDialog({
       setTitle("");
       setDescription("");
       setPriority("Medium");
-      setDeadline("");
+      setDeadline(defaultDeadline);
       setSubject("");
       setResources("");
       setTimeSlots([{ startDate: "", endDate: "" }]);
       setRecurrence(undefined);
       setCompletion(0);
     }
-  }, [initialTask]);
+  }, [initialTask, defaultDeadline]);
 
   const addTimeSlot = () => {
     setTimeSlots([...timeSlots, { startDate: "", endDate: "" }]);
@@ -102,14 +105,9 @@ export function CreateTaskDialog({
 
   const handleSubmit = async () => {
     try {
-      var status_field : 'completed' | 'in-progress' | 'todo';
-      if (completion == 100) {
-        status_field = 'completed'
-      } else if (completion < 100 && completion > 0) {
-        status_field = 'in-progress'
-      } else {
-        status_field = 'todo'
-      } 
+      var statusTypes : 'completed' | 'in-progress' | 'todo'
+      const status : typeof statusTypes = completion === 100 ? 'completed' : completion > 0 ? 'in-progress' : 'todo';
+      
       const taskData = {
         title,
         description,
@@ -117,7 +115,7 @@ export function CreateTaskDialog({
         deadline,
         subject,
         resources,
-        status: status_field,
+        status,
         timeSlots,
         recurrence,
         completion,
@@ -150,11 +148,11 @@ export function CreateTaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px]">
+      <DialogContent className={cn("sm:max-w-[600px]", isMobile && "p-4")}>
         <DialogHeader>
           <DialogTitle>{mode === "edit" ? "Edit Task" : "Create Task"}</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <ScrollArea className="max-h-[60vh] overflow-y-auto pr-4">
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="title">Title</Label>
@@ -177,7 +175,7 @@ export function CreateTaskDialog({
             <div className="grid gap-2">
               <Label>Priority</Label>
               <RadioGroup value={priority} onValueChange={(value: Priority) => setPriority(value)}>
-                <div className="flex space-x-4">
+                <div className={cn("flex gap-4", isMobile && "flex-col")}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="High" id="priority-high" />
                     <Label htmlFor="priority-high">High</Label>
@@ -217,35 +215,72 @@ export function CreateTaskDialog({
                 </Button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-2">
-                <Label>Start Time</Label>
-                <Label>End Time</Label>
-              </div>
+              {isMobile ? (
+                <>
+                  <div className="grid grid-cols-1 gap-4 mb-2">
+                    {timeSlots.map((slot, index) => (
+                      <div key={index} className="space-y-2">
+                        <Label>Start Time</Label>
+                        <Input
+                          type="datetime-local"
+                          value={slot.startDate}
+                          onChange={(e) => updateTimeSlot(index, "startDate", e.target.value)}
+                        />
+                        <Label>End Time</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="datetime-local"
+                            value={slot.endDate}
+                            onChange={(e) => updateTimeSlot(index, "endDate", e.target.value)}
+                          />
+                          {timeSlots.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeTimeSlot(index)}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4 mb-2">
+                    <Label>Start Time</Label>
+                    <Label>End Time</Label>
+                  </div>
 
-              {timeSlots.map((slot, index) => (
-                <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-4">
-                  <Input
-                    type="datetime-local"
-                    value={slot.startDate}
-                    onChange={(e) => updateTimeSlot(index, "startDate", e.target.value)}
-                  />
-                  <Input
-                    type="datetime-local"
-                    value={slot.endDate}
-                    onChange={(e) => updateTimeSlot(index, "endDate", e.target.value)}
-                  />
-                  {timeSlots.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeTimeSlot(index)}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+                  {timeSlots.map((slot, index) => (
+                    <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-4">
+                      <Input
+                        type="datetime-local"
+                        value={slot.startDate}
+                        onChange={(e) => updateTimeSlot(index, "startDate", e.target.value)}
+                      />
+                      <Input
+                        type="datetime-local"
+                        value={slot.endDate}
+                        onChange={(e) => updateTimeSlot(index, "endDate", e.target.value)}
+                      />
+                      {timeSlots.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeTimeSlot(index)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
 
             <div className="grid gap-2">
@@ -280,22 +315,25 @@ export function CreateTaskDialog({
                 placeholder="Enter resource links"
               />
             </div>
-          </div>
 
-          <div className="grid gap-2">
-              <Label>Completion ({completion}%)</Label>
-              <Slider
-                value={[completion]}
-                onValueChange={(values) => {
-                  const newValue = values[0];
-                  setCompletion(newValue);
-                }}
-                max={100}
-                step={1}
-              />
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <Label>Completion</Label>
+                <span className="text-sm text-muted-foreground">{completion}%</span>
+              </div>
+              <div className="px-1">
+                <Slider
+                  value={[completion]}
+                  onValueChange={(values) => setCompletion(values[0])}
+                  max={100}
+                  step={1}
+                  className="w-full"
+                />
+              </div>
+            </div>
           </div>
         </ScrollArea>
-        <DialogFooter>
+        <DialogFooter className="mt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

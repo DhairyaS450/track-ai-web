@@ -13,11 +13,13 @@ import {
   Check,
   Calendar as CalendarIcon
 } from "lucide-react";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 export function StudySessions() {
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [activeSession, setActiveSession] = useState<string | null>(null);
   const [timer, setTimer] = useState<number | null>(null);
+  const isMobile = useMediaQuery("(max-width: 640px)");
 
   useEffect(() => {
     fetchSessions();
@@ -89,7 +91,7 @@ export function StudySessions() {
                     <p className="text-sm text-muted-foreground">{session.goal}</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-4">
                   <Timer className="h-5 w-5 text-muted-foreground" />
                   <div>
@@ -100,13 +102,24 @@ export function StudySessions() {
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-4">
+                <div className="flex items-start space-x-4">
                   <CalendarIcon className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="font-medium">Scheduled for</p>
-                    <p className="text-sm text-muted-foreground">
-                      {format(new Date(session.scheduledFor), 'PPp')}
-                    </p>
+                    {isMobile ? (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">
+                          Start: {format(new Date(session.scheduledFor), 'h:mm a')}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          End: {format(new Date(new Date(session.scheduledFor).getTime() + session.duration * 60000), 'h:mm a')}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(session.scheduledFor), 'h:mm a')} - {format(new Date(new Date(session.scheduledFor).getTime() + session.duration * 60000), 'h:mm a')}
+                      </p>
+                    )}
                   </div>
                 </div>
 

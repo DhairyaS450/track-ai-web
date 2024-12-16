@@ -20,6 +20,7 @@ import { Calendar } from "./ui/calendar";
 import { format } from "date-fns";
 import { ScrollArea } from "./ui/scroll-area";
 import { X } from "lucide-react";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface CreateEventDialogProps {
   open: boolean;
@@ -57,6 +58,7 @@ export function CreateEventDialog({
     initialEvent?.associatedTaskIds || []
   );
 
+  const isMobile = useMediaQuery("(max-width: 640px)");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -141,13 +143,13 @@ export function CreateEventDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className={`sm:max-w-[600px] ${isMobile ? 'px-4' : ''} bg-background`}>
         <DialogHeader>
           <DialogTitle>
             {mode === "edit" ? "Edit Event" : "Create Event"}
           </DialogTitle>
         </DialogHeader>
-        <ScrollArea className="max-h-[60vh] pr-4">
+        <ScrollArea className="max-h-[calc(80vh-8rem)] pr-4">
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="name">Name*</Label>
@@ -160,7 +162,7 @@ export function CreateEventDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-2 gap-4'}`}>
               <div className="grid gap-2">
                 <Label htmlFor="startTime">Start Time*</Label>
                 <Input
