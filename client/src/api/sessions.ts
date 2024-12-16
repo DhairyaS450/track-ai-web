@@ -37,7 +37,7 @@ export const getTodayStudySessions = () => {
           goal: 'Master integration by parts',
           duration: 60,
           technique: 'pomodoro',
-          status: 'scheduled',
+          status: 'in-progress' as const,
           scheduledFor: new Date().toISOString(),
           breakInterval: 25,
           breakDuration: 5,
@@ -49,7 +49,11 @@ export const getTodayStudySessions = () => {
             { type: 'hours' as const, amount: 1 }
           ],
           linkedTaskIds: ['1'],
-          linkedEventIds: ['1']
+          linkedEventIds: ['1'],
+          startTime: new Date(Date.now() - 1800000).toISOString(), // Started 30 minutes ago
+          endTime: new Date(Date.now() + 1800000).toISOString(), // Will end in 30 minutes
+          completion: 50,
+          notes: ''
         },
         {
           id: '2',
@@ -57,17 +61,21 @@ export const getTodayStudySessions = () => {
           goal: 'Review quantum mechanics concepts',
           duration: 45,
           technique: 'deepwork',
-          status: 'scheduled',
-          scheduledFor: new Date().toISOString(),
+          status: 'scheduled' as const,
+          scheduledFor: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
           priority: 'Medium' as const,
           isFlexible: true,
           materials: 'https://example.com/physics-materials',
           isAIRecommended: true,
-          aiReason: 'Based on your past performance and upcoming test schedule'
+          aiReason: 'Based on your past performance and upcoming test schedule',
+          startTime: undefined,
+          endTime: undefined,
+          completion: 0,
+          notes: ''
         }
       ];
 
-      resolve({ sessions: [] });
+      resolve({ sessions: mockSessions });
     }, 500);
   });
 };
@@ -79,7 +87,62 @@ export const getStudySessions = () => {
   return new Promise<{ sessions: StudySession[] }>((resolve) => {
     setTimeout(() => {
       const storedSessions = getLocalSessions();
-      resolve({ sessions: storedSessions.length > 0 ? storedSessions : [] });
+      
+      if (storedSessions.length > 0) {
+        resolve({ sessions: storedSessions });
+        return;
+      }
+
+      // Mock data for different session states
+      const mockSessions = [
+        {
+          id: '1',
+          subject: 'Mathematics',
+          goal: 'Master integration by parts',
+          duration: 60,
+          technique: 'pomodoro',
+          status: 'in-progress' as const,
+          scheduledFor: new Date().toISOString(),
+          breakInterval: 25,
+          breakDuration: 5,
+          materials: 'https://example.com/math-materials',
+          priority: 'High' as const,
+          startTime: new Date(Date.now() - 1800000).toISOString(),
+          endTime: new Date(Date.now() + 1800000).toISOString(),
+          completion: 50,
+          notes: ''
+        },
+        {
+          id: '2',
+          subject: 'Physics',
+          goal: 'Review quantum mechanics concepts',
+          duration: 45,
+          technique: 'deepwork',
+          status: 'scheduled' as const,
+          scheduledFor: new Date(Date.now() + 3600000).toISOString(),
+          priority: 'Medium' as const,
+          startTime: undefined,
+          endTime: undefined,
+          completion: 0,
+          notes: ''
+        },
+        {
+          id: '3',
+          subject: 'Chemistry',
+          goal: 'Practice organic chemistry problems',
+          duration: 90,
+          technique: 'pomodoro',
+          status: 'completed' as const,
+          scheduledFor: new Date(Date.now() - 86400000).toISOString(),
+          priority: 'High' as const,
+          startTime: new Date(Date.now() - 86400000).toISOString(),
+          endTime: new Date(Date.now() - 86400000 + 5400000).toISOString(),
+          completion: 100,
+          notes: 'Successfully completed all practice problems. Need to review stereochemistry concepts.'
+        }
+      ];
+
+      resolve({ sessions: mockSessions });
     }, 500);
   });
 };
@@ -133,6 +196,8 @@ export const updateStudySession = (id: string, updates: Partial<StudySession>) =
           technique: updates.technique || 'pomodoro',
           status: updates.status || 'scheduled',
           scheduledFor: updates.scheduledFor || new Date().toISOString(),
+          completion: updates.completion || 0,
+          notes: updates.notes || '',
           ...updates
         };
         resolve({ session: newSession });
@@ -167,7 +232,35 @@ export const startStudySession = (id: string) => {
       if (sessionIndex !== -1) {
         const updatedSession = {
           ...sessions[sessionIndex],
-          status: 'in-progress' as const
+          status: 'in-progress' as const,
+          startTime: new Date().toISOString(),
+          endTime: new Date(Date.now() + sessions[sessionIndex].duration * 60000).toISOString()
+        };
+        sessions[sessionIndex] = updatedSession;
+        saveLocalSessions(sessions);
+        resolve({ session: updatedSession });
+      }
+    }, 500);
+  });
+};
+
+// End Study Session
+// POST /sessions/:id/end
+// Request: { notes?: string }
+// Response: { session: StudySession }
+export const endStudySession = (id: string, notes?: string) => {
+  return new Promise<{ session: StudySession }>((resolve) => {
+    setTimeout(() => {
+      const sessions = getLocalSessions();
+      const sessionIndex = sessions.findIndex(s => s.id === id);
+
+      if (sessionIndex !== -1) {
+        const updatedSession = {
+          ...sessions[sessionIndex],
+          status: 'completed' as const,
+          endTime: new Date().toISOString(),
+          completion: 100,
+          notes: notes || sessions[sessionIndex].notes
         };
         sessions[sessionIndex] = updatedSession;
         saveLocalSessions(sessions);
@@ -192,15 +285,38 @@ export const postponeStudySession = (
 
       if (sessionIndex !== -1) {
         const currentDate = new Date(sessions[sessionIndex].scheduledFor);
-        const minutes = (postponeData.minutes || 0) + 
-                       ((postponeData.hours || 0) * 60) + 
+        const minutes = (postponeData.minutes || 0) +
+                       ((postponeData.hours || 0) * 60) +
                        ((postponeData.days || 0) * 24 * 60);
-        
+
         const newDate = new Date(currentDate.getTime() + minutes * 60000);
-        
+
         const updatedSession = {
           ...sessions[sessionIndex],
           scheduledFor: newDate.toISOString()
+        };
+        sessions[sessionIndex] = updatedSession;
+        saveLocalSessions(sessions);
+        resolve({ session: updatedSession });
+      }
+    }, 500);
+  });
+};
+
+// Update Session Progress
+// POST /sessions/:id/progress
+// Request: { completion: number }
+// Response: { session: StudySession }
+export const updateSessionProgress = (id: string, completion: number) => {
+  return new Promise<{ session: StudySession }>((resolve) => {
+    setTimeout(() => {
+      const sessions = getLocalSessions();
+      const sessionIndex = sessions.findIndex(s => s.id === id);
+
+      if (sessionIndex !== -1) {
+        const updatedSession = {
+          ...sessions[sessionIndex],
+          completion: Math.min(100, Math.max(0, completion))
         };
         sessions[sessionIndex] = updatedSession;
         saveLocalSessions(sessions);

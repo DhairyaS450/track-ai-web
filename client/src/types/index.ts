@@ -38,6 +38,10 @@ export interface StudySession {
   linkedEventIds?: string[];
   isAIRecommended?: boolean;
   aiReason?: string;
+  startTime?: string;
+  endTime?: string;
+  completion: number;
+  notes: string;
 }
 
 export interface User {
