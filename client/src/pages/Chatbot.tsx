@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Send,
   Paperclip,
@@ -17,6 +18,7 @@ import {
   LineChart
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface Message {
   id: string;
@@ -46,6 +48,7 @@ export function Chatbot() {
   const [isRecording, setIsRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   useEffect(() => {
     if (location.state?.message) {
@@ -154,7 +157,7 @@ export function Chatbot() {
                       : 'bg-muted'
                   }`}
                 >
-                  <p>{message.content}</p>
+                  <p className="whitespace-pre-wrap">{message.content}</p>
                   <p className="text-xs opacity-70 mt-1">
                     {message.timestamp.toLocaleTimeString()}
                   </p>
@@ -202,33 +205,66 @@ export function Chatbot() {
           </div>
         </div>
 
-        <Card className="p-2">
-          <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="icon">
-              <Wand2 className="h-4 w-4" />
-            </Button>
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask me to create a task, plan a study session, or answer your questions..."
-              className="flex-1"
-            />
-            <Button variant="ghost" size="icon">
-              <Paperclip className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsRecording(!isRecording)}
-              className={isRecording ? 'text-red-500' : ''}
-            >
-              <Mic className="h-4 w-4" />
-            </Button>
-            <Button onClick={() => handleSend()}>
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
+        <Card className={`p-2 space-y-2 ${isMobile ? 'flex flex-col' : ''}`}>
+          {isMobile ? (
+            <>
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask me to create a task, plan a study session, or answer your questions..."
+                className="min-h-[80px] resize-none"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon">
+                    <Wand2 className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon">
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsRecording(!isRecording)}
+                    className={isRecording ? 'text-red-500' : ''}
+                  >
+                    <Mic className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button onClick={() => handleSend()}>
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <Button variant="ghost" size="icon">
+                <Wand2 className="h-4 w-4" />
+              </Button>
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask me to create a task, plan a study session, or answer your questions..."
+                className="flex-1"
+              />
+              <Button variant="ghost" size="icon">
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsRecording(!isRecording)}
+                className={isRecording ? 'text-red-500' : ''}
+              >
+                <Mic className="h-4 w-4" />
+              </Button>
+              <Button onClick={() => handleSend()}>
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </Card>
       </div>
     </div>
