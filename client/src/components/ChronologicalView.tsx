@@ -6,8 +6,6 @@ import {
   Calendar,
   CheckSquare,
   BookOpen,
-  ChevronRight,
-  ChevronDown,
   Clock,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
@@ -47,13 +45,6 @@ export function ChronologicalView({
   deadlines,
   onItemClick,
 }: ChronologicalViewProps) {
-  // Generate time slots for the day (30-minute intervals)
-  const timeSlots = Array.from({ length: 48 }, (_, i) => {
-    const hour = Math.floor(i / 2);
-    const minute = i % 2 === 0 ? "00" : "30";
-    return `${hour.toString().padStart(2, "0")}:${minute}`;
-  });
-
   // Combine all items into a single array with normalized structure
   const allItems: TimeSlotItem[] = [
     ...tasks.flatMap((task) =>
@@ -94,10 +85,25 @@ export function ChronologicalView({
     })),
   ].filter((item) => isSameDay(new Date(item.startTime), date));
 
-  // Sort items by start time
-  allItems.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  // Sort items by start time using 24-hour format for proper AM/PM sorting
+  allItems.sort((a, b) => {
+    const timeA = new Date(a.startTime).getTime();
+    const timeB = new Date(b.startTime).getTime();
+    return timeA - timeB;
+  });
 
-  console.log(allItems)
+  // Group items by hour
+  const itemsByHour: Record<string, TimeSlotItem[]> = {};
+  allItems.forEach(item => {
+    const hour = format(new Date(item.startTime), 'HH');
+    if (!itemsByHour[hour]) {
+      itemsByHour[hour] = [];
+    }
+    itemsByHour[hour].push(item);
+  });
+
+  // Sort hours numerically
+  const sortedHours = Object.keys(itemsByHour).sort((a, b) => parseInt(a) - parseInt(b));
 
   // Check if time overlaps
   const isOverlapping = (start1: Date, end1: Date, start2: Date, end2: Date) => {
@@ -158,61 +164,45 @@ export function ChronologicalView({
   return (
     <ScrollArea className="h-[calc(100vh-16rem)] pr-4">
       <div className="space-y-2">
-        {timeSlots.map((timeSlot) => {
-          const slotItems = allItems.filter((item) => {
-            const itemTime = format(new Date(item.startTime), "HH:mm");
-            return itemTime === timeSlot;
-          });
-
-          if (slotItems.length === 0) return null;
-
-          return (
-            <div key={timeSlot} className="group">
-              <div className="flex items-center gap-2 sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 py-2">
-                <div className="w-16 text-sm font-medium text-muted-foreground">
-                  {format(new Date(`2000-01-01T${timeSlot}`), "h:mm a")}
-                </div>
-                <div className="h-px flex-1 bg-border group-first:bg-transparent" />
+        {sortedHours.map((hour) => (
+          <div key={hour} className="group">
+            <div className="flex items-center gap-2 sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 py-2">
+              <div className="w-16 text-sm font-medium text-muted-foreground">
+                {format(new Date(`2000-01-01T${hour}:00`), "h:mm a")}
               </div>
-              <div className="ml-16 space-y-2">
-                {slotItems.map((item) => (
-                  <TooltipProvider key={item.id}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div
-                          className={cn(
-                            "flex items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-accent cursor-pointer relative",
-                            getItemStyle(item.type, item.isDeadline),
-                            hasConflict(item) &&
-                              "ring-2 ring-red-500 dark:ring-red-400"
-                          )}
-                          onClick={() => onItemClick(item.item)}
-                        >
-                          {hasConflict(item) && (
-                            <AlertTriangle className="absolute -top-2 -right-2 h-4 w-4 text-red-500" />
-                          )}
-                          {getItemIcon(item.type, item.isDeadline)}
-                          <div className="flex-1">
-                            <p className="font-medium">{item.title}</p>
-                            {item.endTime && !item.isDeadline ? (
-                              <p className="text-sm text-muted-foreground">
-                                {format(new Date(item.startTime), "h:mm a")} -{" "}
+              <div className="h-px flex-1 bg-border group-first:bg-transparent" />
+            </div>
+            <div className="ml-16 space-y-2">
+              {itemsByHour[hour].map((item) => (
+                <TooltipProvider key={item.id}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        className={cn(
+                          "flex items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-accent cursor-pointer relative",
+                          getItemStyle(item.type, item.isDeadline),
+                          hasConflict(item) &&
+                            "ring-2 ring-red-500 dark:ring-red-400"
+                        )}
+                        onClick={() => onItemClick(item.item)}
+                      >
+                        {hasConflict(item) && (
+                          <AlertTriangle className="absolute -top-2 -right-2 h-4 w-4 text-red-500" />
+                        )}
+                        {getItemIcon(item.type, item.isDeadline)}
+                        <div className="flex-1">
+                          <p className="font-medium">{item.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(item.startTime), "h:mm a")}
+                            {item.endTime && !item.isDeadline && (
+                              <>
+                                {" - "}
                                 {format(new Date(item.endTime), "h:mm a")}
-                              </p>
-                            ) : item.isDeadline ? (
-                              <p className="text-sm text-red-500 font-medium">
-                                Due at {format(new Date(item.startTime), "h:mm a")}
-                              </p>
-                            ) : null}
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              </>
+                            )}
+                          </p>
                         </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" align="start" className="max-w-sm">
-                        <div className="space-y-2">
-                          {'description' in item.item && item.item.description && (
-                            <p className="text-sm">{item.item.description}</p>
-                          )}
+                        <div className="flex flex-col items-end gap-1">
                           {'priority' in item.item && item.item.priority && (
                             <Badge variant={
                               item.item.priority === 'High'
@@ -226,7 +216,7 @@ export function ChronologicalView({
                           )}
                           {'completion' in item.item && (
                             <div className="flex items-center gap-2">
-                              <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                              <div className="h-2 w-24 bg-secondary rounded-full overflow-hidden">
                                 <div
                                   className="h-full bg-primary transition-all"
                                   style={{ width: `${item.item.completion}%` }}
@@ -238,14 +228,27 @@ export function ChronologicalView({
                             </div>
                           )}
                         </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ))}
-              </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" align="start" className="max-w-sm">
+                      <div className="space-y-2">
+                        {'description' in item.item && item.item.description && (
+                          <p className="text-sm">{item.item.description}</p>
+                        )}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ))}
             </div>
-          );
-        })}
+          </div>
+        ))}
+
+        {allItems.length === 0 && (
+          <div className="text-center text-muted-foreground py-8">
+            No items scheduled for this day
+          </div>
+        )}
       </div>
     </ScrollArea>
   );
