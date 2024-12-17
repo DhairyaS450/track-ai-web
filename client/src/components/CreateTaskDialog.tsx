@@ -40,7 +40,7 @@ export function CreateTaskDialog({
 }: CreateTaskDialogProps) {
   const now = new Date();
   now.setHours(23, 59, 0, 0);
-  const defaultDeadline = now.toISOString().slice(0, 16);
+  const defaultDeadline = new Date().toLocaleString("sv-SE").slice(0, 16); // Format: YYYY-MM-DDThh:mm
   const isMobile = useMediaQuery("(max-width: 640px)");
 
   const [title, setTitle] = useState(initialTask?.title || "");

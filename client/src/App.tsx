@@ -14,6 +14,22 @@ import { Chatbot } from "./pages/Chatbot"
 import { ProtectedRoute } from "./components/ProtectedRoute"
 
 function App() {
+    if (!localStorage.getItem('tasks')) {
+      localStorage.setItem('tasks', '[]')
+    }
+  
+    if (!localStorage.getItem('events')) {
+      localStorage.setItem('events', '[]')
+    }
+  
+    if (!localStorage.getItem('study_sessions')) {
+      localStorage.setItem('study_sessions', '[]')
+    }
+  
+    if (!localStorage.getItem('ui-theme')) {
+      localStorage.setItem('ui-theme', 'light')
+    }
+
   return (
     <ThemeProvider defaultTheme="system" storageKey="ui-theme">
       <AuthProvider>

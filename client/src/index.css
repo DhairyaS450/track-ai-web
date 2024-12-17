@@ -106,3 +106,34 @@ body.dark::-webkit-scrollbar-thumb {
 *::-webkit-scrollbar {
   display: none;
 }
+
+/* Add these styles for Collapsible animation */
+.collapsible-content {
+  overflow: hidden;
+}
+
+.collapsible-content[data-state='open'] {
+  animation: collapsible-down 0.2s ease-out;
+}
+
+.collapsible-content[data-state='closed'] {
+  animation: collapsible-up 0.2s ease-out;
+}
+
+@keyframes collapsible-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+  }
+}
+
+@keyframes collapsible-up {
+  from {
+    height: var(--radix-collapsible-content-height);
+  }
+  to {
+    height: 0;
+  }
+}

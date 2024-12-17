@@ -46,7 +46,7 @@ export function CreateStudySessionDialog({
   tasks = [],
   events = [],
 }: CreateStudySessionDialogProps) {
-  const defaultTime = new Date().toISOString().slice(0, 16);
+  const defaultTime = format(new Date(), 'yyyy-MM-dd HH:mm');
   const isMobile = useMediaQuery("(max-width: 640px)");
 
   const [topic, setTopic] = useState(initialSession?.subject || "");
@@ -109,9 +109,11 @@ export function CreateStudySessionDialog({
       setLinkedEventIds([]);
       
       // Set initial end time for new session
-      const start = new Date(defaultTime);
+      const start = new Date(startTime);
+      console.log(start)
       const end = addMinutes(start, 60);
-      setEndTime(end.toISOString().slice(0, 16));
+      console.log(end)
+      setEndTime(format(new Date(end), 'yyyy-MM-dd HH:mm'));
     }
   }, [initialSession, mode, open]);
 
@@ -135,7 +137,7 @@ export function CreateStudySessionDialog({
       const start = new Date(startTime);
       if (!isNaN(start.getTime())) {
         const end = addMinutes(start, newDuration);
-        setEndTime(end.toISOString().slice(0, 16));
+        setEndTime(format(end, 'yyyy-MM-dd HH:mm'));
       }
     }
   };
@@ -174,6 +176,8 @@ export function CreateStudySessionDialog({
         linkedTaskIds,
         linkedEventIds,
         status: 'scheduled' as const,
+        completion: 0,
+        notes: ''
       };
 
       if (mode === "edit" && initialSession?.id) {

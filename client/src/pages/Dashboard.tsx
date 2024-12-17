@@ -236,7 +236,7 @@ export function Dashboard() {
       (session) =>
         session.scheduledFor &&
         isValid(new Date(session.scheduledFor)) &&
-        !isPast(new Date(session.scheduledFor)) &&
+        !isPast(new Date(session.scheduledFor + session.duration)) &&
         session.priority === "High" &&
         session.status !== "completed"
     ),

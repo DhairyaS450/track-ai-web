@@ -79,9 +79,9 @@ export function ChronologicalView({
       type: "session" as const,
       title: session.subject,
       startTime: session.scheduledFor,
-      endTime: new Date(
+      endTime: format(new Date(
         new Date(session.scheduledFor).getTime() + session.duration * 60000
-      ).toISOString(),
+      ), 'yyyy-MM-dd HH:mm'),
       item: session,
     })),
     ...deadlines.map((task) => ({
