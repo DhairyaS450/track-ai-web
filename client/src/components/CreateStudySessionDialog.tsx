@@ -9,23 +9,12 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
-import { Switch } from "./ui/switch";
-import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { addStudySession, updateStudySession } from "@/api/sessions";
 import { useToast } from "@/hooks/useToast";
 import { StudySession, Task, Event } from "@/types";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
-import { ScrollArea } from "./ui/scroll-area";
-import { Plus, X } from "lucide-react";
-import { addMinutes, format } from "date-fns";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { Textarea } from "./ui/textarea";
+import { Slider } from "./ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface CreateStudySessionDialogProps {
   open: boolean;
@@ -46,109 +35,49 @@ export function CreateStudySessionDialog({
   tasks = [],
   events = [],
 }: CreateStudySessionDialogProps) {
-  const defaultTime = format(new Date(), 'yyyy-MM-dd HH:mm');
-  const isMobile = useMediaQuery("(max-width: 640px)");
-
   const [topic, setTopic] = useState(initialSession?.subject || "");
-  const [startTime, setStartTime] = useState(initialSession?.scheduledFor || defaultTime);
-  const [endTime, setEndTime] = useState("");
-  const [isFlexible, setIsFlexible] = useState(initialSession?.isFlexible || false);
+  const [startTime, setStartTime] = useState(initialSession?.scheduledFor || "");
   const [duration, setDuration] = useState(initialSession?.duration || 60);
   const [goal, setGoal] = useState(initialSession?.goal || "");
   const [technique, setTechnique] = useState(initialSession?.technique || "pomodoro");
   const [breakInterval, setBreakInterval] = useState(initialSession?.breakInterval || 25);
   const [breakDuration, setBreakDuration] = useState(initialSession?.breakDuration || 5);
   const [materials, setMaterials] = useState(initialSession?.materials || "");
-  const [priority, setPriority] = useState<"High" | "Medium" | "Low">(initialSession?.priority || "Medium");
-  const [reminders, setReminders] = useState<Array<{ type: 'minutes' | 'hours' | 'days', amount: number }>>(
-    initialSession?.reminders || []
+  const [priority, setPriority] = useState<"High" | "Medium" | "Low" | undefined>(
+    initialSession?.priority
   );
+  const [isFlexible, setIsFlexible] = useState(initialSession?.isFlexible || false);
+  const [reminders, setReminders] = useState(initialSession?.reminders || []);
   const [linkedTaskIds, setLinkedTaskIds] = useState<string[]>(
     initialSession?.linkedTaskIds || []
   );
   const [linkedEventIds, setLinkedEventIds] = useState<string[]>(
     initialSession?.linkedEventIds || []
   );
+  const [completion, setCompletion] = useState(initialSession?.completion || 0);
+  const [notes, setNotes] = useState(initialSession?.notes || "");
 
   const { toast } = useToast();
 
   useEffect(() => {
-    if (initialSession && mode === "edit") {
+    if (initialSession) {
       setTopic(initialSession.subject);
-      setStartTime(initialSession.scheduledFor?.slice(0, 16) || defaultTime);
-      setIsFlexible(initialSession.isFlexible || false);
+      setStartTime(initialSession.scheduledFor);
       setDuration(initialSession.duration);
       setGoal(initialSession.goal);
       setTechnique(initialSession.technique);
       setBreakInterval(initialSession.breakInterval || 25);
       setBreakDuration(initialSession.breakDuration || 5);
       setMaterials(initialSession.materials || "");
-      setPriority(initialSession.priority || "Medium");
+      setPriority(initialSession.priority);
+      setIsFlexible(initialSession.isFlexible || false);
       setReminders(initialSession.reminders || []);
       setLinkedTaskIds(initialSession.linkedTaskIds || []);
       setLinkedEventIds(initialSession.linkedEventIds || []);
-
-      // Calculate end time based on start time and duration
-      const startDate = new Date(initialSession.scheduledFor);
-      const endDate = addMinutes(startDate, initialSession.duration);
-      setEndTime(format(endDate, "yyyy-MM-dd HH:mm"));
-    } else {
-      // Reset form for create mode
-      setTopic("");
-      setStartTime(defaultTime);
-      setIsFlexible(false);
-      setDuration(60);
-      setGoal("");
-      setTechnique("pomodoro");
-      setBreakInterval(25);
-      setBreakDuration(5);
-      setMaterials("");
-      setPriority("Medium");
-      setReminders([]);
-      setLinkedTaskIds([]);
-      setLinkedEventIds([]);
-      
-      // Set initial end time for new session
-      const start = new Date(startTime);
-      console.log(start)
-      const end = addMinutes(start, 60);
-      console.log(end)
-      setEndTime(format(new Date(end), 'yyyy-MM-dd HH:mm'));
+      setCompletion(initialSession.completion || 0);
+      setNotes(initialSession.notes || "");
     }
-  }, [initialSession, mode, open]);
-
-  // Update duration when end time changes
-  const handleEndTimeChange = (newEndTime: string) => {
-    setEndTime(newEndTime);
-    if (startTime && newEndTime) {
-      const start = new Date(startTime);
-      const end = new Date(newEndTime);
-      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-        const durationInMinutes = Math.round((end.getTime() - start.getTime()) / 1000 / 60);
-        setDuration(durationInMinutes);
-      }
-    }
-  };
-
-  // Update end time when duration changes
-  const handleDurationChange = (newDuration: number) => {
-    setDuration(newDuration);
-    if (startTime) {
-      const start = new Date(startTime);
-      if (!isNaN(start.getTime())) {
-        const end = addMinutes(start, newDuration);
-        setEndTime(format(end, 'yyyy-MM-dd HH:mm'));
-      }
-    }
-  };
-
-  const addReminder = () => {
-    setReminders([...reminders, { type: 'minutes', amount: 15 }]);
-  };
-
-  const removeReminder = (index: number) => {
-    setReminders(reminders.filter((_, i) => i !== index));
-  };
+  }, [initialSession]);
 
   const handleSubmit = async () => {
     if (!startTime) {
@@ -175,26 +104,26 @@ export function CreateStudySessionDialog({
         reminders,
         linkedTaskIds,
         linkedEventIds,
-        status: 'scheduled' as const,
-        completion: 0,
-        notes: ''
+        status: "scheduled" as const,
+        completion,
+        notes,
       };
 
+      let response;
       if (mode === "edit" && initialSession?.id) {
-        const response = await updateStudySession(initialSession.id, sessionData);
+        response = await updateStudySession(initialSession.id, sessionData);
         toast({
           title: "Success",
           description: "Study session updated successfully",
         });
-        onSessionCreated(response.session);
       } else {
-        const response = await addStudySession(sessionData);
+        response = await addStudySession(sessionData);
         toast({
           title: "Success",
           description: "Study session created successfully",
         });
-        onSessionCreated(response.session);
       }
+      onSessionCreated(response.session);
       onOpenChange(false);
     } catch (error) {
       toast({
@@ -207,80 +136,78 @@ export function CreateStudySessionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {mode === "edit" ? "Edit Study Session" : "Create Study Session"}
           </DialogTitle>
         </DialogHeader>
-        <ScrollArea className="max-h-[60vh] pr-4">
-          <div className="grid gap-4 py-4">
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="topic">Topic*</Label>
+              <Label htmlFor="subject">Subject</Label>
               <Input
-                id="topic"
+                id="subject"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
-                placeholder="Enter study topic"
-                required
+                placeholder="Enter subject"
               />
             </div>
-
-            <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-2 gap-4'}`}>
-              <div className="grid gap-2">
-                <Label htmlFor="startTime">Start Time*</Label>
-                <Input
-                  id="startTime"
-                  type="datetime-local"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="endTime">End Time*</Label>
-                <Input
-                  id="endTime"
-                  type="datetime-local"
-                  value={endTime}
-                  onChange={(e) => handleEndTimeChange(e.target.value)}
-                  required
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="priority">Priority</Label>
+              <Select
+                value={priority}
+                onValueChange={(value: "High" | "Medium" | "Low") =>
+                  setPriority(value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="High">High</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="Low">Low</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+          </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="isFlexible"
-                checked={isFlexible}
-                onCheckedChange={setIsFlexible}
+          <div className="grid gap-2">
+            <Label htmlFor="goal">Goal</Label>
+            <Textarea
+              id="goal"
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              placeholder="What do you want to achieve?"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="startTime">Start Time</Label>
+              <Input
+                id="startTime"
+                type="datetime-local"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
               />
-              <Label htmlFor="isFlexible">Flexible timing</Label>
             </div>
-
             <div className="grid gap-2">
               <Label htmlFor="duration">Duration (minutes)</Label>
               <Input
                 id="duration"
                 type="number"
-                value={duration}
-                onChange={(e) => handleDurationChange(parseInt(e.target.value))}
                 min="1"
+                value={duration}
+                onChange={(e) => setDuration(parseInt(e.target.value))}
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="goal">Goals/Expected Outcomes</Label>
-              <Textarea
-                id="goal"
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-                placeholder="What do you want to achieve in this session?"
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Study Technique</Label>
+              <Label htmlFor="technique">Study Technique</Label>
               <Select value={technique} onValueChange={setTechnique}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select technique" />
@@ -288,178 +215,70 @@ export function CreateStudySessionDialog({
                 <SelectContent>
                   <SelectItem value="pomodoro">Pomodoro</SelectItem>
                   <SelectItem value="deepwork">Deep Work</SelectItem>
-                  <SelectItem value="custom">Custom</SelectItem>
+                  <SelectItem value="spaced">Spaced Repetition</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
-            {technique === "pomodoro" && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="breakInterval">Work Interval (minutes)</Label>
-                  <Input
-                    id="breakInterval"
-                    type="number"
-                    value={breakInterval}
-                    onChange={(e) => setBreakInterval(parseInt(e.target.value))}
-                    min="1"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="breakDuration">Break Duration (minutes)</Label>
-                  <Input
-                    id="breakDuration"
-                    type="number"
-                    value={breakDuration}
-                    onChange={(e) => setBreakDuration(parseInt(e.target.value))}
-                    min="1"
-                  />
-                </div>
-              </div>
-            )}
-
             <div className="grid gap-2">
-              <Label htmlFor="materials">Materials/Resources</Label>
+              <Label htmlFor="materials">Study Materials</Label>
               <Input
                 id="materials"
                 value={materials}
                 onChange={(e) => setMaterials(e.target.value)}
-                placeholder="Add links or references to study materials"
+                placeholder="Enter study materials"
               />
             </div>
-
-            <div className="grid gap-2">
-              <Label>Priority</Label>
-              <RadioGroup
-                value={priority}
-                onValueChange={(value: "High" | "Medium" | "Low") =>
-                  setPriority(value)
-                }
-              >
-                <div className="flex space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="High" id="priority-high" />
-                    <Label htmlFor="priority-high">High</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Medium" id="priority-medium" />
-                    <Label htmlFor="priority-medium">Medium</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Low" id="priority-low" />
-                    <Label htmlFor="priority-low">Low</Label>
-                  </div>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <Label>Reminders</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addReminder}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Reminder
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {reminders.map((reminder, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <Input
-                      type="number"
-                      value={reminder.amount}
-                      onChange={(e) => {
-                        const newReminders = [...reminders];
-                        newReminders[index].amount = parseInt(e.target.value);
-                        setReminders(newReminders);
-                      }}
-                      className="w-20"
-                    />
-                    <Select
-                      value={reminder.type}
-                      onValueChange={(value: 'minutes' | 'hours' | 'days') => {
-                        const newReminders = [...reminders];
-                        newReminders[index].type = value;
-                        setReminders(newReminders);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="minutes">Minutes</SelectItem>
-                        <SelectItem value="hours">Hours</SelectItem>
-                        <SelectItem value="days">Days</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeReminder(index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Link Tasks</Label>
-              <div className="space-y-2">
-                {tasks.map((task) => (
-                  <div key={task.id} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={linkedTaskIds.includes(task.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setLinkedTaskIds([...linkedTaskIds, task.id]);
-                        } else {
-                          setLinkedTaskIds(
-                            linkedTaskIds.filter((id) => id !== task.id)
-                          );
-                        }
-                      }}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
-                    <span>{task.title}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Link Events</Label>
-              <div className="space-y-2">
-                {events.map((event) => (
-                  <div key={event.id} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={linkedEventIds.includes(event.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setLinkedEventIds([...linkedEventIds, event.id]);
-                        } else {
-                          setLinkedEventIds(
-                            linkedEventIds.filter((id) => id !== event.id)
-                          );
-                        }
-                      }}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
-                    <span>{event.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
-        </ScrollArea>
+
+          {technique === "pomodoro" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="breakInterval">Break Interval (minutes)</Label>
+                <Input
+                  id="breakInterval"
+                  type="number"
+                  min="1"
+                  value={breakInterval}
+                  onChange={(e) => setBreakInterval(parseInt(e.target.value))}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="breakDuration">Break Duration (minutes)</Label>
+                <Input
+                  id="breakDuration"
+                  type="number"
+                  min="1"
+                  value={breakDuration}
+                  onChange={(e) => setBreakDuration(parseInt(e.target.value))}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <Label>Completion</Label>
+              <span className="text-sm text-muted-foreground">{completion}%</span>
+            </div>
+            <Slider
+              value={[completion]}
+              onValueChange={(values) => setCompletion(values[0])}
+              max={100}
+              step={1}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add any notes about this session"
+              className="min-h-[100px]"
+            />
+          </div>
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel

@@ -1,6 +1,6 @@
 import api from './api';
 import { StudySession } from '@/types';
-import { format, isToday } from 'date-fns';
+import { isToday } from 'date-fns';
 
 // Helper functions for local storage
 const getLocalSessions = (): StudySession[] => {
@@ -79,13 +79,13 @@ export const getStudySessions = () => {
           duration: 60,
           technique: 'pomodoro',
           status: 'in-progress' as const,
-          scheduledFor: new Date().toISOString().slice(0, 16), // Format: YYYY-MM-DDThh:mm
+          scheduledFor: new Date().toISOString(),
           breakInterval: 25,
           breakDuration: 5,
           materials: 'https://example.com/math-materials',
           priority: 'High' as const,
-          startTime: new Date(Date.now() - 1800000).toISOString().slice(0, 16),
-          endTime: new Date(Date.now() + 1800000).toISOString().slice(0, 16),
+          startTime: new Date(Date.now() - 1800000).toISOString(),
+          endTime: new Date(Date.now() + 1800000).toISOString(),
           completion: 50,
           notes: ''
         },
@@ -96,7 +96,7 @@ export const getStudySessions = () => {
           duration: 45,
           technique: 'deepwork',
           status: 'scheduled' as const,
-          scheduledFor: new Date(Date.now() + 3600000).toISOString().slice(0, 16),
+          scheduledFor: new Date(Date.now() + 3600000).toISOString(),
           priority: 'Medium' as const,
           startTime: undefined,
           endTime: undefined,
@@ -110,10 +110,10 @@ export const getStudySessions = () => {
           duration: 90,
           technique: 'pomodoro',
           status: 'completed' as const,
-          scheduledFor: new Date(Date.now() - 86400000).toISOString().slice(0, 16),
+          scheduledFor: new Date(Date.now() - 86400000).toISOString(),
           priority: 'High' as const,
-          startTime: new Date(Date.now() - 86400000).toISOString().slice(0, 16),
-          endTime: new Date(Date.now() - 86400000 + 5400000).toISOString().slice(0, 16),
+          startTime: new Date(Date.now() - 86400000).toISOString(),
+          endTime: new Date(Date.now() - 86400000 + 5400000).toISOString(),
           completion: 100,
           notes: 'Successfully completed all practice problems. Need to review stereochemistry concepts.'
         }
@@ -131,11 +131,10 @@ export const getStudySessions = () => {
 export const addStudySession = (session: Omit<StudySession, 'id'>) => {
   return new Promise<{ session: StudySession }>((resolve) => {
     setTimeout(() => {
-      console.log('Sessions.ts, add study session scheduledFor: ', session.scheduledFor)
+      // Create a new session with the provided data
       const newSession: StudySession = {
         ...session,
         id: Math.random().toString(36).substring(7),
-        scheduledFor: format(new Date(session.scheduledFor), "yyyy-MM-dd'T'hh:mm") // Format: YYYY-MM-DDThh:mm
       };
 
       // Save to local storage
@@ -162,9 +161,6 @@ export const updateStudySession = (id: string, updates: Partial<StudySession>) =
         const updatedSession = {
           ...sessions[sessionIndex],
           ...updates,
-          scheduledFor: updates.scheduledFor
-            ? format(new Date(updates.scheduledFor), "yyyy-MM-dd'T'hh:mm")
-            : sessions[sessionIndex].scheduledFor
         };
         sessions[sessionIndex] = updatedSession;
         saveLocalSessions(sessions);
@@ -177,9 +173,7 @@ export const updateStudySession = (id: string, updates: Partial<StudySession>) =
           duration: updates.duration || 60,
           technique: updates.technique || 'pomodoro',
           status: updates.status || 'scheduled',
-          scheduledFor: updates.scheduledFor
-            ? new Date(updates.scheduledFor).toISOString().slice(0, 16)
-            : new Date().toISOString().slice(0, 16),
+          scheduledFor: updates.scheduledFor || new Date().toISOString(),
           completion: updates.completion || 0,
           notes: updates.notes || '',
           ...updates
@@ -218,8 +212,8 @@ export const startStudySession = (id: string) => {
         const updatedSession = {
           ...sessions[sessionIndex],
           status: 'in-progress' as const,
-          startTime: startTime.toISOString().slice(0, 16),
-          endTime: new Date(startTime.getTime() + sessions[sessionIndex].duration * 60000).toISOString().slice(0, 16)
+          startTime: startTime.toISOString(),
+          endTime: new Date(startTime.getTime() + sessions[sessionIndex].duration * 60000).toISOString()
         };
         sessions[sessionIndex] = updatedSession;
         saveLocalSessions(sessions);
@@ -243,7 +237,7 @@ export const endStudySession = (id: string, notes?: string) => {
         const updatedSession = {
           ...sessions[sessionIndex],
           status: 'completed' as const,
-          endTime: new Date().toISOString().slice(0, 16),
+          endTime: new Date().toISOString(),
           completion: 100,
           notes: notes || sessions[sessionIndex].notes
         };
@@ -278,7 +272,7 @@ export const postponeStudySession = (
 
         const updatedSession = {
           ...sessions[sessionIndex],
-          scheduledFor: newDate.toISOString().slice(0, 16)
+          scheduledFor: newDate.toISOString()
         };
         sessions[sessionIndex] = updatedSession;
         saveLocalSessions(sessions);
