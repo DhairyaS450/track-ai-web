@@ -42,6 +42,11 @@ export interface StudySession {
   endTime?: string;
   completion: number;
   notes: string;
+  currentPhase?: 'study' | 'break';
+  pausedAt?: number;
+  resumedAt?: number;
+  totalPausedTime?: number;
+  progress?: number;
 }
 
 export interface User {
