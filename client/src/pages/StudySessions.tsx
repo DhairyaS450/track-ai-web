@@ -9,7 +9,6 @@ import {
   Play,
   Pause,
   Timer,
-  BookOpen,
   Plus,
   Check,
   Calendar as CalendarIcon,
@@ -21,6 +20,9 @@ import {
   CalendarDays,
   CheckCircle2,
   Filter,
+  MoreVertical,
+  Sparkles,
+  Settings,
 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { Badge } from "@/components/ui/badge";
@@ -45,13 +47,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RescheduleSessionDialog } from "@/components/RescheduleSessionDialog";
 import { addStudySession } from "@/api/sessions";
+import { StudySessionTimer } from "@/components/StudySessionTimer";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type SessionFilter = "all" | "ongoing" | "upcoming" | "completed";
 
 export function StudySessions() {
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [activeSession, setActiveSession] = useState<StudySession | null>(null);
-  const [timer, setTimer] = useState<number | null>(null);
   const [createSessionOpen, setCreateSessionOpen] = useState(false);
   const [deleteSessionOpen, setDeleteSessionOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
@@ -81,36 +90,7 @@ export function StudySessions() {
     const activeSession = sessions.find(s => s.status === 'in-progress');
     if (activeSession) {
       setActiveSession(activeSession);
-      if (activeSession.endTime) {
-        const remainingTime = Math.max(0, new Date(activeSession.endTime).getTime() - Date.now()) / 1000;
-        setTimer(Math.round(remainingTime));
-      }
     }
-  };
-
-  useEffect(() => {
-    let interval: number;
-    if (activeSession && timer !== null && timer > 0) {
-      interval = window.setInterval(() => {
-        setTimer(prev => {
-          if (prev === null || prev <= 0) {
-            clearInterval(interval);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [activeSession, timer]);
-
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
-    return `${hours > 0 ? `${hours}:` : ''}${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   const handleEndSession = async (sessionId: string) => {
@@ -118,10 +98,9 @@ export function StudySessions() {
       await endStudySession(sessionId, sessionNotes[sessionId]);
       await fetchSessions();
       setActiveSession(null);
-      setTimer(null);
       toast({
         title: "Success",
-        description: "Study session ended",
+        description: "Study session ended successfully",
       });
     } catch (error) {
       toast({
@@ -150,7 +129,7 @@ export function StudySessions() {
       await fetchSessions();
       toast({
         title: "Success",
-        description: "Study session rescheduled",
+        description: "Study session rescheduled successfully",
       });
     } catch (error) {
       toast({
@@ -161,6 +140,15 @@ export function StudySessions() {
     }
     setSessionToReschedule(null);
     setRescheduleSessionOpen(false);
+  };
+
+  const handlePhaseChange = (phase: 'study' | 'break') => {
+    toast({
+      title: phase === 'study' ? "Study Time!" : "Break Time!",
+      description: phase === 'study' 
+        ? "Focus on your tasks for this session" 
+        : "Take a short break to recharge",
+    });
   };
 
   const filteredSessions = sessions.filter(session => {
@@ -207,10 +195,11 @@ export function StudySessions() {
         <div className="space-y-6">
           {/* Active Session Section */}
           {(filter === "all" || filter === "ongoing") && activeSession && (
-            <Card className="border-l-4 border-l-blue-500">
+            <Card className="border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-xl font-semibold">
-                  Your Active Study Session
+                <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                  <Timer className="h-6 w-6 text-blue-500" />
+                  Active Study Session
                 </CardTitle>
                 <Button
                   variant="ghost"
@@ -227,7 +216,7 @@ export function StudySessions() {
               <Collapsible open={isActiveOpen}>
                 <CollapsibleContent>
                   <CardContent>
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="text-lg font-semibold">{activeSession.subject}</h3>
@@ -246,51 +235,41 @@ export function StudySessions() {
                         </Badge>
                       </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">
-                              Started at {format(new Date(activeSession.scheduledFor!), "h:mm a")}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Timer className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">
-                              {timer !== null && formatTime(timer)}
-                            </span>
-                          </div>
-                        </div>
-                        <CircularProgress
-                          value={activeSession.completion}
-                          max={100}
-                          size={40}
-                        />
-                      </div>
+                      <StudySessionTimer
+                        startTime={activeSession.scheduledFor}
+                        duration={activeSession.duration}
+                        breakInterval={activeSession.breakInterval || 25}
+                        breakDuration={activeSession.breakDuration || 5}
+                        onPhaseChange={handlePhaseChange}
+                        onComplete={() => handleEndSession(activeSession.id)}
+                        onPause={(progress) => {
+                          toast({
+                            title: "Session Paused",
+                            description: `Progress saved: ${Math.round(progress)}%`,
+                          });
+                        }}
+                        onResume={() => {
+                          toast({
+                            title: "Session Resumed",
+                            description: "Keep up the good work!",
+                          });
+                        }}
+                        initialProgress={activeSession.completion}
+                      />
 
                       <div className="flex justify-end gap-2">
                         <Button
                           variant="outline"
-                          size="sm"
                           onClick={() => {
                             setSessionToEdit(activeSession);
                             setCreateSessionOpen(true);
                           }}
                         >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setTimer(null)}
-                        >
-                          <Pause className="h-4 w-4 mr-2" />
-                          Pause
+                          <Settings className="h-4 w-4 mr-2" />
+                          Session Settings
                         </Button>
                         <Button
                           variant="default"
-                          size="sm"
                           onClick={() => handleEndSession(activeSession.id)}
                         >
                           <Check className="h-4 w-4 mr-2" />
@@ -308,7 +287,10 @@ export function StudySessions() {
           {(filter === "all" || filter === "upcoming") && upcomingSessions.length > 0 && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle>Upcoming Study Sessions</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5 text-green-500" />
+                  Upcoming Sessions
+                </CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -329,23 +311,35 @@ export function StudySessions() {
                         <div
                           key={session.id}
                           className={cn(
-                            "flex items-center justify-between p-4 rounded-lg border",
-                            session.priority === "High"
-                              ? "bg-red-50/50 dark:bg-red-950/50"
-                              : "bg-card"
+                            "flex items-center justify-between p-4 rounded-lg border transition-all hover:shadow-md",
+                            session.isAIRecommended
+                              ? "bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950 dark:to-blue-950"
+                              : "bg-card hover:bg-accent/5",
+                            session.priority === "High" && "border-red-200 dark:border-red-800"
                           )}
                         >
                           <div className="space-y-1">
-                            <h3 className="font-medium">{session.subject}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-medium">{session.subject}</h3>
+                              {session.isAIRecommended && (
+                                <Badge variant="secondary" className="gap-1">
+                                  <Sparkles className="h-3 w-3" />
+                                  AI Recommended
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-sm text-muted-foreground">
                               {session.goal}
                             </p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <CalendarDays className="h-4 w-4" />
-                              {format(new Date(session.scheduledFor), "MMM d, h:mm a")}
-                              <span className="text-muted-foreground">
-                                ({session.duration} min)
-                              </span>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-4 w-4" />
+                                {format(new Date(session.scheduledFor), "h:mm a")}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Timer className="h-4 w-4" />
+                                {session.duration} minutes
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -360,36 +354,44 @@ export function StudySessions() {
                             >
                               {session.priority}
                             </Badge>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setSessionToEdit(session);
-                                setCreateSessionOpen(true);
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setSessionToPostpone(session.id);
-                                setPostponeSessionOpen(true);
-                              }}
-                            >
-                              <CalendarDays className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setSessionToDelete(session.id);
-                                setDeleteSessionOpen(true);
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSessionToEdit(session);
+                                    setCreateSessionOpen(true);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSessionToPostpone(session.id);
+                                    setPostponeSessionOpen(true);
+                                  }}
+                                >
+                                  <CalendarDays className="h-4 w-4 mr-2" />
+                                  Postpone
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-red-600 dark:text-red-400"
+                                  onClick={() => {
+                                    setSessionToDelete(session.id);
+                                    setDeleteSessionOpen(true);
+                                  }}
+                                >
+                                  <X className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
                       ))}
@@ -404,7 +406,10 @@ export function StudySessions() {
           {(filter === "all" || filter === "completed") && completedSessions.length > 0 && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle>Completed Study Sessions</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  Completed Sessions
+                </CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -424,7 +429,7 @@ export function StudySessions() {
                       {completedSessions.map((session) => (
                         <div
                           key={session.id}
-                          className="flex flex-col p-4 rounded-lg border bg-card"
+                          className="flex flex-col p-4 rounded-lg border bg-card/50 hover:bg-card/80 transition-colors"
                         >
                           <div className="flex items-center justify-between mb-2">
                             <div className="space-y-1">
@@ -433,8 +438,8 @@ export function StudySessions() {
                                 {session.goal}
                               </p>
                             </div>
-                            <Badge variant="secondary">
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                            <Badge variant="secondary" className="gap-1">
+                              <CheckCircle2 className="h-3 w-3" />
                               Completed
                             </Badge>
                           </div>
@@ -459,18 +464,18 @@ export function StudySessions() {
                             }
                             className="mt-2"
                           />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSessionToReschedule(session);
-                              setRescheduleSessionOpen(true);
-                            }}
-                            className="mt-2"
-                          >
-                            <CalendarDays className="h-4 w-4 mr-2" />
-                            Reschedule
-                          </Button>
+                          <div className="flex justify-end mt-2 gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setSessionToReschedule(session);
+                                setRescheduleSessionOpen(true);
+                              }}
+                            >
+                              <CalendarDays className="h-4 w-4 mr-2" />
+                              Schedule Again
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -512,7 +517,7 @@ export function StudySessions() {
             await fetchSessions();
             toast({
               title: "Success",
-              description: "Study session deleted",
+              description: "Study session deleted successfully",
             });
           } catch (error) {
             toast({
@@ -535,7 +540,7 @@ export function StudySessions() {
             // Implement postpone functionality
             toast({
               title: "Success",
-              description: "Study session postponed",
+              description: "Study session postponed successfully",
             });
           } catch (error) {
             toast({

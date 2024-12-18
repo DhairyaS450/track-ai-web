@@ -43,82 +43,79 @@ export function CreateTaskDialog({
   const defaultDeadline = new Date().toLocaleString("sv-SE").slice(0, 16); // Format: YYYY-MM-DDThh:mm
   const isMobile = useMediaQuery("(max-width: 640px)");
 
-  const [title, setTitle] = useState(initialTask?.title || "");
-  const [description, setDescription] = useState(initialTask?.description || "");
-  const [priority, setPriority] = useState<Priority>(
-    initialTask?.priority || "Medium"
-  );
-  const [deadline, setDeadline] = useState(
-    initialTask?.deadline
-      ? new Date(initialTask.deadline).toISOString().slice(0, 16)
-      : defaultDeadline
-  );
-  const [subject, setSubject] = useState(initialTask?.subject || "");
-  const [resources, setResources] = useState(initialTask?.resources || "");
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(
-    initialTask?.timeSlots || [{ startDate: "", endDate: "" }]
-  );
-  const [recurrence, setRecurrence] = useState<Recurrence | undefined>(
-    initialTask?.recurrence
-  );
-  const [completion, setCompletion] = useState(initialTask?.completion || 0);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    priority: "Medium" as Priority,
+    deadline: defaultDeadline,
+    subject: "",
+    resources: "",
+    timeSlots: [{ startDate: "", endDate: "" }] as TimeSlot[],
+    recurrence: undefined as Recurrence | undefined,
+    completion: 0,
+  });
 
   const { toast } = useToast();
 
   useEffect(() => {
     if (initialTask) {
-      setTitle(initialTask.title);
-      setDescription(initialTask.description);
-      setPriority(initialTask.priority);
-      setDeadline(initialTask.deadline);
-      setSubject(initialTask.subject || "");
-      setResources(initialTask.resources || "");
-      setTimeSlots(initialTask.timeSlots || [{ startDate: "", endDate: "" }]);
-      setRecurrence(initialTask.recurrence);
-      setCompletion(initialTask.completion || 0);
+      setFormData({
+        title: initialTask.title,
+        description: initialTask.description,
+        priority: initialTask.priority,
+        deadline: initialTask.deadline,
+        subject: initialTask.subject || "",
+        resources: initialTask.resources || "",
+        timeSlots: initialTask.timeSlots || [{ startDate: "", endDate: "" }],
+        recurrence: initialTask.recurrence,
+        completion: initialTask.completion || 0,
+      });
     } else {
-      setTitle("");
-      setDescription("");
-      setPriority("Medium");
-      setDeadline(defaultDeadline);
-      setSubject("");
-      setResources("");
-      setTimeSlots([{ startDate: "", endDate: "" }]);
-      setRecurrence(undefined);
-      setCompletion(0);
+      setFormData({
+        title: "",
+        description: "",
+        priority: "Medium",
+        deadline: defaultDeadline,
+        subject: "",
+        resources: "",
+        timeSlots: [{ startDate: "", endDate: "" }],
+        recurrence: undefined,
+        completion: 0,
+      });
     }
   }, [initialTask, defaultDeadline]);
 
+  const updateFormData = (updates: Partial<typeof formData>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+  };
+
   const addTimeSlot = () => {
-    setTimeSlots([...timeSlots, { startDate: "", endDate: "" }]);
+    updateFormData({
+      timeSlots: [...formData.timeSlots, { startDate: "", endDate: "" }],
+    });
   };
 
   const removeTimeSlot = (index: number) => {
-    setTimeSlots(timeSlots.filter((_, i) => i !== index));
+    updateFormData({
+      timeSlots: formData.timeSlots.filter((_, i) => i !== index),
+    });
   };
 
   const updateTimeSlot = (index: number, field: keyof TimeSlot, value: string) => {
-    const newTimeSlots = [...timeSlots];
+    const newTimeSlots = [...formData.timeSlots];
     newTimeSlots[index] = { ...newTimeSlots[index], [field]: value };
-    setTimeSlots(newTimeSlots);
+    updateFormData({ timeSlots: newTimeSlots });
   };
 
   const handleSubmit = async () => {
     try {
-      var statusTypes : 'completed' | 'in-progress' | 'todo'
-      const status : typeof statusTypes = completion === 100 ? 'completed' : completion > 0 ? 'in-progress' : 'todo';
-      
+      const status: 'completed' | 'in-progress' | 'todo' = 
+        formData.completion === 100 ? 'completed' : 
+        formData.completion > 0 ? 'in-progress' : 'todo';
+
       const taskData = {
-        title,
-        description,
-        priority,
-        deadline,
-        subject,
-        resources,
+        ...formData,
         status,
-        timeSlots,
-        recurrence,
-        completion,
       };
 
       if (mode === "edit" && initialTask?.id) {
@@ -158,8 +155,8 @@ export function CreateTaskDialog({
               <Label htmlFor="title">Title</Label>
               <Input
                 id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                value={formData.title}
+                onChange={(e) => updateFormData({ title: e.target.value })}
                 placeholder="Enter task title"
               />
             </div>
@@ -167,14 +164,17 @@ export function CreateTaskDialog({
               <Label htmlFor="description">Description</Label>
               <Input
                 id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                value={formData.description}
+                onChange={(e) => updateFormData({ description: e.target.value })}
                 placeholder="Enter task description"
               />
             </div>
             <div className="grid gap-2">
               <Label>Priority</Label>
-              <RadioGroup value={priority} onValueChange={(value: Priority) => setPriority(value)}>
+              <RadioGroup 
+                value={formData.priority} 
+                onValueChange={(value: Priority) => updateFormData({ priority: value })}
+              >
                 <div className={cn("flex gap-4", isMobile && "flex-col")}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="High" id="priority-high" />
@@ -196,8 +196,8 @@ export function CreateTaskDialog({
               <Input
                 id="deadline"
                 type="datetime-local"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
+                value={formData.deadline}
+                onChange={(e) => updateFormData({ deadline: e.target.value })}
               />
             </div>
 
@@ -218,7 +218,7 @@ export function CreateTaskDialog({
               {isMobile ? (
                 <>
                   <div className="grid grid-cols-1 gap-4 mb-2">
-                    {timeSlots.map((slot, index) => (
+                    {formData.timeSlots.map((slot, index) => (
                       <div key={index} className="space-y-2">
                         <Label>Start Time</Label>
                         <Input
@@ -233,7 +233,7 @@ export function CreateTaskDialog({
                             value={slot.endDate}
                             onChange={(e) => updateTimeSlot(index, "endDate", e.target.value)}
                           />
-                          {timeSlots.length > 1 && (
+                          {formData.timeSlots.length > 1 && (
                             <Button
                               type="button"
                               variant="ghost"
@@ -255,7 +255,7 @@ export function CreateTaskDialog({
                     <Label>End Time</Label>
                   </div>
 
-                  {timeSlots.map((slot, index) => (
+                  {formData.timeSlots.map((slot, index) => (
                     <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-4">
                       <Input
                         type="datetime-local"
@@ -267,7 +267,7 @@ export function CreateTaskDialog({
                         value={slot.endDate}
                         onChange={(e) => updateTimeSlot(index, "endDate", e.target.value)}
                       />
-                      {timeSlots.length > 1 && (
+                      {formData.timeSlots.length > 1 && (
                         <Button
                           type="button"
                           variant="ghost"
@@ -285,7 +285,10 @@ export function CreateTaskDialog({
 
             <div className="grid gap-2">
               <Label>Recurrence</Label>
-              <Select value={recurrence} onValueChange={(value: Recurrence) => setRecurrence(value)}>
+              <Select 
+                value={formData.recurrence} 
+                onValueChange={(value: Recurrence) => updateFormData({ recurrence: value })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select recurrence" />
                 </SelectTrigger>
@@ -301,8 +304,8 @@ export function CreateTaskDialog({
               <Label htmlFor="subject">Subject</Label>
               <Input
                 id="subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
+                value={formData.subject}
+                onChange={(e) => updateFormData({ subject: e.target.value })}
                 placeholder="Enter subject"
               />
             </div>
@@ -310,8 +313,8 @@ export function CreateTaskDialog({
               <Label htmlFor="resources">Resources</Label>
               <Input
                 id="resources"
-                value={resources}
-                onChange={(e) => setResources(e.target.value)}
+                value={formData.resources}
+                onChange={(e) => updateFormData({ resources: e.target.value })}
                 placeholder="Enter resource links"
               />
             </div>
@@ -319,12 +322,12 @@ export function CreateTaskDialog({
             <div className="grid gap-2">
               <div className="flex items-center justify-between">
                 <Label>Completion</Label>
-                <span className="text-sm text-muted-foreground">{completion}%</span>
+                <span className="text-sm text-muted-foreground">{formData.completion}%</span>
               </div>
               <div className="px-1">
                 <Slider
-                  value={[completion]}
-                  onValueChange={(values) => setCompletion(values[0])}
+                  value={[formData.completion]}
+                  onValueChange={(values) => updateFormData({ completion: values[0] })}
                   max={100}
                   step={1}
                   className="w-full"

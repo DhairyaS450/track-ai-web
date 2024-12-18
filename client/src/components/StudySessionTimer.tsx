@@ -1,10 +1,24 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { CircularProgress } from "./CircularProgress";
 import { format } from "date-fns";
-import { Timer, Play, SkipForward, Pause } from "lucide-react";
+import { Timer, Play, SkipForward, Pause, MessageSquare } from "lucide-react";
 import { Badge } from "./ui/badge";
+import { useNavigate } from "react-router-dom";
+
+const breakSuggestions = [
+  "Stretch for 5 minutes to reduce muscle tension",
+  "Drink water and take deep breaths - stay hydrated!",
+  "Did you know? Short breaks improve focus and productivity!",
+  "Stand up and walk around to boost circulation",
+  "Look at something 20 feet away for 20 seconds to reduce eye strain",
+  "Do some quick desk exercises to stay energized",
+  "Practice mindful breathing to reduce stress",
+  "Give your eyes a rest from the screen",
+  "Try some shoulder and neck stretches",
+  "Hydrate and have a healthy snack if needed"
+];
 
 interface StudySessionTimerProps {
   startTime: string;
@@ -30,67 +44,127 @@ export function StudySessionTimer({
   initialProgress = 0,
 }: StudySessionTimerProps) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
-  const [isBreak, setIsBreak] = useState(false);
+  const [isBreak, setIsBreak] = useState(() => {
+    const savedPhase = localStorage.getItem('currentPhase');
+    return savedPhase === 'break';
+  });
   const [isPaused, setIsPaused] = useState(false);
-  const [currentPhaseStartTime, setCurrentPhaseStartTime] = useState<Date>(new Date());
-  const [phaseTimeLeft, setPhaseTimeLeft] = useState<number>(0);
+  const [phaseStartTime, setPhaseStartTime] = useState<Date>(new Date());
+  const [phaseEndTime, setPhaseEndTime] = useState<Date>(new Date());
   const [progress, setProgress] = useState(initialProgress);
+  const [currentBreakSuggestion, setCurrentBreakSuggestion] = useState("");
+  const navigate = useNavigate();
+
+  const calculatePhaseEndTime = useCallback((startDate: Date, isBreakPhase: boolean) => {
+    const phaseLength = isBreakPhase ? breakDuration : breakInterval;
+    return new Date(startDate.getTime() + phaseLength * 60000);
+  }, [breakDuration, breakInterval]);
+
+  const loadSavedState = useCallback(() => {
+    const savedTimeLeft = localStorage.getItem('timeLeft');
+    const savedPhaseStartTime = localStorage.getItem('phaseStartTime');
+    const savedPhaseEndTime = localStorage.getItem('phaseEndTime');
+    const savedProgress = localStorage.getItem('progress');
+
+    if (savedTimeLeft && savedPhaseStartTime && savedPhaseEndTime) {
+      setTimeLeft(parseInt(savedTimeLeft));
+      setPhaseStartTime(new Date(savedPhaseStartTime));
+      setPhaseEndTime(new Date(savedPhaseEndTime));
+      if (savedProgress) {
+        setProgress(parseFloat(savedProgress));
+      }
+    } else {
+      initializePhase(isBreak);
+    }
+  }, [isBreak]);
+
+  const initializePhase = useCallback((isBreakPhase: boolean) => {
+    const now = new Date();
+    setPhaseStartTime(now);
+    const endTime = calculatePhaseEndTime(now, isBreakPhase);
+    setPhaseEndTime(endTime);
+    setTimeLeft(endTime.getTime() - now.getTime());
+    
+    localStorage.setItem('currentPhase', isBreakPhase ? 'break' : 'study');
+    localStorage.setItem('phaseStartTime', now.toISOString());
+    localStorage.setItem('phaseEndTime', endTime.toISOString());
+    localStorage.setItem('timeLeft', (endTime.getTime() - now.getTime()).toString());
+
+    if (isBreakPhase) {
+      setCurrentBreakSuggestion(
+        breakSuggestions[Math.floor(Math.random() * breakSuggestions.length)]
+      );
+    }
+  }, [calculatePhaseEndTime]);
 
   useEffect(() => {
-    const start = new Date(startTime);
-    const totalDuration = duration * 60 * 1000; // Convert to milliseconds
-    const now = new Date();
-    const elapsed = now.getTime() - start.getTime();
-    setTimeLeft(Math.max(0, totalDuration - elapsed));
+    loadSavedState();
 
-    calculatePhase();
-  }, [startTime, duration]);
+    // Add event listener for beforeunload
+    const handleBeforeUnload = () => {
+      localStorage.setItem('timeLeft', timeLeft.toString());
+      localStorage.setItem('progress', progress.toString());
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
-  const calculatePhase = () => {
-    const start = new Date(startTime);
-    const now = new Date();
-    const elapsed = now.getTime() - start.getTime();
-    const cycleTime = (breakInterval + breakDuration) * 60 * 1000;
-    const currentCycle = Math.floor(elapsed / cycleTime);
-    const timeInCycle = elapsed % cycleTime;
-    const isInBreak = timeInCycle >= breakInterval * 60 * 1000;
-
-    setIsBreak(isInBreak);
-    setCurrentPhaseStartTime(new Date(start.getTime() + currentCycle * cycleTime));
-
-    if (isInBreak) {
-      const breakTimeLeft = cycleTime - timeInCycle;
-      setPhaseTimeLeft(breakTimeLeft);
-    } else {
-      const studyTimeLeft = (breakInterval * 60 * 1000) - timeInCycle;
-      setPhaseTimeLeft(studyTimeLeft);
-    }
-  };
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [loadSavedState]);
 
   useEffect(() => {
     if (isPaused) return;
 
     const timer = setInterval(() => {
       const now = new Date();
-      const start = new Date(startTime);
-      const totalDuration = duration * 60 * 1000;
-      const elapsed = now.getTime() - start.getTime();
-      const remaining = Math.max(0, totalDuration - elapsed);
 
-      setTimeLeft(remaining);
-      setProgress((elapsed / totalDuration) * 100);
-
-      if (remaining === 0) {
-        onComplete();
-        clearInterval(timer);
+      // Handle phase transition
+      if (now >= phaseEndTime) {
+        const newIsBreak = !isBreak;
+        setIsBreak(newIsBreak);
+        initializePhase(newIsBreak);
+        onPhaseChange(newIsBreak ? 'break' : 'study');
         return;
       }
 
-      calculatePhase();
+      const timeRemaining = phaseEndTime.getTime() - now.getTime();
+      setTimeLeft(Math.max(0, timeRemaining));
+
+      const start = new Date(startTime);
+      const totalDuration = duration * 60 * 1000;
+      const elapsed = now.getTime() - start.getTime();
+      const newProgress = Math.min(100, (elapsed / totalDuration) * 100);
+      
+      setProgress(newProgress);
+      localStorage.setItem('progress', newProgress.toString());
+
+      if (elapsed >= totalDuration) {
+        clearInterval(timer);
+        onComplete();
+      }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isPaused, startTime, duration, breakInterval, breakDuration]);
+  }, [isPaused, phaseEndTime, startTime, duration, onComplete, isBreak, initializePhase, onPhaseChange]);
+
+  const handlePause = () => {
+    setIsPaused(true);
+    localStorage.setItem('isPaused', 'true');
+    onPause(progress);
+  };
+
+  const handleResume = () => {
+    setIsPaused(false);
+    localStorage.setItem('isPaused', 'false');
+    onResume();
+  };
+
+  const handleSkipPhase = () => {
+    const newIsBreak = !isBreak;
+    setIsBreak(newIsBreak);
+    initializePhase(newIsBreak);
+    onPhaseChange(newIsBreak ? 'break' : 'study');
+  };
 
   const formatTimeLeft = (ms: number) => {
     const seconds = Math.floor((ms / 1000) % 60);
@@ -102,24 +176,14 @@ export function StudySessionTimer({
       .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const handlePause = () => {
-    setIsPaused(true);
-    onPause(progress);
-  };
-
-  const handleResume = () => {
-    setIsPaused(false);
-    onResume();
-  };
-
-  const skipPhase = () => {
-    // Implement phase skipping logic
-    setIsBreak(!isBreak);
-    onPhaseChange(isBreak ? 'study' : 'break');
+  const calculateNextPhaseTime = () => {
+    const nextPhaseIn = Math.floor(timeLeft / 1000 / 60);
+    const nextPhaseType = isBreak ? 'Focused Study' : 'Break';
+    return `Next: ${nextPhaseType} in ${nextPhaseIn} minute${nextPhaseIn !== 1 ? 's' : ''}`;
   };
 
   return (
-    <Card className="p-6 bg-white dark:bg-gray-800">
+    <Card className="p-6 bg-white dark:bg-gray-800 relative">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
           <Timer className="h-5 w-5 text-blue-500" />
@@ -139,42 +203,60 @@ export function StudySessionTimer({
       </div>
 
       <div className="flex items-center justify-between mb-6">
-        <div className="text-sm text-muted-foreground">
-          Current phase ends at:{" "}
-          {format(
-            new Date(currentPhaseStartTime.getTime() + phaseTimeLeft),
-            "hh:mm a"
+        <div className="flex flex-col gap-2">
+          <div className="text-sm text-muted-foreground">
+            Current phase ends at: {format(phaseEndTime, "hh:mm a")}
+          </div>
+          <div className="text-sm font-medium text-primary">
+            {calculateNextPhaseTime()}
+          </div>
+          {isBreak && (
+            <div className="text-sm italic text-muted-foreground mt-2 max-w-md">
+              Suggestion: {currentBreakSuggestion}
+            </div>
           )}
         </div>
         <CircularProgress value={progress} max={100} size={60} />
       </div>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-between items-center">
         <Button
           variant="outline"
           size="sm"
-          onClick={skipPhase}
+          onClick={() => navigate('/chatbot')}
+          className="gap-2"
         >
-          <SkipForward className="h-4 w-4 mr-2" />
-          Skip {isBreak ? "Break" : "Study"} Phase
+          <MessageSquare className="h-4 w-4" />
+          Need help? Chat with Track AI
         </Button>
-        <Button
-          variant="default"
-          size="sm"
-          onClick={isPaused ? handleResume : handlePause}
-        >
-          {isPaused ? (
-            <>
-              <Play className="h-4 w-4 mr-2" />
-              Resume
-            </>
-          ) : (
-            <>
-              <Pause className="h-4 w-4 mr-2" />
-              Pause
-            </>
-          )}
-        </Button>
+
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSkipPhase}
+          >
+            <SkipForward className="h-4 w-4 mr-2" />
+            Skip {isBreak ? "Break" : "Study"} Phase
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={isPaused ? handleResume : handlePause}
+          >
+            {isPaused ? (
+              <>
+                <Play className="h-4 w-4 mr-2" />
+                Resume
+              </>
+            ) : (
+              <>
+                <Pause className="h-4 w-4 mr-2" />
+                Pause
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </Card>
   );
