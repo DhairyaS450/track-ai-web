@@ -28,19 +28,23 @@ export function Login() {
 
   const onSubmit = async (data: LoginForm) => {
     try {
+      console.log('Starting login attempt with email:', data.email);
       setLoading(true)
       let response = await login(data.email, data.password);
-      localStorage.setItem('token', response.data.token); // Save token to local storage
+      console.log('Login API response:', response);
+      // The user is already authenticated through Firebase at this point
+      // No need to store token as Firebase handles the session
       toast({
         title: "Success",
         description: "Logged in successfully",
       })
       navigate("/")
     } catch (error) {
+      console.error('Login error details:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.response?.data?.error,
+        description: error instanceof Error ? error.message : "Login failed",
       })
     } finally {
       setLoading(false)

@@ -1,67 +1,72 @@
-import { createContext, useContext, useState, ReactNode } from "react";
-import { login as apiLogin, register as apiRegister } from "@/api/auth";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from '@/config/firebase';
+import { login as apiLogin, register as apiRegister, logout as apiLogout } from "@/api/auth";
 
 type AuthContextType = {
   isAuthenticated: boolean;
+  user: User | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
+  user: null,
   login: async () => {},
   register: async () => {},
-  logout: () => {},
+  logout: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return true; // this is just a placeholder - remove when the backend is being implemented
-    return !!localStorage.getItem("token");
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setIsAuthenticated(!!user);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      return await setTimeout(() => {setIsAuthenticated(true)}, 1000); // this is just a placeholder - remove when the backend is being implemented
+      console.log('AuthContext: Starting login process');
       const response = await apiLogin(email, password);
-      if (response.data?.token) {
-        localStorage.setItem("token", response.data.token);
-        setIsAuthenticated(true);
-      } else {
-        throw new Error(response.data.error || "Login failed");
+      console.log('AuthContext: Login response:', response);
+      if (!response.success) {
+        throw new Error('Login failed');
       }
-    } catch (error) {
-      localStorage.removeItem("token");
-      setIsAuthenticated(false);
+    } catch (error: any) {
+      console.error('AuthContext: Login error:', error);
       throw error;
     }
   };
 
   const register = async (email: string, password: string) => {
     try {
-      return await setTimeout(() => {setIsAuthenticated(true)}, 1000); // this is just a placeholder - remove when the backend is being implemented
-      const response = await apiRegister(email, password);
-      if (response.data?.token) {
-        localStorage.setItem("token", response.data.token);
-        setIsAuthenticated(true);
-      } else {
-        throw new Error(response.data.error || "Registration failed");
+      const response = await apiRegister({ email, password });
+      if (!response.success) {
+        throw new Error('Registration failed');
       }
-    } catch (error) {
-      localStorage.removeItem("token");
-      setIsAuthenticated(false);
+    } catch (error: any) {
       throw error;
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    setIsAuthenticated(false);
+  const logout = async () => {
+    try {
+      await apiLogout();
+    } catch (error: any) {
+      throw error;
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, register, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
