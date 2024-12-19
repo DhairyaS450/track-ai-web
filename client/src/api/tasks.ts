@@ -1,247 +1,151 @@
-import api from './api';
+import { db, auth } from '@/config/firebase';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Task, TimeSlot } from '@/types';
 import { isSameDay, parseISO } from 'date-fns';
-
-// Helper functions for local storage
-const getLocalTasks = (): Task[] => {
-  const tasks = localStorage.getItem('tasks');
-  return tasks ? JSON.parse(tasks) : [];
-};
-
-const saveLocalTasks = (tasks: Task[]) => {
-  localStorage.setItem('tasks', JSON.stringify(tasks));
-};
 
 // Get Tasks
 // GET /tasks
 // Response: { tasks: Task[] }
-export const getTasks = (includeCompleted: boolean = false) => {
-  return new Promise<{ tasks: Task[] }>((resolve) => {
-    setTimeout(() => {
-      const localTasks = getLocalTasks();
+export const getTasks = async (includeCompleted: boolean = false) => {
+  try {
+    console.log('Fetching tasks from Firestore');
+    const tasksRef = collection(db, 'tasks');
+    const q = query(
+      tasksRef,
+      where('userId', '==', auth.currentUser?.uid)
+    );
 
-      if (localTasks.length > 0) {
-        resolve({
-          tasks: localTasks.filter(task =>
-            includeCompleted ||
-            task.status != 'completed'
-          )
-        });
-        return;
-      }
+    const querySnapshot = await getDocs(q);
+    const tasks = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Task[];
 
-      const mockTasks = [
-        {
-          id: '1',
-          title: 'Math Assignment',
-          description: 'Complete calculus homework',
-          priority: 'High' as const,
-          deadline: '2024-03-20T23:59:59',
-          timeSlots: [
-            {
-              startDate: new Date().toISOString().split('T')[0] + 'T10:00:00',
-              endDate: new Date().toISOString().split('T')[0] + 'T12:00:00'
-            },
-            {
-              startDate: new Date().toISOString().split('T')[0] + 'T14:00:00',
-              endDate: new Date().toISOString().split('T')[0] + 'T16:00:00'
-            }
-          ],
-          status: 'todo' as const,
-          subject: 'Mathematics',
-          resources: 'https://example.com/math-resources',
-          completion: 0
-        },
-        {
-          id: '2',
-          title: 'Physics Lab Report',
-          description: 'Write up experiment results',
-          priority: 'Medium' as const,
-          deadline: '2024-03-21T23:59:59',
-          timeSlots: [
-            {
-              startDate: new Date().toISOString().split('T')[0] + 'T16:00:00',
-              endDate: new Date().toISOString().split('T')[0] + 'T18:00:00'
-            }
-          ],
-          status: 'todo' as const,
-          subject: 'Physics',
-          resources: 'https://example.com/physics-resources',
-          completion: 0
-        },
-        {
-          id: '3',
-          title: 'Literature Essay',
-          description: 'Write analysis of Shakespeare',
-          priority: 'Low' as const,
-          deadline: '2024-05-22T23:59:59',
-          timeSlots: [
-            {
-              startDate: '2024-05-22T09:00:00',
-              endDate: '2024-05-22T11:00:00'
-            }
-          ],
-          status: 'todo' as const,
-          subject: 'English',
-          resources: 'https://example.com/literature-resources',
-          completion: 0
-        }
-      ];
+    console.log(`Successfully fetched ${tasks.length} tasks from Firestore`);
 
-      resolve({
-        tasks: mockTasks.filter(task =>
-          includeCompleted ||
-          new Date(task.deadline) > new Date()
-        )
-      });
-    }, 500);
-  });
+    return {
+      tasks: tasks.filter(task => includeCompleted || task.status !== 'completed')
+    };
+  } catch (error: any) {
+    console.error('Error fetching tasks from Firestore:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to fetch tasks: ${error.message}`);
+  }
 };
 
-export const getTodayTasks = () => {
-  return new Promise<{ tasks: Task[] }>((resolve) => {
-    setTimeout(() => {
-      const allTasks = getLocalTasks();
-      const today = new Date();
+export const getTodayTasks = async () => {
+  try {
+    console.log('Fetching today\'s tasks from Firestore');
+    const { tasks } = await getTasks();
+    const today = new Date();
 
-      const todayTasks = allTasks.filter(task =>
-        task.timeSlots.some(slot => isSameDay(parseISO(slot.startDate), today))
-      ).sort((a, b) => {
-        const aTime = new Date(a.timeSlots[0].startDate).getTime();
-        const bTime = new Date(b.timeSlots[0].startDate).getTime();
-        return aTime - bTime;
-      });
+    const todayTasks = tasks.filter(task =>
+      task.timeSlots.some(slot => isSameDay(parseISO(slot.startDate), today))
+    ).sort((a, b) => {
+      const aTime = new Date(a.timeSlots[0].startDate).getTime();
+      const bTime = new Date(b.timeSlots[0].startDate).getTime();
+      return aTime - bTime;
+    });
 
-      if (todayTasks.length > 0) {
-        resolve({ tasks: todayTasks });
-        return;
-      }
-
-      const mockTasks = [
-        {
-          id: '1',
-          title: 'Math Assignment',
-          description: 'Complete calculus homework',
-          priority: 'High' as const,
-          deadline: '2024-03-20T23:59:59',
-          timeSlots: [
-            {
-              startDate: new Date().toISOString().split('T')[0] + 'T10:00:00',
-              endDate: new Date().toISOString().split('T')[0] + 'T12:00:00'
-            }
-          ],
-          status: 'todo' as const,
-          subject: 'Mathematics',
-          resources: 'https://example.com/math-resources',
-          completion: 0
-        },
-        {
-          id: '2',
-          title: 'Physics Lab Report',
-          description: 'Write up experiment results',
-          priority: 'Medium' as const,
-          deadline: '2024-03-21T23:59:59',
-          timeSlots: [
-            {
-              startDate: new Date().toISOString().split('T')[0] + 'T14:00:00',
-              endDate: new Date().toISOString().split('T')[0] + 'T16:00:00'
-            }
-          ],
-          status: 'todo' as const,
-          subject: 'Physics',
-          resources: 'https://example.com/physics-resources',
-          completion: 0
-        }
-      ].sort((a, b) => {
-        const aTime = new Date(a.timeSlots[0].startDate).getTime();
-        const bTime = new Date(b.timeSlots[0].startDate).getTime();
-        return aTime - bTime;
-      });
-
-      resolve({ tasks: mockTasks });
-    }, 500);
-  });
+    console.log(`Successfully filtered ${todayTasks.length} tasks for today`);
+    return { tasks: todayTasks };
+  } catch (error: any) {
+    console.error('Error fetching today\'s tasks:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to fetch today's tasks: ${error.message}`);
+  }
 };
 
 // Add Task
 // POST /tasks
 // Request: Omit<Task, 'id'>
 // Response: { task: Task }
-export const addTask = (task: Omit<Task, 'id'>) => {
-  return new Promise<{ task: Task }>((resolve) => {
-    setTimeout(() => {
-      const newTask: Task = {
-        ...task,
-        id: Math.random().toString(36).substring(7),
-        completion: task.completion || 0,
-        status: task.completion === 100 ? 'completed' : task.status || 'todo'
-      };
+export const addTask = async (taskData: Omit<Task, 'id'>) => {
+  try {
+    console.log('Adding new task:', taskData);
+    const tasksRef = collection(db, 'tasks');
 
-      // Save to local storage
-      const tasks = getLocalTasks();
-      tasks.push(newTask);
-      saveLocalTasks(tasks);
+    // Add created timestamp and user ID
+    const taskWithMetadata = {
+      ...taskData,
+      recurrence: taskData.recurrence || '',
+      createdAt: serverTimestamp(),
+      userId: auth.currentUser?.uid,
+    };
 
-      resolve({ task: newTask });
-    }, 500);
-  });
+    const docRef = await addDoc(tasksRef, taskWithMetadata);
+    console.log('Task added successfully with ID:', docRef.id);
+
+    // Return the created task with its ID
+    const task: Task = {
+      id: docRef.id,
+      ...taskData
+    };
+
+    return { task };
+  } catch (error: any) {
+    console.error('Error adding task:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to create task: ${error.message}`);
+  }
 };
 
 // Update Task
 // PUT /tasks/:id
 // Request: Partial<Task>
 // Response: { task: Task }
-export const updateTask = (id: string, updates: Partial<Task>) => {
-  return new Promise<{ task: Task }>((resolve) => {
-    setTimeout(() => {
-      const tasks = getLocalTasks();
-      const taskIndex = tasks.findIndex(t => t.id === id);
+export const updateTask = async (id: string, updates: Partial<Task>) => {
+  try {
+    console.log('Updating task:', id, updates);
+    const taskRef = doc(db, 'tasks', id);
 
-      if (taskIndex !== -1) {
-        const updatedTask = {
-          ...tasks[taskIndex],
-          ...updates,
-          completion: updates.completion ?? tasks[taskIndex].completion,
-          status: updates.completion === 100 ? 'completed' : (updates.status ?? tasks[taskIndex].status)
-        };
-        tasks[taskIndex] = updatedTask;
-        saveLocalTasks(tasks);
-        resolve({ task: updatedTask });
-      } else {
-        const newTask: Task = {
-          id,
-          title: 'Updated Task',
-          description: 'Updated description',
-          priority: 'Medium' as const,
-          deadline: '2024-03-20T23:59:59',
-          timeSlots: [
-            {
-              startDate: '2024-03-20T10:00:00',
-              endDate: '2024-03-20T12:00:00'
-            }
-          ],
-          status: updates.completion === 100 ? 'completed' : 'in-progress',
-          subject: 'Mathematics',
-          resources: '',
-          completion: 0,
-          ...updates
-        };
-        resolve({ task: newTask });
-      }
-    }, 500);
-  });
+    const updatedData = {
+      ...updates,
+      completion: updates.completion ?? 0,
+      status: updates.completion === 100 ? 'completed' : (updates.status ?? 'in-progress')
+    };
+
+    await updateDoc(taskRef, updatedData);
+    console.log('Task updated successfully:', id);
+
+    // Return the updated task
+    return { task: { id, ...updatedData } as Task };
+  } catch (error: any) {
+    console.error('Error updating task:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to update task: ${error.message}`);
+  }
 };
 
 // Delete Task
 // DELETE /tasks/:id
 // Response: { success: boolean }
-export const deleteTask = (id: string) => {
-  return new Promise<{ success: boolean }>((resolve) => {
-    setTimeout(() => {
-      const tasks = getLocalTasks();
-      const filteredTasks = tasks.filter(t => t.id !== id);
-      saveLocalTasks(filteredTasks);
-      resolve({ success: true });
-    }, 500);
-  });
+export const deleteTask = async (id: string) => {
+  try {
+    console.log('Deleting task:', id);
+    const taskRef = doc(db, 'tasks', id);
+    await deleteDoc(taskRef);
+    console.log('Task deleted successfully:', id);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error deleting task:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to delete task: ${error.message}`);
+  }
 };
