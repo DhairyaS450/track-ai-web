@@ -3,6 +3,7 @@ const router = express.Router();
 const { getStudySessionStats, getTaskAnalytics } = require('../controllers/analyticsController');
 const { requireUser } = require('./middleware/auth');
 const logger = require('../utils/log');
+const { getProductivityStats } = require('../controllers/productivityController');
 
 // Study session analytics endpoints
 router.get('/study-sessions', requireUser, async (req, res) => {
@@ -33,6 +34,23 @@ router.get('/tasks', requireUser, async (req, res) => {
     });
     res.status(500).json({
       error: 'Failed to get task analytics',
+      details: error.message
+    });
+  }
+});
+
+// Productivity analytics endpoint
+router.get('/productivity', requireUser, async (req, res) => {
+  try {
+    logger.info('Getting productivity analytics');
+    await getProductivityStats(req, res);
+  } catch (error) {
+    logger.error('Error getting productivity analytics:', {
+      error: error.message, 
+      stack: error.stack
+    });
+    res.status(500).json({
+      error: 'Failed to get productivity analytics',
       details: error.message
     });
   }
