@@ -1,24 +1,29 @@
 import {
+  browserLocalPersistence,
   createUserWithEmailAndPassword,
+  setPersistence,
   signInWithEmailAndPassword,
-  signOut
-} from 'firebase/auth';
-import { auth } from '@/config/firebase';
+  signOut,
+} from "firebase/auth";
+import { auth } from "@/config/firebase";
 
 // Login
 // POST /auth/login
 // Request: { email: string, password: string }
 // Response: { success: boolean, user: UserCredential }
 export const login = async (email: string, password: string) => {
-  try {
-    console.log('Attempting Firebase authentication');
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    console.log('Firebase auth successful:', userCredential);
-    return { success: true, user: userCredential };
-  } catch (error: any) {
-    console.error('Firebase auth error:', error);
-    throw new Error(error.message);
-  }
+  console.log("Attempting Firebase authentication");
+  setPersistence(auth, browserLocalPersistence)
+    .then(() => {
+      return signInWithEmailAndPassword(auth, email, password);
+    })
+    .then((userCredential) => {
+      console.log("User logged in:", userCredential);
+      return { success: true, user: userCredential };
+    })
+    .catch((error) => {
+      console.error("Error during login:", error);
+    });
 };
 
 // Register

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import {
 import { useToast } from "@/hooks/useToast"
 import { LogIn } from "lucide-react"
 import { login } from "@/api/auth"
+import { getAuth } from "@firebase/auth"
 
 type LoginForm = {
   email: string
@@ -24,7 +25,16 @@ export function Login() {
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
   const navigate = useNavigate()
+  const auth = getAuth()
   const { register, handleSubmit } = useForm<LoginForm>()
+
+  // If already logged in, direct them to home page
+  console.log(auth.currentUser)
+  useEffect(() => {
+    if (auth.currentUser != null) {
+      navigate('/')
+    }
+  }, [auth, navigate])
 
   const onSubmit = async (data: LoginForm) => {
     try {
