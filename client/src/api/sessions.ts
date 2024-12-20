@@ -5,7 +5,7 @@ import { db } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp, getDocs, query, where, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { auth } from '@/config/firebase';
 
-// Helper functions for local storage 
+// Helper functions for local storage
 const getLocalSessions = (): StudySession[] => {
   const sessions = localStorage.getItem('study_sessions');
   return sessions ? JSON.parse(sessions) : [];
@@ -71,15 +71,15 @@ export const getStudySessions = async () => {
         studySessionsRef,
         where('userId', '==', auth.currentUser?.uid)
       );
-  
+
       const querySnapshot = await getDocs(q);
       const studySessions = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as StudySession[];
-  
+
       console.log(`Successfully fetched ${studySessions.length} study sessions from Firestore`);
-  
+
       return {
         sessions: studySessions
       }
@@ -161,18 +161,18 @@ export const updateStudySession = async (id: string, updates: Partial<StudySessi
 // Response: { success: boolean }
 export const deleteStudySession = async (id: string) => {
   try {
-      console.log('Deleting studySession:', id);
-      const studySessionRef = doc(db, 'studySession', id);
-      await deleteDoc(studySessionRef);
-      console.log('studySession deleted successfully:', id);
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error deleting studySession:', {
-        message: error.message,
-        code: error.code,
-        stack: error.stack
-      });
-      throw new Error(`Failed to delete studySession: ${error.message}`);
+    console.log('Deleting study session:', id);
+    const studySessionRef = doc(db, 'studySessions', id);
+    await deleteDoc(studySessionRef);
+    console.log('Study session deleted successfully:', id);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error deleting study session:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to delete study session: ${error.message}`);
   }
 };
 
