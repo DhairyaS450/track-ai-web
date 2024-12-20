@@ -1,8 +1,11 @@
 import api from './api';
 import { StudySession } from '@/types';
 import { isToday } from 'date-fns';
+import { db } from '@/config/firebase';
+import { collection, addDoc, serverTimestamp, getDocs, query, where, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { auth } from '@/config/firebase';
 
-// Helper functions for local storage
+// Helper functions for local storage 
 const getLocalSessions = (): StudySession[] => {
   const sessions = localStorage.getItem('study_sessions');
   return sessions ? JSON.parse(sessions) : [];
@@ -23,11 +26,13 @@ const updateSessionStatuses = (sessions: StudySession[]): StudySession[] => {
       : new Date(new Date(session.scheduledFor).getTime() + session.duration * 60000);
 
     if (now > endTime) {
+      updateStudySession(session.id, {...session, status: 'completed' as const})
       return { ...session, status: 'completed' as const };
     }
 
     const startTime = new Date(session.scheduledFor);
     if (now >= startTime && now <= endTime) {
+      updateStudySession(session.id, {...session, status: 'in-progress' as const})
       return { ...session, status: 'in-progress' as const };
     }
 
@@ -38,11 +43,11 @@ const updateSessionStatuses = (sessions: StudySession[]): StudySession[] => {
 // Get Today's Study Sessions
 // GET /sessions/today
 // Response: { sessions: StudySession[] }
-export const getTodayStudySessions = () => {
+export const getTodayStudySessions = async () => {
   return new Promise<{ sessions: StudySession[] }>((resolve) => {
-    setTimeout(() => {
-      const storedSessions = getLocalSessions();
-      const updatedSessions = updateSessionStatuses(storedSessions);
+    setTimeout(async () => {
+      const storedSessions = await getStudySessions();
+      const updatedSessions = updateSessionStatuses(storedSessions.sessions);
       saveLocalSessions(updatedSessions);
 
       // Filter for today's sessions
@@ -58,144 +63,117 @@ export const getTodayStudySessions = () => {
 // Get Study Sessions
 // GET /sessions
 // Response: { sessions: StudySession[] }
-export const getStudySessions = () => {
-  return new Promise<{ sessions: StudySession[] }>((resolve) => {
-    setTimeout(() => {
-      const storedSessions = getLocalSessions();
-      const updatedSessions = updateSessionStatuses(storedSessions);
-      saveLocalSessions(updatedSessions);
-
-      if (updatedSessions.length > 0) {
-        resolve({ sessions: updatedSessions });
-        return;
+export const getStudySessions = async () => {
+  try {
+      console.log('Fetching study sessions from Firestore');
+      const studySessionsRef = collection(db, 'studySessions');
+      const q = query(
+        studySessionsRef,
+        where('userId', '==', auth.currentUser?.uid)
+      );
+  
+      const querySnapshot = await getDocs(q);
+      const studySessions = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as StudySession[];
+  
+      console.log(`Successfully fetched ${studySessions.length} study sessions from Firestore`);
+  
+      return {
+        sessions: studySessions
       }
-
-      // Mock data for different session states
-      const mockSessions = [
-        {
-          id: '1',
-          subject: 'Mathematics',
-          goal: 'Master integration by parts',
-          duration: 60,
-          technique: 'pomodoro',
-          status: 'in-progress' as const,
-          scheduledFor: new Date().toISOString(),
-          breakInterval: 25,
-          breakDuration: 5,
-          materials: 'https://example.com/math-materials',
-          priority: 'High' as const,
-          startTime: new Date(Date.now() - 1800000).toISOString(),
-          endTime: new Date(Date.now() + 1800000).toISOString(),
-          completion: 50,
-          notes: ''
-        },
-        {
-          id: '2',
-          subject: 'Physics',
-          goal: 'Review quantum mechanics concepts',
-          duration: 45,
-          technique: 'deepwork',
-          status: 'scheduled' as const,
-          scheduledFor: new Date(Date.now() + 3600000).toISOString(),
-          priority: 'Medium' as const,
-          startTime: undefined,
-          endTime: undefined,
-          completion: 0,
-          notes: ''
-        },
-        {
-          id: '3',
-          subject: 'Chemistry',
-          goal: 'Practice organic chemistry problems',
-          duration: 90,
-          technique: 'pomodoro',
-          status: 'completed' as const,
-          scheduledFor: new Date(Date.now() - 86400000).toISOString(),
-          priority: 'High' as const,
-          startTime: new Date(Date.now() - 86400000).toISOString(),
-          endTime: new Date(Date.now() - 86400000 + 5400000).toISOString(),
-          completion: 100,
-          notes: 'Successfully completed all practice problems. Need to review stereochemistry concepts.'
-        }
-      ];
-
-      resolve({ sessions: mockSessions });
-    }, 500);
-  });
+    } catch (error: any) {
+      console.error('Error fetching study sessions from Firestore:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+      throw new Error(`Failed to fetch study sessions: ${error.message}`);
+    }
 };
 
 // Add Study Session
 // POST /sessions
 // Request: StudySession
 // Response: { session: StudySession }
-export const addStudySession = (session: Omit<StudySession, 'id'>) => {
-  return new Promise<{ session: StudySession }>((resolve) => {
-    setTimeout(() => {
-      // Create a new session with the provided data
-      const newSession: StudySession = {
-        ...session,
-        id: Math.random().toString(36).substring(7),
-      };
+export const addStudySession = async (session: Omit<StudySession, 'id'>) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('You must be logged in to create a study session');
+    }
 
-      // Save to local storage
-      const sessions = getLocalSessions();
-      sessions.push(newSession);
-      saveLocalSessions(sessions);
+    const studySessionData = {
+      ...session,
+      userId: user.uid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      priority: session.priority || 'Low',
+    };
 
-      resolve({ session: newSession });
-    }, 500);
-  });
+    const docRef = await addDoc(collection(db, 'studySessions'), studySessionData);
+    console.log('Successful creation to firebase')
+
+    return {
+      session: {
+        id: docRef.id,
+        ...session
+      }
+    };
+  } catch (error: any) {
+    throw new Error(error.message || 'Failed to create study session');
+  }
 };
 
 // Update Study Session
 // PUT /sessions/:id
 // Request: Partial<StudySession>
 // Response: { session: StudySession }
-export const updateStudySession = (id: string, updates: Partial<StudySession>) => {
-  return new Promise<{ session: StudySession }>((resolve) => {
-    setTimeout(() => {
-      const sessions = getLocalSessions();
-      const sessionIndex = sessions.findIndex(s => s.id === id);
+export const updateStudySession = async (id: string, updates: Partial<StudySession>) => {
+  try {
+      console.log('Updating study sessionk:', id, updates);
+      const studySessionRef = doc(db, 'studySessions', id);
 
-      if (sessionIndex !== -1) {
-        const updatedSession = {
-          ...sessions[sessionIndex],
-          ...updates,
-        };
-        sessions[sessionIndex] = updatedSession;
-        saveLocalSessions(sessions);
-        resolve({ session: updatedSession });
-      } else {
-        const newSession: StudySession = {
-          id,
-          subject: updates.subject || 'Updated Session',
-          goal: updates.goal || 'Updated goal',
-          duration: updates.duration || 60,
-          technique: updates.technique || 'pomodoro',
-          status: updates.status || 'scheduled',
-          scheduledFor: updates.scheduledFor || new Date().toISOString(),
-          completion: updates.completion || 0,
-          notes: updates.notes || '',
-          ...updates
-        };
-        resolve({ session: newSession });
-      }
-    }, 500);
-  });
+      const updatedData = {
+        ...updates,
+        completion: updates.completion ?? 0,
+        status: updates.status || 'scheduled'
+      };
+
+      await updateDoc(studySessionRef, updatedData);
+      console.log('studySession updated successfully:', id);
+
+      // Return the updated studySession
+      return { session: { id, ...updatedData } as StudySession };
+    } catch (error: any) {
+      console.error('Error updating studySession:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+      throw new Error(`Failed to update studySession: ${error.message}`);
+    }
 };
 
 // Delete Study Session
 // DELETE /sessions/:id
 // Response: { success: boolean }
-export const deleteStudySession = (id: string) => {
-  return new Promise<{ success: boolean }>((resolve) => {
-    setTimeout(() => {
-      const sessions = getLocalSessions();
-      const filteredSessions = sessions.filter(s => s.id !== id);
-      saveLocalSessions(filteredSessions);
-      resolve({ success: true });
-    }, 500);
-  });
+export const deleteStudySession = async (id: string) => {
+  try {
+      console.log('Deleting studySession:', id);
+      const studySessionRef = doc(db, 'studySession', id);
+      await deleteDoc(studySessionRef);
+      console.log('studySession deleted successfully:', id);
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error deleting studySession:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+      throw new Error(`Failed to delete studySession: ${error.message}`);
+  }
 };
 
 // Start Study Session

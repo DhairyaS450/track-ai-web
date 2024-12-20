@@ -131,6 +131,7 @@ export function CreateStudySessionDialog({
         title: "Error",
         description: "Failed to save study session",
       });
+      console.error(error)
     }
   };
 
