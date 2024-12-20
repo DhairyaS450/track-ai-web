@@ -28,7 +28,7 @@ export function Analytics() {
   useEffect(() => {
     const fetchData = async () => {
       const [tasksData, sessionsData, moodData] = await Promise.all([
-        getTasks(),
+        getTasks(true),
         getStudySessions(),
         getMoodEntries(),
       ]);

@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { getStudySessionStats } = require('../controllers/analyticsController');
-const { isAuthenticated } = require('./middleware/auth');
+const { getStudySessionStats, getTaskAnalytics } = require('../controllers/analyticsController');
+const { requireUser } = require('./middleware/auth');
 const logger = require('../utils/log');
 
 // Study session analytics endpoints
-router.get('/study-sessions', isAuthenticated, async (req, res) => {
+router.get('/study-sessions', requireUser, async (req, res) => {
   try {
     logger.info('Getting study session analytics');
     await getStudySessionStats(req, res);
@@ -14,8 +14,25 @@ router.get('/study-sessions', isAuthenticated, async (req, res) => {
       error: error.message,
       stack: error.stack
     });
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get study session analytics',
+      details: error.message
+    });
+  }
+});
+
+// Task analytics endpoint
+router.get('/tasks', requireUser, async (req, res) => {
+  try {
+    logger.info('Getting task analytics');
+    await getTaskAnalytics(req, res);
+  } catch (error) {
+    logger.error('Error getting task analytics:', {
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      error: 'Failed to get task analytics',
       details: error.message
     });
   }
