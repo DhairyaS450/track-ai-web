@@ -2,7 +2,7 @@ import api from './api';
 import { StudySession } from '@/types';
 import { isToday } from 'date-fns';
 import { db } from '@/config/firebase';
-import { collection, addDoc, serverTimestamp, getDocs, query, where, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, where, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { auth } from '@/config/firebase';
 
 // Helper functions for local storage
@@ -22,7 +22,7 @@ const updateSessionStatuses = (sessions: StudySession[]): StudySession[] => {
     if (session.status === 'completed') return session;
 
     const endTime = session.endTime
-      ? new Date(session.endTime)
+      ? new Date(session.endTime) 
       : new Date(new Date(session.scheduledFor).getTime() + session.duration * 60000);
 
     if (now > endTime) {
@@ -179,52 +179,82 @@ export const deleteStudySession = async (id: string) => {
 // Start Study Session
 // POST /sessions/:id/start
 // Response: { session: StudySession }
-export const startStudySession = (id: string) => {
-  return new Promise<{ session: StudySession }>((resolve) => {
-    setTimeout(() => {
-      const sessions = getLocalSessions();
-      const sessionIndex = sessions.findIndex(s => s.id === id);
+export const startStudySession = async (id: string) => {
+  try {
+    console.log('Starting study session:', id);
+    const studySessionRef = doc(db, 'studySessions', id);
 
-      if (sessionIndex !== -1) {
-        const startTime = new Date();
-        const updatedSession = {
-          ...sessions[sessionIndex],
-          status: 'in-progress' as const,
-          startTime: startTime.toISOString(),
-          endTime: new Date(startTime.getTime() + sessions[sessionIndex].duration * 60000).toISOString()
-        };
-        sessions[sessionIndex] = updatedSession;
-        saveLocalSessions(sessions);
-        resolve({ session: updatedSession });
-      }
-    }, 500);
-  });
+    const startTime = new Date();
+    const sessionData = {
+      status: 'in-progress',
+      startTime: startTime.toISOString(),
+      updatedAt: serverTimestamp()
+    };
+
+    await updateDoc(studySessionRef, sessionData);
+
+    // Get the updated session
+    const sessionSnapshot = await getDoc(studySessionRef);
+    if (!sessionSnapshot.exists()) {
+      throw new Error('Session not found');
+    }
+
+    return {
+      session: {
+        id: sessionSnapshot.id,
+        ...sessionSnapshot.data()
+      } as StudySession
+    };
+  } catch (error: any) {
+    console.error('Error starting study session:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to start study session: ${error.message}`);
+  }
 };
 
 // End Study Session
 // POST /sessions/:id/end
 // Request: { notes?: string }
 // Response: { session: StudySession }
-export const endStudySession = (id: string, notes?: string) => {
-  return new Promise<{ session: StudySession }>((resolve) => {
-    setTimeout(() => {
-      const sessions = getLocalSessions();
-      const sessionIndex = sessions.findIndex(s => s.id === id);
+export const endStudySession = async (id: string, notes?: string) => {
+  try {
+    console.log('Ending study session:', id);
+    const studySessionRef = doc(db, 'studySessions', id);
 
-      if (sessionIndex !== -1) {
-        const updatedSession = {
-          ...sessions[sessionIndex],
-          status: 'completed' as const,
-          endTime: new Date().toISOString(),
-          completion: 100,
-          notes: notes || sessions[sessionIndex].notes
-        };
-        sessions[sessionIndex] = updatedSession;
-        saveLocalSessions(sessions);
-        resolve({ session: updatedSession });
-      }
-    }, 500);
-  });
+    const endTime = new Date();
+    const sessionData = {
+      status: 'completed',
+      endTime: endTime.toISOString(),
+      completion: 100,
+      notes: notes || '',
+      updatedAt: serverTimestamp()
+    };
+
+    await updateDoc(studySessionRef, sessionData);
+
+    // Get the updated session
+    const sessionSnapshot = await getDoc(studySessionRef);
+    if (!sessionSnapshot.exists()) {
+      throw new Error('Session not found');
+    }
+
+    return {
+      session: {
+        id: sessionSnapshot.id,
+        ...sessionSnapshot.data()
+      } as StudySession
+    };
+  } catch (error: any) {
+    console.error('Error ending study session:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to end study session: ${error.message}`);
+  }
 };
 
 // Postpone Study Session
@@ -264,21 +294,36 @@ export const postponeStudySession = (
 // POST /sessions/:id/progress
 // Request: { completion: number }
 // Response: { session: StudySession }
-export const updateSessionProgress = (id: string, completion: number) => {
-  return new Promise<{ session: StudySession }>((resolve) => {
-    setTimeout(() => {
-      const sessions = getLocalSessions();
-      const sessionIndex = sessions.findIndex(s => s.id === id);
+export const updateSessionProgress = async (id: string, completion: number) => {
+  try {
+    console.log('Updating session progress:', id, completion);
+    const studySessionRef = doc(db, 'studySessions', id);
 
-      if (sessionIndex !== -1) {
-        const updatedSession = {
-          ...sessions[sessionIndex],
-          completion: Math.min(100, Math.max(0, completion))
-        };
-        sessions[sessionIndex] = updatedSession;
-        saveLocalSessions(sessions);
-        resolve({ session: updatedSession });
-      }
-    }, 500);
-  });
+    const sessionData = {
+      completion: Math.min(100, Math.max(0, completion)),
+      updatedAt: serverTimestamp()
+    };
+
+    await updateDoc(studySessionRef, sessionData);
+
+    // Get the updated session
+    const sessionSnapshot = await getDoc(studySessionRef);
+    if (!sessionSnapshot.exists()) {
+      throw new Error('Session not found');
+    }
+
+    return {
+      session: {
+        id: sessionSnapshot.id,
+        ...sessionSnapshot.data()
+      } as StudySession
+    };
+  } catch (error: any) {
+    console.error('Error updating session progress:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to update session progress: ${error.message}`);
+  }
 };
