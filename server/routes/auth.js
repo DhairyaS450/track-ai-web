@@ -1,10 +1,10 @@
 const express = require('express');
 const UserService = require('../services/user.js');
 const { requireUser } = require('./middleware/auth.js');
-const logger = require('../utils/log.js');
+const { defaultLogger, createLogger } = require('../utils/log.js');
 
 const router = express.Router();
-const log = logger('api/routes/authRoutes');
+const log = createLogger('api/routes/authRoutes');
 
 router.post('/login', async (req, res) => {
   const sendError = msg => res.status(400).json({ error: msg });

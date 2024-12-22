@@ -57,6 +57,12 @@ async function sendRequestToAnthropic(model, message) {
 }
 
 async function sendLLMRequest(provider, model, message) {
+  console.log('sendLLMRequest called with:', { provider, model, message });
+  console.log('Environment variables:', {
+    OPENAI_KEY: !!process.env.OPENAI_API_KEY,
+    ANTHROPIC_KEY: !!process.env.ANTHROPIC_API_KEY
+  });
+
   switch (provider.toLowerCase()) {
     case 'openai':
       return sendRequestToOpenAI(model, message);

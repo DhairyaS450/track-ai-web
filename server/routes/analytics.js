@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getStudySessionStats, getTaskAnalytics } = require('../controllers/analyticsController');
 const { requireUser } = require('./middleware/auth');
-const logger = require('../utils/log');
+const logger = require('../utils/log').default;
 const { getProductivityStats } = require('../controllers/productivityController');
 
 // Study session analytics endpoints

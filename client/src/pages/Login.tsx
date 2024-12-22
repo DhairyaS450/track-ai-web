@@ -40,7 +40,7 @@ export function Login() {
     try {
       console.log('Starting login attempt with email:', data.email);
       setLoading(true)
-      let response = await login(data.email, data.password);
+      const response = await login(data.email, data.password);
       console.log('Login API response:', response);
       // The user is already authenticated through Firebase at this point
       // No need to store token as Firebase handles the session

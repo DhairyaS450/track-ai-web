@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { db, auth } from '@/config/firebase';
 import { Event } from '@/types';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from '@firebase/firestore';
@@ -15,6 +16,7 @@ import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, update
 // Get Events
 // GET /events
 // Response: { events: Event[] }
+
 export const getEvents = async () => {
   try {
     console.log('Fetching events from Firestore');

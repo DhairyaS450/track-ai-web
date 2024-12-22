@@ -1,6 +1,6 @@
-const { db } = require('../config/firebase');
+const { db } = require('../config/firebase-admin');
 const { startOfDay, endOfDay, subDays, startOfWeek, endOfWeek } = require('date-fns');
-const logger = require('../utils/log');
+const logger = require('../utils/log').default;
 
 const calculateDailyScore = (tasks, sessions) => {
   const totalTaskWeight = 0.6;
@@ -15,7 +15,7 @@ const calculateDailyScore = (tasks, sessions) => {
 
 exports.getProductivityStats = async (req, res) => {
   logger.info('Getting productivity stats', { userId: req.user.uid });
-  
+
   try {
     if (!req.user || !req.user.uid) {
       logger.error('User not authenticated');

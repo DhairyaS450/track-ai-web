@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { processChatMessage } from '@/api/chatbot';
+import { getAuth } from 'firebase/auth';
 
 interface Message {
   id: string;
@@ -102,6 +104,18 @@ export function Chatbot() {
   const handleSend = async (content: string = input) => {
     if (!content.trim()) return;
 
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        type: 'bot',
+        content: 'Please log in to use the chatbot.',
+        timestamp: new Date()
+      }]);
+      return;
+    }
+
     const newMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
@@ -112,16 +126,24 @@ export function Chatbot() {
     setMessages(prev => [...prev, newMessage]);
     setInput('');
 
-    // Simulate bot response
-    setTimeout(() => {
+    try {
+      const { response } = await processChatMessage(content);
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: `I'll help you with "${content}". [Mock response for demonstration]`,
+        content: response,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, botResponse]);
-    }, 1000);
+    } catch (error: any) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        content: `Error: ${error.message}`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

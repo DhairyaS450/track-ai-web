@@ -1,13 +1,21 @@
-const pino = require('pino');
+const pino = require('pino')
+const levels = pino.levels
 
 const DEFAULT_LOG_LEVEL = process.env.NODE_ENV === "production" ? "info" : "debug";
 const level = process.env.LOG_LEVEL || DEFAULT_LOG_LEVEL;
 
-if (!pino.levels.values[level]) {
-  const validLevels = Object.keys(pino.levels.values).join(', ');
+if (!levels.values[level]) {
+  const validLevels = Object.keys(levels.values).join(', ');
   throw new Error(`Log level must be one of: ${validLevels}`);
 }
 
-const logger = (name) => pino({ name, level });
+// Default logger instance
+const defaultLogger = pino({ level });
 
-module.exports = logger;
+// Named logger factory
+const createLogger = (name) => pino({ name, level });
+
+module.exports = {
+  defaultLogger,
+  createLogger,
+};

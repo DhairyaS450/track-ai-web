@@ -1,5 +1,5 @@
 const { db } = require('../config/firebase-admin');
-const logger = require('../utils/log');
+const logger = require('../utils/log').default;
 
 const getStudySessionStats = async (req, res) => {
   try {
