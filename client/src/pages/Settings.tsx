@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -7,6 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Bell, Calendar, Moon, User } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { connectGoogleCalendar, getGoogleCalendarStatus } from "@/api/calendar";
+import { useToast } from "@/hooks/useToast";
+import api from "@/api/Api";
 
 export function Settings() {
   const [notifications, setNotifications] = useState({
@@ -18,6 +22,11 @@ export function Settings() {
 
   const [theme, setTheme] = useState("system");
   const [calendar, setCalendar] = useState("google");
+  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
+
   const [profile, setProfile] = useState({
     studyLevel: "highschool",
     major: "",
@@ -27,6 +36,67 @@ export function Settings() {
     goals: "",
     preferredStudyTimes: "",
   });
+
+  useEffect(() => {
+    checkCalendarStatus();
+  }, []);
+
+  const checkCalendarStatus = async () => {
+    try {
+      const { connected } = await getGoogleCalendarStatus();
+      setIsCalendarConnected(connected);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleConnectCalendar = async () => {
+    try {
+      setIsConnecting(true);
+      const response = await api.get('/api/calendar/auth-url');
+      const { url } = response.data;
+      window.location.href = url;
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  useEffect(() => {
+    // Handle OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+
+    if (code) {
+      (async () => {
+        try {
+          await connectGoogleCalendar(code);
+          await checkCalendarStatus();
+          toast({
+            title: "Success",
+            description: "Calendar connected successfully",
+          });
+          // Clear the URL parameters
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (error: any) {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+      })();
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -243,7 +313,17 @@ export function Settings() {
                 <Label htmlFor="calendar-outlook">Outlook Calendar</Label>
               </div>
             </RadioGroup>
-            <Button className="w-full">Connect Calendar</Button>
+            <Button
+              className="w-full"
+              onClick={handleConnectCalendar}
+              disabled={isConnecting}
+            >
+              {isCalendarConnected
+                ? "Calendar Connected"
+                : isConnecting
+                  ? "Connecting..."
+                  : "Connect Calendar"}
+            </Button>
           </CardContent>
         </Card>
       </div>

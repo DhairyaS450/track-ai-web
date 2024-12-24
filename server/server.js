@@ -117,6 +117,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/analytics', analyticsRoutes);
 // Chatbot Routes
 app.use(chatbotRoutes);
+// Calendar Routes
+app.use('/api/calendar', require('./routes/calendar'));
 
 // If no routes handled the request, it's a 404
 app.use((req, res, next) => {
