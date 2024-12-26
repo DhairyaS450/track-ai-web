@@ -8,6 +8,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -29,7 +30,6 @@ export function Login() {
   const { register, handleSubmit } = useForm<LoginForm>()
 
   // If already logged in, direct them to home page
-  console.log(auth.currentUser)
   useEffect(() => {
     if (auth.currentUser != null) {
       navigate('/')
@@ -100,6 +100,15 @@ export function Login() {
             </Button>
           </form>
         </CardContent>
+        <CardFooter className="flex justify-center">
+          <Button
+            variant="link"
+            className="text-sm text-muted-foreground"
+            onClick={() => navigate("/register")}
+          >
+            Don't have an account? Register 
+          </Button>
+        </CardFooter>
       </Card>
     </div>
   )

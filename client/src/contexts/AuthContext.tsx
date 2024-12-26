@@ -34,9 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      console.log('AuthContext: Starting login process');
       const response = await apiLogin(email, password);
-      console.log('AuthContext: Login response:', response);
       if (!response.success) {
         throw new Error('Login failed');
       }

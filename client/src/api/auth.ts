@@ -12,13 +12,11 @@ import { auth } from "@/config/firebase";
 // Request: { email: string, password: string }
 // Response: { success: boolean, user: UserCredential }
 export const login = async (email: string, password: string) => {
-  console.log("Attempting Firebase authentication");
   setPersistence(auth, browserLocalPersistence)
     .then(() => {
       return signInWithEmailAndPassword(auth, email, password);
     })
     .then((userCredential) => {
-      console.log("User logged in:", userCredential);
       return { success: true, user: userCredential };
     })
     .catch((error) => {

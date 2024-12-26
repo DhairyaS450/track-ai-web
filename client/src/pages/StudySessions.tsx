@@ -84,7 +84,6 @@ export function StudySessions() {
 
   const fetchSessions = async () => {
     const { sessions } = await getStudySessions();
-    console.log(sessions)
     setSessions(sessions);
 
     // Set active session if there's one in progress
