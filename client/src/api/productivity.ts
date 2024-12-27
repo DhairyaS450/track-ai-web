@@ -1,4 +1,4 @@
-import api from './api';
+import api from './Api';
 
 export interface ProductivityStats {
   daily: Array<{

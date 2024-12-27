@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import api from './api';
+import api from './Api';
 
 export const processChatMessage = async (message: string) => {
   try {

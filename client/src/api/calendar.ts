@@ -1,4 +1,4 @@
-import api from './api';
+import api from './Api';
 
 // Connect Google Calendar
 // POST /api/calendar/connect
