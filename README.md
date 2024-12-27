@@ -48,13 +48,19 @@ Track AI is an AI-powered scheduling and productivity app tailored for high-scho
 ### Steps
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/track-ai.git
-   cd track-ai
+   git clone https://github.com/DhairyaS450/track-ai-web.git
+   cd track-ai-web
    ```
 
 2. Install dependencies:
    ```bash
    npm install
+   cd server
+   npm install
+   cd ..
+   cd client
+   npm install
+   cd ..
    ```
 
 3. Set up Firebase:
@@ -63,9 +69,9 @@ Track AI is an AI-powered scheduling and productivity app tailored for high-scho
    - Download the `firebase-adminsdk.json` file for server-side usage.
    - Add Firebase configuration to your environment variables.
 
-4. Start the development server:
+4. Start the server:
    ```bash
-   npm run dev
+   npm run start
    ```
 
 ---
