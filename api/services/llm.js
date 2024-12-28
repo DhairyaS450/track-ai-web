@@ -1,17 +1,32 @@
-const axios = require('axios');
-const OpenAI = require('openai');
-const Anthropic = require('@anthropic-ai/sdk');
-const dotenv = require('dotenv');
+(async () => {
+  try {
+    // Import libraries dynamically
+    const { OpenAI } = await import('openai');
+    const { Anthropic } = await import('@anthropic-ai/sdk');
+    const dotenv = await import('dotenv');
 
-dotenv.config();
+    // Load environment variables
+    dotenv.config();
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+    // Initialize OpenAI client
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+    // Initialize Anthropic client
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    // Export initialized clients
+    module.exports = { openai, anthropic };
+
+  } catch (error) {
+    console.error('Error initializing libraries:', error);
+    process.exit(1); // Exit the process with an error code
+  }
+})();
+
+const openai = module.exports.openai;
+const anthropic = module.exports.anthropic;
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
