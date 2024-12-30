@@ -6,7 +6,7 @@ import api from './Api';
 // Response: { success: boolean, message: string }
 export const connectGoogleCalendar = async (code: string) => {
   console.log('Starting Google Calendar connection with code length:', code.length);
-  console.log('Authorization header:', api.defaults.headers.common['Authorization']);
+  console.log('Authorization header:', api.defaults.headers.common['Authorization']); 
   try {
     console.log('Connecting Google Calendar with code:', code);
     const response = await api.post('/api/calendar/connect', { code });

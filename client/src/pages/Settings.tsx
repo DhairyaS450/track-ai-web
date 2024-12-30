@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Bell, Calendar, Moon, User } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 import { connectGoogleCalendar, getGoogleCalendarStatus } from "@/api/calendar";
 import { useToast } from "@/hooks/useToast";
 import api from "@/api/Api";
@@ -25,7 +24,6 @@ export function Settings() {
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
 
   const [profile, setProfile] = useState({
     studyLevel: "highschool",
@@ -36,10 +34,6 @@ export function Settings() {
     goals: "",
     preferredStudyTimes: "",
   });
-
-  useEffect(() => {
-    checkCalendarStatus();
-  }, []);
 
   const checkCalendarStatus = async () => {
     try {
@@ -95,6 +89,8 @@ export function Settings() {
           });
         }
       })();
+    } else {
+      checkCalendarStatus()
     }
   }, []);
 

@@ -12,8 +12,45 @@ import { Analytics } from "./pages/Analytics"
 import { Settings } from "./pages/Settings"
 import { Chatbot } from "./pages/Chatbot"
 import { ProtectedRoute } from "./components/ProtectedRoute"
+import { useState, useEffect } from 'react';
+import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
+import api from "./api/Api"
 
 function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log('User is logged in:', user.email);
+        setUser(user);
+
+        // Refresh the user's token
+        user.getIdToken().then((token) => {
+          console.log('User token:', token);
+
+          // Set the token in the Authorization header
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        }).catch((error) => {
+          console.error('Error refreshing user token:', error);
+        });
+      } else {
+        console.log('User is logged out');
+        setUser(null);
+      }
+
+      setLoading(false); // Mark loading as complete
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <ThemeProvider defaultTheme="system" storageKey="ui-theme">
       <AuthProvider>

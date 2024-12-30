@@ -27,8 +27,9 @@ exports.getAuthUrl = async (req, res) => {
     const url = oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: SCOPES,
+      prompt: 'consent'
     });
-    defaultLogger.info('Successfully generated auth URL');
+    defaultLogger.info(`Successfully generated auth URL, ${ url }`);
     res.json({ url });
   } catch (error) {
     defaultLogger.error('Error generating auth URL:', error);
@@ -38,16 +39,12 @@ exports.getAuthUrl = async (req, res) => {
 
 exports.connectCalendar = async (req, res) => {
   try {
+    defaultLogger.info(`Request body: ${req.body}`);
     const { code } = req.body;
     const { uid } = req.user;
 
-    defaultLogger.info('Connect calendar request details:', {
-      hasCode: !!code,
-      codeLength: code?.length,
-      uid: uid,
-      headers: req.headers
-    });
-
+    defaultLogger.info(`Request headers: ${req.headers}`);
+    defaultLogger.info(`Connect calendar request with code: ${code}`);
     defaultLogger.info(`Attempting to connect calendar for user ${uid}`);
 
     if (!code) {
@@ -57,20 +54,21 @@ exports.connectCalendar = async (req, res) => {
 
     defaultLogger.info('Getting tokens from Google');
     const { tokens } = await oauth2Client.getToken(code);
+    defaultLogger.info('Received tokens from Google');
 
     defaultLogger.info('Storing tokens in Firestore');
     await db.collection('users').doc(uid).update({
       googleCalendar: {
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        expiry: tokens.expiry_date,
+        tokens,
+        connected: true,
+        lastSync: new Date().toISOString()
       }
     });
 
     defaultLogger.info(`Google Calendar connected successfully for user ${uid}`);
     res.json({ success: true, message: 'Calendar connected successfully' });
   } catch (error) {
-    defaultLogger.error('Error connecting calendar:', error.stack);
+    defaultLogger.error(`Error connecting calendar: ${error.message}\n${error.stack}`);
     res.status(500).json({ error: error.message });
   }
 };
@@ -83,7 +81,7 @@ exports.getConnectionStatus = async (req, res) => {
     const userDoc = await db.collection('users').doc(uid).get();
     const userData = userDoc.data();
 
-    const connected = !!(userData?.googleCalendar?.accessToken);
+    const connected = userData?.googleCalendar?.connected;
     defaultLogger.info(`Calendar connection status for user ${uid}: ${connected}`);
 
     res.json({ connected });

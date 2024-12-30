@@ -5,14 +5,15 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import { auth } from "@/config/firebase";
+import { db, auth } from "@/config/firebase";
+import { addDoc, collection, doc, setDoc} from "@firebase/firestore";
 
 // Login
 // POST /auth/login
 // Request: { email: string, password: string }
 // Response: { success: boolean, user: UserCredential }
 export const login = async (email: string, password: string) => {
-  setPersistence(auth, browserLocalPersistence)
+  const response = await setPersistence(auth, browserLocalPersistence)
     .then(() => {
       return signInWithEmailAndPassword(auth, email, password);
     })
@@ -21,7 +22,10 @@ export const login = async (email: string, password: string) => {
     })
     .catch((error) => {
       console.error("Error during login:", error);
+      return { success: false, error: error.message };
     });
+
+  return response;
 };
 
 // Register
@@ -35,7 +39,11 @@ export const register = async (data: { email: string; password: string }) => {
       data.email,
       data.password
     );
-    return { success: true, user: userCredential };
+
+    // Add user to database
+    await setDoc(doc(db, "users", userCredential.user.uid), {
+      email: userCredential.user.email,
+    });
   } catch (error: any) {
     throw new Error(error.message);
   }
