@@ -11,6 +11,7 @@ import {
   Send,
   MessageCircle,
   X,
+  FolderSync as Sync
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -20,8 +21,8 @@ import { FeedbackDialog } from "./FeedbackDialog";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { CreateEventDialog } from "./CreateEventDialog";
 import { CreateStudySessionDialog } from "./CreateStudySessionDialog";
-import { Task, Event } from "@/types";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { syncGoogleCalendar } from "@/api/calendar";
 
 interface SidebarProps {
   open: boolean;
@@ -127,6 +128,13 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
           >
             <Plus className="h-4 w-4 mr-2" />
             Add New
+          </Button>
+          <Button
+            className="w-full justify-start"
+            onClick={() => syncGoogleCalendar()}
+          >
+            <Sync className="h-4 w-4 mr-2" />
+            Sync Calendar
           </Button>
           <div className="flex gap-2">
             <Input

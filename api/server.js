@@ -39,14 +39,14 @@ app.options('*', (req, res) => {
   res.sendStatus(204); // No content
 });
 
-app.use((req, res, next) => {
-  console.log('Incoming request:', {
-    method: req.method,
-    path: req.path,
-    headers: req.headers,
-  });
-  next();
-});
+// app.use((req, res, next) => {
+//   console.log('Incoming request:', {
+//     method: req.method,
+//     path: req.path,
+//     headers: req.headers,
+//   });
+//   next();
+// });
 
 // Pretty-print JSON responses
 app.enable('json spaces');

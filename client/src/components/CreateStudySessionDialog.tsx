@@ -32,8 +32,6 @@ export function CreateStudySessionDialog({
   onSessionCreated,
   initialSession,
   mode = "create",
-  tasks = [],
-  events = [],
 }: CreateStudySessionDialogProps) {
   const [topic, setTopic] = useState(initialSession?.subject || "");
   const [startTime, setStartTime] = useState(initialSession?.scheduledFor || "");

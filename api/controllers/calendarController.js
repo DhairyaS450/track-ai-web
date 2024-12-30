@@ -2,6 +2,8 @@ const { google } = require('googleapis');
 const { OAuth2Client } = require('google-auth-library');
 const admin = require('../config/firebase-admin');
 const { defaultLogger } = require('../utils/log');
+const CalendarEvent = require('../models/CalendarEvent');
+const { fetchGoogleEvents } = require('../utils/googleCalendar');
 
 const db = admin.firestore();
 
@@ -39,7 +41,6 @@ exports.getAuthUrl = async (req, res) => {
 
 exports.connectCalendar = async (req, res) => {
   try {
-    defaultLogger.info(`Request body: ${req.body}`);
     const { code } = req.body;
     const { uid } = req.user;
 
@@ -90,3 +91,67 @@ exports.getConnectionStatus = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.syncGoogleEvents = async (req, res) => {
+  try {
+    const { uid } = req.user;
+    defaultLogger.info(`Syncing Google Calendar events for user ${uid}`);
+
+    const userDoc = await db.collection('users').doc(uid).get();
+    const userData = userDoc.data();
+
+    if (!userData?.googleCalendar?.tokens) {
+      defaultLogger.warn(`Google Calendar not connected for user ${uid}`);
+      return res.status(400).json({ error: 'Google Calendar not connected' });
+    }
+
+    // Fetch events from last month to next year
+    const timeMin = new Date();
+    timeMin.setMonth(timeMin.getMonth() - 1);
+    const timeMax = new Date();
+    timeMax.setFullYear(timeMax.getFullYear() + 1);
+
+    defaultLogger.info(`Fetching Google Calendar events for user ${uid} from ${timeMin} to ${timeMax}`);
+    const events = await fetchGoogleEvents(
+      userData.googleCalendar.tokens,
+      timeMin,
+      timeMax
+    );
+
+    // Store events in Firestore
+    defaultLogger.info(`Storing ${events.length} events in Firestore for user ${uid}`);
+    for (const event of events) {
+      try {
+        await CalendarEvent.create(uid, event);
+      } catch (error) {
+        defaultLogger.error(`Error storing event ${event.id} for user ${uid}:`, error);
+        // Continue with other events even if one fails
+      }
+    }
+
+    defaultLogger.info(`Successfully synced ${events.length} events for user ${uid}`);
+    res.json({
+      success: true,
+      message: `Successfully synced ${events.length} events`,
+      events
+    });
+  } catch (error) {
+    defaultLogger.error(`Error syncing calendar events: ${error.message}\n${error.stack}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getEvents = async (req, res) => { 
+  try {
+    const userId = req.user.uid;
+    defaultLogger.info(`Fetching calendar events for user ${userId}`);
+    
+    const events = await CalendarEvent.getByUserId(userId);
+    
+    defaultLogger.info(`Retrieved ${events.length} events for user ${userId}`);
+    res.json({ events });
+  } catch (error) {
+    defaultLogger.error('Error fetching calendar events:', error.stack);
+    res.status(500).json({ error: error.message });
+  }
+}
