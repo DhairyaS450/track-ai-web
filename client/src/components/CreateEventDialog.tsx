@@ -16,8 +16,6 @@ import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { addEvent, updateEvent } from "@/api/events";
 import { useToast } from "@/hooks/useToast";
 import { Event, Task } from "@/types";
-import { Calendar } from "./ui/calendar";
-import { format } from "date-fns";
 import { ScrollArea } from "./ui/scroll-area";
 import { X } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";

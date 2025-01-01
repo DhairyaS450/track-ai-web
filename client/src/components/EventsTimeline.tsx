@@ -1,7 +1,7 @@
 import { Event } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { format, isToday, isTomorrow } from "date-fns";
-import { MapPin, Clock, ChevronRight } from "lucide-react";
+import { MapPin, Clock, ChevronRight, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
@@ -15,15 +15,18 @@ interface EventsTimelineProps {
 export function EventsTimeline({ events, onEventClick }: EventsTimelineProps) {
   // Filter and sort events for today and tomorrow
   const filteredEvents = events
-    .filter(event => {
+    .filter((event) => {
       const eventDate = new Date(event.startTime);
       return isToday(eventDate) || isTomorrow(eventDate);
     })
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    );
 
   const groupedEvents = filteredEvents.reduce((groups, event) => {
     const date = new Date(event.startTime);
-    const key = isToday(date) ? 'Today' : 'Tomorrow';
+    const key = isToday(date) ? "Today" : "Tomorrow";
     if (!groups[key]) {
       groups[key] = [];
     }
@@ -45,28 +48,42 @@ export function EventsTimeline({ events, onEventClick }: EventsTimelineProps) {
                 {dayEvents.map((event) => (
                   <div
                     key={event.id}
-                    className={cn(
+                    className={`${cn(
                       "flex items-start justify-between p-3 rounded-lg border transition-colors hover:bg-accent cursor-pointer",
-                      isToday(new Date(event.startTime)) ? "border-blue-200 dark:border-blue-800" : ""
-                    )}
+                      isToday(new Date(event.startTime))
+                        ? "border-blue-200 dark:border-blue-800"
+                        : ""
+                    )} ${
+                      event.source === "google_calendar"
+                        ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+                        : ""
+                    }`}
                     onClick={() => onEventClick(event)}
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{event.name}</span>
-                        {event.priority && (
-                          <Badge
-                            variant={
-                              event.priority === 'High'
-                                ? 'destructive'
-                                : event.priority === 'Medium'
-                                ? 'default'
-                                : 'secondary'
-                            }
-                          >
-                            {event.priority}
-                          </Badge>
-                        )}
+                        <div className="flex flex-col items-start gap-2">
+                          {event.source === "google_calendar" && (
+                            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
+                              <Sparkles className="mr-1 h-3 w-3" />
+                              Google Calendar
+                            </span>
+                          )}
+                          {event.priority && (
+                            <Badge
+                              variant={
+                                event.priority === "High"
+                                  ? "destructive"
+                                  : event.priority === "Medium"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                            >
+                              {event.priority}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center text-sm text-muted-foreground gap-4">
                         <div className="flex items-center gap-1">

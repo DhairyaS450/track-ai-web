@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { CircularProgress } from "@/components/CircularProgress";
 import { useToast } from "@/hooks/useToast";
-import { Input } from "@/components/ui/input";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { ViewAllTasksDialog } from "@/components/ViewAllTasksDialog";
 import { DeleteTaskDialog } from "@/components/DeleteTaskDialog";
@@ -191,18 +190,18 @@ export function Dashboard() {
   const randomQuote =
     motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
 
-  const handleChatbotSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const input = form.elements.namedItem("chatbot") as HTMLInputElement;
+  // const handleChatbotSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  //   e.preventDefault();
+  //   const form = e.currentTarget;
+  //   const input = form.elements.namedItem("chatbot") as HTMLInputElement;
 
-    toast({
-      title: "Processing request",
-      description: `Processing: "${input.value}"`,
-    });
+  //   toast({
+  //     title: "Processing request",
+  //     description: `Processing: "${input.value}"`,
+  //   });
 
-    input.value = "";
-  };
+  //   input.value = "";
+  // };
 
   // Filter priority items
   const overdueTasks = allTasks.filter(
@@ -738,7 +737,7 @@ export function Dashboard() {
       <CreateTaskDialog
         open={createTaskOpen}
         onOpenChange={setCreateTaskOpen}
-        onTaskCreated={(task) => {
+        onTaskCreated={() => {
           fetchData();
           setEditTask(null);
           setCreateTaskOpen(false);

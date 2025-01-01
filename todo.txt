@@ -1,6 +1,8 @@
 Frontend:
-Significantly improve study sessions page
-Get google calendar working
+PRIORITY: Get google calendar working - in-progress
+- Problem: Off by 5 hours only for calendar events, probably related to timezone issues
+- Problem: Any updates don't get synced back to google calendar
+- Solution: When task/event is updated, sync possible fields back to google calendar.
 Get search function on header actually working
 Allow users to just add deadline or just add reminder rather than task, event or study session
 Add time blocking
@@ -9,16 +11,13 @@ Add user profile
 Add in mood tracker
 Notifications
 Much more unique branding and gamification
-Improve mobile view and make this into an app instead of website
+Improve mobile view and make this into an app and website version
 Testing and fixing bugs
 
 Backend:
-Connect Firebase including authentication and firestore
-- Store user profile and settings, tasks, events, study sessions
-Connect google services and enable logging in with google and syncing with calendar
+PRIORITY: Store user profile and settings
 Connect with other calendar applications
 Implement AI Functionalities
-- Working interactive chatbot that can add, edit, delete -> tasks, events, study sessions, 
+Working interactive chatbot that can add, edit, delete -> tasks, events, study sessions, 
 time blocks, etc, and give good recommendations considering user profile
-- AI Notifications for any recommendations (ie recommended study session at 4:00PM tommorow for upcoming test event)
-- AI should be able to see tasks and events from other applications
+AI Notifications for any recommendations (ie recommended study session at 4:00PM tommorow for upcoming test event)

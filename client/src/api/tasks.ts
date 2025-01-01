@@ -1,6 +1,6 @@
 import { db, auth } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { Task, TimeSlot } from '@/types';
+import { Task } from '@/types';
 import { isSameDay, parseISO } from 'date-fns';
 
 // Get Tasks

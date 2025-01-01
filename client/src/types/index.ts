@@ -79,4 +79,5 @@ export interface Event {
   priority?: 'High' | 'Medium' | 'Low';
   recurrence?: 'daily' | 'weekly' | 'monthly';
   associatedTaskIds?: string[];
+  source?: 'google_calendar' | 'manual';
 }

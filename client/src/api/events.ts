@@ -125,6 +125,10 @@ export const updateEvent = async (id: string, updates: Partial<Event>) => {
 
     const updatedData = {
       ...updates,
+      isAllDay: updates.isAllDay || false,
+      isFlexible: updates.isFlexible || false,
+      priority: updates.priority || 'Low',
+      recurrence: updates.recurrence || '',
     };
 
     await updateDoc(eventRef, updatedData);

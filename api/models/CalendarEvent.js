@@ -1,26 +1,40 @@
 const { getFirestore } = require('firebase-admin/firestore');
 const { defaultLogger } = require('../utils/log');
+const { format } = require('date-fns');
 
 const db = getFirestore();
 
 class CalendarEvent {
   static async create(userId, eventData) {
     try {
-      const docRef = await db.collection('events')
-        .doc(eventData.id).set({
+      const docRef = db.collection('events').doc(eventData.id)
+      const currentDoc = await docRef.get();
+
+      if (currentDoc.exists) {
+        await docRef.update({
+          name: eventData.summary || '',
+          description: eventData.description || '',
+          startTime: format(new Date(eventData.start.dateTime), "yyyy-MM-dd'T'HH:mm"),
+          endTime: format(new Date(eventData.end.dateTime), "yyyy-MM-dd'T'HH:mm"),
+          location: eventData.location || '',
+          recurrence: eventData.recurrence || null,
+          updatedAt: new Date()
+        });
+      } else {
+        await docRef.set({
           userId: userId,
           googleEventId: eventData.id,
           name: eventData.summary || '',
           description: eventData.description || '',
-          startTime: new Date(eventData.start.dateTime).toISOString().slice(0, 16),
-          endTime: new Date(eventData.end.dateTime).toISOString().slice(0, 16),
+          startTime: format(new Date(eventData.start.dateTime), "yyyy-MM-dd'T'HH:mm"),
+          endTime: format(new Date(eventData.end.dateTime), "yyyy-MM-dd'T'HH:mm"),
           location: eventData.location || '',
           recurrence: eventData.recurrence || null,
           createdAt: new Date(),
           updatedAt: new Date(),
           source: 'google_calendar'
         });
-
+      }
       // defaultLogger.info(`Created calendar event with ID: ${docRef.id}`);
       return docRef.id;
     } catch (error) {
@@ -31,22 +45,35 @@ class CalendarEvent {
 
   static async createTask(userId, taskData) {
     try {
-      const docRef = await db.collection('tasks')
-        .doc(taskData.id).set({
+      const docRef = db.collection('tasks').doc(taskData.id)
+      const currentDoc = await docRef.get();
+      
+      if (currentDoc.exists) {
+        await docRef.update({
+          title: taskData.title || '',
+          description: taskData.notes || '',
+          deadline: format(new Date(taskData.due), "yyyy-MM-dd'T'HH:mm"),
+          status: taskData.status === 'completed' ? 'completed' : 'todo',
+          priority: 'Medium',
+          recurrence: taskData.recurrence || 'none',
+          updatedAt: new Date()
+        });
+      } else {
+        await docRef.set({
           userId: userId,
           googleEventId: taskData.id,
           title: taskData.title || '',
           description: taskData.notes || '',
-          deadline: new Date(taskData.due).toISOString().slice(0, 16),
+          deadline: format(new Date(taskData.due), "yyyy-MM-dd'T'HH:mm"),
           status: taskData.status === 'completed' ? 'completed' : 'todo',
-          priority: 'medium',
+          priority: 'Medium',
           recurrence: taskData.recurrence || 'none',
           timeSlots: [],
           createdAt: new Date(),
           updatedAt: new Date(),
           source: 'google_calendar'
         });
-
+      }
       // defaultLogger.info(`Created calendar event with ID: ${docRef.id}`);
       return docRef.id;
     } catch (error) {
@@ -70,6 +97,10 @@ class CalendarEvent {
       defaultLogger.error(`Error fetching calendar events: ${error}`);
       throw error;
     }
+  }
+
+  static async updateCalendar(userId, eventData) {
+
   }
 
   static async deleteByGoogleId(userId, googleEventId) {

@@ -29,14 +29,13 @@ import { WeeklyTimeline } from "@/components/WeeklyTimeline";
 import { useToast } from "@/hooks/useToast";
 import { ChronologicalView } from "@/components/ChronologicalView";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export function Calendar() {
   const [date, setDate] = useState<Date>(new Date());
-  const [currentWeek, setCurrentWeek] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [currentWeek, setCurrentWeek] = useState<Date>(
+    startOfWeek(new Date(), { weekStartsOn: 1 })
+  );
   const [tasks, setTasks] = useState<Task[]>([]);
   const [deadlines, setDeadlines] = useState<Task[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
@@ -54,7 +53,9 @@ export function Calendar() {
   const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
   const [sessionToEdit, setSessionToEdit] = useState<StudySession | null>(null);
   const [addItemOpen, setAddItemOpen] = useState(false);
-  const [viewType, setViewType] = useState<"categorized" | "chronological">("categorized");
+  const [viewType, setViewType] = useState<"categorized" | "chronological">(
+    "categorized"
+  );
   const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
 
@@ -68,21 +69,21 @@ export function Calendar() {
         getEvents(),
       ]);
 
-      const filteredTasks = tasksData.tasks.filter(task =>
-        task.timeSlots.some(slot =>
+      const filteredTasks = tasksData.tasks.filter((task) =>
+        task.timeSlots.some((slot) =>
           isSameDay(new Date(slot.startDate), selectedDate)
         )
       );
 
-      const filteredSessions = sessionsData.sessions.filter(session =>
+      const filteredSessions = sessionsData.sessions.filter((session) =>
         isSameDay(new Date(session.scheduledFor), selectedDate)
       );
 
-      const filteredDeadlines = tasksData.tasks.filter(task =>
+      const filteredDeadlines = tasksData.tasks.filter((task) =>
         isSameDay(new Date(task.deadline), selectedDate)
       );
 
-      const filteredEvents = eventsData.events.filter(event =>
+      const filteredEvents = eventsData.events.filter((event) =>
         isSameDay(new Date(event.startTime), selectedDate)
       );
 
@@ -161,13 +162,13 @@ export function Calendar() {
     }
   };
 
-  const handleAddItemSelect = (option: 'task' | 'event' | 'session') => {
+  const handleAddItemSelect = (option: "task" | "event" | "session") => {
     setAddItemOpen(false);
-    if (option === 'task') {
+    if (option === "task") {
       setCreateTaskOpen(true);
-    } else if (option === 'event') {
+    } else if (option === "event") {
       setCreateEventOpen(true);
-    } else if (option === 'session') {
+    } else if (option === "session") {
       setCreateSessionOpen(true);
     }
   };
@@ -178,13 +179,13 @@ export function Calendar() {
   };
 
   const handleItemClick = (item: Task | Event | StudySession) => {
-    if ('title' in item) {
+    if ("title" in item) {
       setTaskToEdit(item as Task);
       setCreateTaskOpen(true);
-    } else if ('name' in item) {
+    } else if ("name" in item) {
       setEventToEdit(item as Event);
       setCreateEventOpen(true);
-    } else if ('subject' in item) {
+    } else if ("subject" in item) {
       setSessionToEdit(item as StudySession);
       setCreateSessionOpen(true);
     }
@@ -196,7 +197,13 @@ export function Calendar() {
         <h1 className="text-3xl font-bold">Calendar</h1>
         <div className="flex items-center gap-4">
           {!isMobile && (
-            <ToggleGroup type="single" value={viewType} onValueChange={(value) => value && setViewType(value as "categorized" | "chronological")}>
+            <ToggleGroup
+              type="single"
+              value={viewType}
+              onValueChange={(value) =>
+                value && setViewType(value as "categorized" | "chronological")
+              }
+            >
               <ToggleGroupItem value="categorized">
                 <Grid className="h-4 w-4 mr-2" />
                 Categorized
@@ -242,9 +249,16 @@ export function Calendar() {
         <Card className="bg-card">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>Events for {format(date, 'MMMM d, yyyy')}</span>
+              <span>Events for {format(date, "MMMM d, yyyy")}</span>
               {isMobile && (
-                <ToggleGroup type="single" value={viewType} onValueChange={(value) => value && setViewType(value as "categorized" | "chronological")}>
+                <ToggleGroup
+                  type="single"
+                  value={viewType}
+                  onValueChange={(value) =>
+                    value &&
+                    setViewType(value as "categorized" | "chronological")
+                  }
+                >
                   <ToggleGroupItem value="categorized">
                     <Grid className="h-4 w-4" />
                   </ToggleGroupItem>
@@ -284,60 +298,85 @@ export function Calendar() {
                     <div className="space-y-2">
                       {deadlines.map((task) => (
                         <div
-                        key={`deadline-${task.id}`}
-                        className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors"
-                      >
-                        <div>
-                          <p className="font-medium">{task.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Due: {format(new Date(task.deadline), 'p')}
-                          </p>
-                          {task.description && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {task.description}
+                          key={`deadline-${task.id}`}
+                          className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors"
+                        >
+                          <div>
+                            <p className="font-medium">{task.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Due: {format(new Date(task.deadline), "p")}
                             </p>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setTaskToEdit(task);
-                                setCreateTaskOpen(true);
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setTaskToDelete(task.id);
-                                setDeleteTaskOpen(true);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {task.description && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {task.description}
+                              </p>
+                            )}
                           </div>
-                          <span
-                            className={`rounded-full px-2 py-1 text-xs font-medium
-                              ${task.priority === 'High' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300' : ''}
-                              ${task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300' : ''}
-                              ${task.priority === 'Low' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300' : ''}`}
-                          >
-                            {task.priority}
-                          </span>
-                          <span className={`text-xs font-medium rounded-full px-2 py-1
-                            ${task.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300' : ''}
-                            ${task.status === 'in-progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : ''}
-                            ${task.status === 'todo' ? 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300' : ''}`}
-                          >
-                            {task.status}
-                          </span>
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setTaskToEdit(task);
+                                  setCreateTaskOpen(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setTaskToDelete(task.id);
+                                  setDeleteTaskOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <span
+                              className={`rounded-full px-2 py-1 text-xs font-medium
+                              ${
+                                task.priority === "High"
+                                  ? "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300"
+                                  : ""
+                              }
+                              ${
+                                task.priority === "Medium"
+                                  ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300"
+                                  : ""
+                              }
+                              ${
+                                task.priority === "Low"
+                                  ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300"
+                                  : ""
+                              }`}
+                            >
+                              {task.priority}
+                            </span>
+                            <span
+                              className={`text-xs font-medium rounded-full px-2 py-1
+                            ${
+                              task.status === "completed"
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300"
+                                : ""
+                            }
+                            ${
+                              task.status === "in-progress"
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+                                : ""
+                            }
+                            ${
+                              task.status === "todo"
+                                ? "bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300"
+                                : ""
+                            }`}
+                            >
+                              {task.status}
+                            </span>
+                          </div>
                         </div>
-                      </div>
                       ))}
                     </div>
                   </div>
@@ -349,62 +388,81 @@ export function Calendar() {
                     <div className="space-y-2">
                       {events.map((event) => (
                         <div
-                        key={event.id}
-                        className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors"
-                      >
-                        <div>
-                          <p className="font-medium">{event.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(event.startTime), 'p')} - {format(new Date(event.endTime), 'p')}
-                          </p>
-                          {event.location && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              📍 {event.location}
+                          key={event.id}
+                          className={`flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors
+                          ${
+                            event.source === "google_calendar"
+                              ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+                              : ""
+                          }
+                          `}
+                        >
+                          <div>
+                            <p className="font-medium">{event.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(new Date(event.startTime), "p")} -{" "}
+                              {format(new Date(event.endTime), "p")}
                             </p>
-                          )}
-                          {event.description && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {event.description}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setEventToEdit(event);
-                                setCreateEventOpen(true);
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteEvent(event.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {event.location && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                📍 {event.location}
+                              </p>
+                            )}
+                            {event.description && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {event.description}
+                              </p>
+                            )}
                           </div>
-                          {event.priority && (
-                            <span
-                              className={`rounded-full px-2 py-1 text-xs font-medium
-                                ${event.priority === 'High' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300' : ''}
-                                ${event.priority === 'Medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300' : ''}
-                                ${event.priority === 'Low' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300' : ''}`}
-                            >
-                              {event.priority}
-                            </span>
-                          )}
-                          {event.category && (
-                            <span className="text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 rounded-full px-2 py-1">
-                              {event.category}
-                            </span>
-                          )}
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setEventToEdit(event);
+                                  setCreateEventOpen(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteEvent(event.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            {event.priority && (
+                              <span
+                                className={`rounded-full px-2 py-1 text-xs font-medium
+                                ${
+                                  event.priority === "High"
+                                    ? "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300"
+                                    : ""
+                                }
+                                ${
+                                  event.priority === "Medium"
+                                    ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300"
+                                    : ""
+                                }
+                                ${
+                                  event.priority === "Low"
+                                    ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300"
+                                    : ""
+                                }`}
+                              >
+                                {event.priority}
+                              </span>
+                            )}
+                            {event.category && (
+                              <span className="text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 rounded-full px-2 py-1">
+                                {event.category}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
                       ))}
                     </div>
                   </div>
@@ -416,58 +474,93 @@ export function Calendar() {
                     <div className="space-y-2">
                       {tasks.map((task) => (
                         <div
-                        key={task.id}
-                        className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors"
-                      >
-                        <div>
-                          <p className="font-medium">{task.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {task.timeSlots[0] && format(new Date(task.timeSlots[0].startDate), 'p')} - {task.timeSlots[0] && format(new Date(task.timeSlots[0].endDate), 'p')}
-                          </p>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {task.description}
-                          </p>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setTaskToEdit(task);
-                                setCreateTaskOpen(true);
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setTaskToDelete(task.id);
-                                setDeleteTaskOpen(true);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                          key={task.id}
+                          className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors"
+                        >
+                          <div>
+                            <p className="font-medium">{task.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {task.timeSlots[0] &&
+                                format(
+                                  new Date(task.timeSlots[0].startDate),
+                                  "p"
+                                )}{" "}
+                              -{" "}
+                              {task.timeSlots[0] &&
+                                format(
+                                  new Date(task.timeSlots[0].endDate),
+                                  "p"
+                                )}
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {task.description}
+                            </p>
                           </div>
-                          <span
-                            className={`rounded-full px-2 py-1 text-xs font-medium
-                              ${task.priority === 'High' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300' : ''}
-                              ${task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300' : ''}
-                              ${task.priority === 'Low' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300' : ''}`}
-                          >
-                            {task.priority}
-                          </span>
-                          <span className={`text-xs font-medium rounded-full px-2 py-1
-                            ${task.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300' : ''}
-                            ${task.status === 'in-progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : ''}
-                            ${task.status === 'todo' ? 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300' : ''}`}
-                          >
-                            {task.status}
-                          </span>
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setTaskToEdit(task);
+                                  setCreateTaskOpen(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setTaskToDelete(task.id);
+                                  setDeleteTaskOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <span
+                              className={`rounded-full px-2 py-1 text-xs font-medium
+                              ${
+                                task.priority === "High"
+                                  ? "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300"
+                                  : ""
+                              }
+                              ${
+                                task.priority === "Medium"
+                                  ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300"
+                                  : ""
+                              }
+                              ${
+                                task.priority === "Low"
+                                  ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300"
+                                  : ""
+                              }`}
+                            >
+                              {task.priority}
+                            </span>
+                            <span
+                              className={`text-xs font-medium rounded-full px-2 py-1
+                            ${
+                              task.status === "completed"
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300"
+                                : ""
+                            }
+                            ${
+                              task.status === "in-progress"
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+                                : ""
+                            }
+                            ${
+                              task.status === "todo"
+                                ? "bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300"
+                                : ""
+                            }`}
+                            >
+                              {task.status}
+                            </span>
+                          </div>
                         </div>
-                      </div>
                       ))}
                     </div>
                   </div>
@@ -479,58 +572,77 @@ export function Calendar() {
                     <div className="space-y-2">
                       {sessions.map((session) => (
                         <div
-                        key={session.id}
-                        className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors"
-                      >
-                        <div>
-                          <p className="font-medium">{session.subject}</p>
-                          <p className="text-sm text-muted-foreground">{session.goal}</p>
-                          <p className="text-sm mt-1">
-                            {format(new Date(session.scheduledFor), 'p')} ({session.duration} minutes)
-                          </p>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setSessionToEdit(session);
-                                setCreateSessionOpen(true);
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setSessionToDelete(session.id);
-                                setDeleteSessionOpen(true);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                          key={session.id}
+                          className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors"
+                        >
+                          <div>
+                            <p className="font-medium">{session.subject}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {session.goal}
+                            </p>
+                            <p className="text-sm mt-1">
+                              {format(new Date(session.scheduledFor), "p")} (
+                              {session.duration} minutes)
+                            </p>
                           </div>
-                          <span className={`text-xs font-medium rounded-full px-2 py-1
-                            ${session.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300' : ''}
-                            ${session.status === 'in-progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : ''}
-                            ${session.status === 'scheduled' ? 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300' : ''}`}
-                          >
-                            {session.status}
-                          </span>
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSessionToEdit(session);
+                                  setCreateSessionOpen(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSessionToDelete(session.id);
+                                  setDeleteSessionOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <span
+                              className={`text-xs font-medium rounded-full px-2 py-1
+                            ${
+                              session.status === "completed"
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300"
+                                : ""
+                            }
+                            ${
+                              session.status === "in-progress"
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+                                : ""
+                            }
+                            ${
+                              session.status === "scheduled"
+                                ? "bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300"
+                                : ""
+                            }`}
+                            >
+                              {session.status}
+                            </span>
+                          </div>
                         </div>
-                      </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {events.length === 0 && tasks.length === 0 && sessions.length === 0 && deadlines.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">
-                    No events scheduled for this day
-                  </p>
-                )}
+                {events.length === 0 &&
+                  tasks.length === 0 &&
+                  sessions.length === 0 &&
+                  deadlines.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">
+                      No events scheduled for this day
+                    </p>
+                  )}
               </div>
             )}
           </CardContent>
@@ -552,7 +664,7 @@ export function Calendar() {
           setEventToEdit(null);
         }}
         initialEvent={eventToEdit}
-        mode={eventToEdit ? 'edit' : 'create'}
+        mode={eventToEdit ? "edit" : "create"}
         tasks={tasks}
       />
 
@@ -565,7 +677,7 @@ export function Calendar() {
           setTaskToEdit(null);
         }}
         initialTask={taskToEdit}
-        mode={taskToEdit ? 'edit' : 'create'}
+        mode={taskToEdit ? "edit" : "create"}
       />
 
       <CreateStudySessionDialog
@@ -577,7 +689,7 @@ export function Calendar() {
           setSessionToEdit(null);
         }}
         initialSession={sessionToEdit}
-        mode={sessionToEdit ? 'edit' : 'create'}
+        mode={sessionToEdit ? "edit" : "create"}
         tasks={tasks}
         events={events}
       />
