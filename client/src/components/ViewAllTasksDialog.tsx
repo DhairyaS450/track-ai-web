@@ -186,8 +186,8 @@ export function ViewAllTasksDialog({
         </DialogHeader>
         <Tabs defaultValue="future" className="mt-4">
           <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="future">Future Tasks</TabsTrigger>
-            <TabsTrigger value="old">Old Tasks</TabsTrigger>
+            <TabsTrigger value="future">Not Completed</TabsTrigger>
+            <TabsTrigger value="old">Completed</TabsTrigger>
           </TabsList>
           <ScrollArea className="h-[500px] pr-4">
             <TabsContent value="future" className="space-y-4">

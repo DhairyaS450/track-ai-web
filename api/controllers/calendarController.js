@@ -20,7 +20,9 @@ const oauth2Client = new OAuth2Client(
 
 const SCOPES = [
   'https://www.googleapis.com/auth/calendar.readonly',
-  'https://www.googleapis.com/auth/calendar.events.readonly'
+  'https://www.googleapis.com/auth/calendar.events.readonly',
+  'https://www.googleapis.com/auth/tasks.readonly',
+  // 'https://www.googleapis.com/auth/tasks', Only needed for writing tasks
 ];
 
 exports.getAuthUrl = async (req, res) => {
@@ -119,24 +121,36 @@ exports.syncGoogleEvents = async (req, res) => {
     );
 
     // Store events in Firestore
-    defaultLogger.info(`Storing ${events.length} events in Firestore for user ${uid}`);
-    for (const event of events) {
+    defaultLogger.info(`Storing ${events.events.length} events in Firestore for user ${uid}`);
+    for (const event of events.events) {
       try {
         await CalendarEvent.create(uid, event);
       } catch (error) {
-        defaultLogger.error(`Error storing event ${event.id} for user ${uid}:`, error);
+        defaultLogger.error(`Error storing event ${event.id} for user ${uid}: ${error}`);
         // Continue with other events even if one fails
       }
     }
+    defaultLogger.info(`Successfully synced ${events.events.length} events for user ${uid}`);
 
-    defaultLogger.info(`Successfully synced ${events.length} events for user ${uid}`);
+    // Store tasks in Firestore
+    defaultLogger.info(`Storing ${events.tasks.length} tasks in Firestore for user ${uid}`);
+    for (const task of events.tasks) {
+      try {
+        await CalendarEvent.createTask(uid, task);
+      } catch (error) {
+        defaultLogger.error(`Error storing task ${task.id} for user ${uid}: ${error}`);
+        // Continue with other tasks even if one fails
+      }
+    }
+
+    defaultLogger.info(`Successfully synced ${events.tasks.length} tasks for user ${uid}`);
     res.json({
       success: true,
-      message: `Successfully synced ${events.length} events`,
+      message: `Successfully synced ${events.events.length} events and ${events.tasks.length} tasks`,
       events
     });
   } catch (error) {
-    defaultLogger.error(`Error syncing calendar events: ${error.message}\n${error.stack}`);
+    defaultLogger.error(`Error syncing calendar items: ${error.message}\n${error.stack}`);
     res.status(500).json({ error: error.message });
   }
 };

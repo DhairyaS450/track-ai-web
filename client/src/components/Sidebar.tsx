@@ -23,6 +23,7 @@ import { CreateEventDialog } from "./CreateEventDialog";
 import { CreateStudySessionDialog } from "./CreateStudySessionDialog";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { syncGoogleCalendar } from "@/api/calendar";
+import { toast } from "@/hooks/useToast";
 
 interface SidebarProps {
   open: boolean;
@@ -131,7 +132,13 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
           </Button>
           <Button
             className="w-full justify-start"
-            onClick={() => syncGoogleCalendar()}
+            onClick={async () => {
+              await syncGoogleCalendar()
+              toast({
+                title: 'Success',
+                description: 'Successfully synced Google Calendar events',
+              })
+            }}
           >
             <Sync className="h-4 w-4 mr-2" />
             Sync Calendar

@@ -111,6 +111,8 @@ export const updateTask = async (id: string, updates: Partial<Task>) => {
 
     const updatedData = {
       ...updates,
+      recurrence: updates.recurrence || '',
+      priority: updates.priority ?? 'Low',
       completion: updates.completion ?? 0,
       status: updates.completion === 100 ? 'completed' : (updates.status ?? 'in-progress')
     };

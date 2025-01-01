@@ -6,17 +6,42 @@ const db = getFirestore();
 class CalendarEvent {
   static async create(userId, eventData) {
     try {
-      // defaultLogger.info(`Creating calendar event for user ${userId} with data: ${JSON.stringify(eventData)}`);
       const docRef = await db.collection('events')
         .doc(eventData.id).set({
           userId: userId,
           googleEventId: eventData.id,
-          title: eventData.summary || '',
+          name: eventData.summary || '',
           description: eventData.description || '',
-          startTime: new Date(eventData.start.dateTime).toISOString('yyyy-MM-ddTHH:mm'),
-          endTime: new Date(eventData.end.dateTime).toISOString('yyyy-MM-ddTHH:mm'),
+          startTime: new Date(eventData.start.dateTime).toISOString().slice(0, 16),
+          endTime: new Date(eventData.end.dateTime).toISOString().slice(0, 16),
           location: eventData.location || '',
           recurrence: eventData.recurrence || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          source: 'google_calendar'
+        });
+
+      // defaultLogger.info(`Created calendar event with ID: ${docRef.id}`);
+      return docRef.id;
+    } catch (error) {
+      // defaultLogger.error(`Error creating calendar event: ${error}`);
+      throw error;
+    }
+  }
+
+  static async createTask(userId, taskData) {
+    try {
+      const docRef = await db.collection('tasks')
+        .doc(taskData.id).set({
+          userId: userId,
+          googleEventId: taskData.id,
+          title: taskData.title || '',
+          description: taskData.notes || '',
+          deadline: new Date(taskData.due).toISOString().slice(0, 16),
+          status: taskData.status === 'completed' ? 'completed' : 'todo',
+          priority: 'medium',
+          recurrence: taskData.recurrence || 'none',
+          timeSlots: [],
           createdAt: new Date(),
           updatedAt: new Date(),
           source: 'google_calendar'
