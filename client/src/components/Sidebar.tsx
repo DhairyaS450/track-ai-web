@@ -22,8 +22,7 @@ import { CreateTaskDialog } from "./CreateTaskDialog";
 import { CreateEventDialog } from "./CreateEventDialog";
 import { CreateStudySessionDialog } from "./CreateStudySessionDialog";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { syncGoogleCalendar } from "@/api/calendar";
-import { toast } from "@/hooks/useToast";
+import { SyncDialog } from "./SyncDialog";
 
 interface SidebarProps {
   open: boolean;
@@ -48,6 +47,7 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [createEventOpen, setCreateEventOpen] = useState(false);
   const [createSessionOpen, setCreateSessionOpen] = useState(false);
+  const [isDialogOpen, setDialogOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   const handleQuickMessage = () => {
@@ -132,12 +132,14 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
           </Button>
           <Button
             className="w-full justify-start"
-            onClick={async () => {
-              await syncGoogleCalendar()
-              toast({
-                title: 'Success',
-                description: 'Successfully synced Google Calendar events',
-              })
+            onClick={() => {
+              // await syncGoogleCalendar()
+              // toast({
+              //   title: 'Success',
+              //   description: 'Successfully synced Google Calendar events',
+              // })
+
+              setDialogOpen(true);
             }}
           >
             <Sync className="h-4 w-4 mr-2" />
@@ -209,6 +211,11 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
         tasks={[]}
         events={[]}
       />
+
+      <SyncDialog
+        open={isDialogOpen}
+        onOpenChange={setDialogOpen}>
+      </SyncDialog>
     </>
   );
 }

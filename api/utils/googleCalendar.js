@@ -2,7 +2,7 @@ const { google } = require('googleapis');
 const { defaultLogger } = require('./log');
 require('dotenv').config();
 
-async function fetchGoogleCalendarData(tokens, minTime, maxTime) {
+async function fetchGoogleCalendarData(tokens, calendarIds, minTime, maxTime) {
     defaultLogger.info(`Fetching Google Calendar events from ${minTime} to ${maxTime}`);
     defaultLogger.info(`Tokens: ${JSON.stringify(tokens)}`);
     const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -16,23 +16,34 @@ async function fetchGoogleCalendarData(tokens, minTime, maxTime) {
     const tasks = google.tasks({ version: 'v1', auth });
 
     try {
-        const eventsResponse = await calendar.events.list({
-            calendarId: 'primary',
-            timeMin: minTime,
-            timeMax: maxTime,
-            singleEvents: true,
-            orderBy: 'startTime',
-        });
+        const allEvents = [];
 
-        const events = eventsResponse.data.items;
+        // Fetch all calendars to ensure they exist
+        for (const calendarId of calendarIds) {
+            await calendar.calendars.get({ calendarId: calendarId });
+        }
 
+        // Fetch events from each calendar
+        for (const calendarId of calendarIds) {
+            const eventsResponse = await calendar.events.list({
+                calendarId: calendarId,
+                timeMin: minTime,
+                timeMax: maxTime,
+                singleEvents: true,
+                orderBy: 'startTime',
+            });
+
+            allEvents.push(...eventsResponse.data.items);
+        }
+
+        // Fetch tasks from Google Tasks
         const tasksResponse = await tasks.tasks.list({
             tasklist: '@default',
         });
 
-        const taskItems = tasksResponse.data.items;
+        const taskItems = tasksResponse.data.items || [];
 
-        return { events: events, tasks: taskItems };
+        return { events: allEvents, tasks: taskItems };
     } catch (error) {
         console.error('Error fetching Google Calendar events:', error);
         throw error;

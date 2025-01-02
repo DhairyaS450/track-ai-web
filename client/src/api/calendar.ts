@@ -36,14 +36,29 @@ export const getGoogleCalendarStatus = async () => {
 // Sync Google Calendar Events
 // POST /api/calendar/sync  
 // Response: { success: boolean, message: string, events: Array<CalendarEvent> }
-export const syncGoogleCalendar = async () => {
+export const syncGoogleCalendars = async (calendarIds: Array<String>) => {
   try {
     console.log('Starting Google Calendar sync');
-    const response = await api.post('/api/calendar/sync');
+    const response = await api.post('/api/calendar/sync', { calendarIds });
     console.log('Successfully synced Google Calendar events');
     return response.data;
   } catch (error: any) {
     console.error('Error syncing Google Calendar:', error);
+    throw new Error(error?.response?.data?.error || error.message);
+  }
+};
+
+// Get Google Calendars
+// GET /api/calendar/google-calendars
+// Response: { calendars: Array<Calendar> }
+export const getGoogleCalendars = async () => {
+  try {
+    console.log('Fetching Google Calendars');
+    const response = await api.get('/api/calendar/google-calendars');
+    console.log('Successfully fetched Google Calendars');
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching Google Calendars:', error);
     throw new Error(error?.response?.data?.error || error.message);
   }
 };

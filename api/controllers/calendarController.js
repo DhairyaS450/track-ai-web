@@ -94,9 +94,41 @@ exports.getConnectionStatus = async (req, res) => {
   }
 };
 
+exports.getGoogleCalendars = async (req, res) => {
+  try {
+    const { uid } = req.user;
+    defaultLogger.info(`Fetching Google Calendars for user ${uid}`);
+
+    const userDoc = await db.collection('users').doc(uid).get();
+    const userData = userDoc.data();
+
+    if (!userData?.googleCalendar?.tokens) {
+      defaultLogger.warn(`Google Calendar not connected for user ${uid}`);
+      return res.status(400).json({ error: 'Google Calendar not connected' });
+    }
+
+    const oauth2Client = new OAuth2Client(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      REDIRECT_URI
+    );
+    oauth2Client.setCredentials(userData.googleCalendar.tokens);
+
+    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    const calendars = await calendar.calendarList.list();
+
+    defaultLogger.info(`Successfully fetched ${calendars.data.items.length} calendars for user ${uid}`);
+    res.json({ calendars: calendars.data.items });
+  } catch (error) {
+    defaultLogger.error('Error fetching Google Calendars:', error.stack);
+    res.status(500).json({ error: error.message });
+  }
+}
+
 exports.syncGoogleEvents = async (req, res) => {
   try {
     const { uid } = req.user;
+    const { calendarIds } = req.body;
     defaultLogger.info(`Syncing Google Calendar events for user ${uid}`);
 
     const userDoc = await db.collection('users').doc(uid).get();
@@ -116,6 +148,7 @@ exports.syncGoogleEvents = async (req, res) => {
     defaultLogger.info(`Fetching Google Calendar events for user ${uid} from ${timeMin} to ${timeMax}`);
     const events = await fetchGoogleEvents(
       userData.googleCalendar.tokens,
+      calendarIds,
       timeMin,
       timeMax
     );
