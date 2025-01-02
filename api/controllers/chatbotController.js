@@ -20,7 +20,7 @@ async function processChatMessage(message, user) {
     // Use OpenAI's GPT model for processing
     const response = await sendLLMRequest(
       'openai',
-      'gpt-3.5-turbo',
+      'gpt-4o-mini',
       fullPrompt
     );
 
