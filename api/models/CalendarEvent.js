@@ -1,6 +1,7 @@
 const { getFirestore } = require("firebase-admin/firestore");
 const { defaultLogger } = require("../utils/log");
 const { format } = require("date-fns");
+const { google } = require("googleapis");
 
 const db = getFirestore();
 
@@ -71,14 +72,16 @@ class CalendarEvent {
       const docRef = db.collection("tasks").doc(taskData.id);
       const currentDoc = await docRef.get();
 
-      defaultLogger.info(`Creating task with deadline: ${taskData.due?.dateTime || taskData.end?.dateTime || 'No deadline'}`);
+      defaultLogger.info(`Creating task with data ${JSON.stringify(taskData)}`);
 
       if (currentDoc.exists) {
         await docRef.update({
           title: taskData.title || taskData.summary || "",
           description: taskData.notes || taskData.description || "",
-          deadline: taskData.due
+          deadline: taskData.due && taskData.due.dateTime
             ? format(new Date(taskData.due.dateTime), "yyyy-MM-dd'T'HH:mm")
+            : taskData.due
+            ? format(new Date(taskData.due), "yyyy-MM-dd'T'HH:mm")
             : format(new Date(taskData.end.dateTime), "yyyy-MM-dd'T'HH:mm"),
           status: taskData.status === "completed" ? "completed" : "todo",
           priority: "Medium",
@@ -91,9 +94,11 @@ class CalendarEvent {
           googleEventId: taskData.id,
           title: taskData.title || taskData.summary || "",
           description: taskData.notes || taskData.description || "",
-          deadline: taskData.due
-          ? format(new Date(taskData.due?.dateTime), "yyyy-MM-dd'T'HH:mm")
-          : format(new Date(taskData.end?.dateTime), "yyyy-MM-dd'T'HH:mm"),
+          deadline: taskData.due && taskData.due.dateTime
+            ? format(new Date(taskData.due.dateTime), "yyyy-MM-dd'T'HH:mm")
+            : taskData.due
+            ? format(new Date(taskData.due), "yyyy-MM-dd'T'HH:mm")
+            : format(new Date(taskData.end.dateTime), "yyyy-MM-dd'T'HH:mm"),
           status: taskData.status === "completed" ? "completed" : "todo",
           priority: "Medium",
           recurrence: taskData.recurrence || "none",
@@ -128,8 +133,6 @@ class CalendarEvent {
       throw error;
     }
   }
-
-  static async updateCalendar(userId, eventData) {}
 
   static async deleteByGoogleId(userId, googleEventId) {
     try {

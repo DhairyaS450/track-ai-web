@@ -3,7 +3,7 @@ const { OAuth2Client } = require('google-auth-library');
 const admin = require('../config/firebase-admin');
 const { defaultLogger } = require('../utils/log');
 const CalendarEvent = require('../models/CalendarEvent');
-const { fetchGoogleEvents } = require('../utils/googleCalendar');
+const { fetchGoogleEvents, updateGoogleEvent } = require('../utils/googleCalendar');
 
 const db = admin.firestore();
 
@@ -19,11 +19,10 @@ const oauth2Client = new OAuth2Client(
 );
 
 const SCOPES = [
-  'https://www.googleapis.com/auth/calendar.readonly',
-  'https://www.googleapis.com/auth/calendar.events.readonly',
-  'https://www.googleapis.com/auth/tasks.readonly',
-  // 'https://www.googleapis.com/auth/tasks', Only needed for writing tasks
-];
+  "https://www.googleapis.com/auth/calendar",
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/tasks"
+]
 
 exports.getAuthUrl = async (req, res) => {
   try {
@@ -125,10 +124,41 @@ exports.getGoogleCalendars = async (req, res) => {
   }
 }
 
+exports.getGoogleTasks = async (req, res) => { 
+  try {
+    const { uid } = req.user;
+    defaultLogger.info(`Fetching Google Tasks for user ${uid}`);
+
+    const userDoc = await db.collection('users').doc(uid).get();
+    const userData = userDoc.data();
+
+    if (!userData?.googleCalendar?.tokens) {
+      defaultLogger.warn(`Google Calendar not connected for user ${uid}`);
+      return res.status(400).json({ error: 'Google Calendar not connected' });
+    }
+
+    const oauth2Client = new OAuth2Client(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      REDIRECT_URI
+    );
+    oauth2Client.setCredentials(userData.googleCalendar.tokens);
+
+    const tasks = google.tasks({ version: 'v1', auth: oauth2Client });
+    const taskLists = await tasks.tasklists.list();
+
+    defaultLogger.info(`Successfully fetched ${taskLists.data.items.length} task lists for user ${uid}`);
+    res.json({ taskLists: taskLists.data.items });
+  } catch (error) {
+    defaultLogger.error('Error fetching Google Tasks:', error.stack);
+    res.status(500).json({ error: error.message });
+  }
+}
+
 exports.syncGoogleEvents = async (req, res) => {
   try {
     const { uid } = req.user;
-    const { calendarIds } = req.body;
+    const { calendarIds, taskListIds } = req.body;
     defaultLogger.info(`Syncing Google Calendar events for user ${uid}`);
 
     const userDoc = await db.collection('users').doc(uid).get();
@@ -149,6 +179,7 @@ exports.syncGoogleEvents = async (req, res) => {
     const events = await fetchGoogleEvents(
       userData.googleCalendar.tokens,
       calendarIds,
+      taskListIds,
       timeMin,
       timeMax
     );
@@ -202,3 +233,32 @@ exports.getEvents = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 }
+
+exports.updateGoogleEvent = async (req, res) => {
+  try {
+    const { uid } = req.user;
+    const { calendarId, eventId } = req.params;
+    const updates = req.body;
+
+    const userDoc = await db.collection('users').doc(uid).get();
+    const userData = userDoc.data();
+    if (!userData?.googleCalendar?.tokens) {
+      defaultLogger.warn(`Google Calendar not connected for user ${uid}`);
+      return res.status(400).json({ error: 'Google Calendar not connected' });
+    }
+
+    defaultLogger.info(`Updating event ${eventId} for user ${uid}`);
+    await updateGoogleEvent(
+      userData.googleCalendar.tokens,
+      calendarId,
+      eventId,
+      updates
+    )
+
+    defaultLogger.info(`Successfully updated event ${eventId} for user ${uid}`);
+    res.json({ success: true, message: 'Event updated successfully' });
+  } catch (error) {
+    defaultLogger.error(`Error updating event: ${error.message}\n${error.stack}`);
+    res.status(500).json({ error: error.message });
+  }
+};

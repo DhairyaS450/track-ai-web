@@ -36,10 +36,10 @@ export const getGoogleCalendarStatus = async () => {
 // Sync Google Calendar Events
 // POST /api/calendar/sync  
 // Response: { success: boolean, message: string, events: Array<CalendarEvent> }
-export const syncGoogleCalendars = async (calendarIds: Array<String>) => {
+export const syncWithGoogle = async (calendarIds: Array<String>, taskListIds: Array<String>) => {
   try {
     console.log('Starting Google Calendar sync');
-    const response = await api.post('/api/calendar/sync', { calendarIds });
+    const response = await api.post('/api/calendar/sync', { calendarIds, taskListIds });
     console.log('Successfully synced Google Calendar events');
     return response.data;
   } catch (error: any) {
@@ -59,6 +59,21 @@ export const getGoogleCalendars = async () => {
     return response.data;
   } catch (error: any) {
     console.error('Error fetching Google Calendars:', error);
+    throw new Error(error?.response?.data?.error || error.message);
+  }
+};
+
+// Get Google Task Lists
+// GET /api/calendar/google-task-lists
+// Response: { taskLists: Array<TaskList> }
+export const getGoogleTaskLists = async () => {
+  try {
+    console.log('Fetching Google Task Lists');
+    const response = await api.get('/api/calendar/google-task-lists');
+    console.log('Successfully fetched Google Task Lists');
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching Google Task Lists:', error);
     throw new Error(error?.response?.data?.error || error.message);
   }
 };

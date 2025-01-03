@@ -15,6 +15,7 @@ export interface Task {
   resources?: string;
   recurrence?: 'daily' | 'weekly' | 'monthly';
   completion: number;
+  source?: 'google_calendar' | 'google_tasks' | 'manual';
 }
 
 export interface StudySession {
@@ -47,6 +48,7 @@ export interface StudySession {
   resumedAt?: number;
   totalPausedTime?: number;
   progress?: number;
+  source?: 'google_calendar' | 'manual';
 }
 
 export interface User {

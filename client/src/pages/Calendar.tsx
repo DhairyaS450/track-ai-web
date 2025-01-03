@@ -299,7 +299,13 @@ export function Calendar() {
                       {deadlines.map((task) => (
                         <div
                           key={`deadline-${task.id}`}
-                          className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors"
+                          className={`flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors
+                            ${
+                              task.source === "google_calendar"
+                                ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+                                : ""
+                            }
+                            `}
                         >
                           <div>
                             <p className="font-medium">{task.title}</p>
@@ -475,7 +481,13 @@ export function Calendar() {
                       {tasks.map((task) => (
                         <div
                           key={task.id}
-                          className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors"
+                          className={`flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors
+                            ${
+                              task.source === "google_calendar"
+                                ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+                                : ""
+                            }
+                            `}
                         >
                           <div>
                             <p className="font-medium">{task.title}</p>

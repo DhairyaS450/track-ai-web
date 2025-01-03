@@ -105,18 +105,15 @@ export function ViewAllTasksDialog({
   };
 
   // Split tasks into future and past based on deadline
-  const now = new Date();
   const futureTasks = filterTasks(
     tasks.filter(task => {
-      const taskDate = new Date(task.deadline);
-      return taskDate >= now || task.status !== 'completed';
+      return task.status !== 'completed';
     })
   );
 
   const oldTasks = filterTasks(
     tasks.filter(task => {
-      const taskDate = new Date(task.deadline);
-      return taskDate < now || task.status === 'completed';
+      return task.status === 'completed';
     })
   );
 
@@ -127,7 +124,13 @@ export function ViewAllTasksDialog({
   const TaskCard = ({ task }: { task: Task }) => (
     <div
       key={task.id}
-      className="flex items-center justify-between rounded-lg border p-4"
+      className={`flex items-center justify-between rounded-lg border p-4
+        ${
+          task.source === "google_calendar" || task.source === "google_tasks"
+            ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+            : ""
+        }
+        `}
     >
       <div>
         <h3 className="font-medium">{task.title}</h3>

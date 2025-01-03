@@ -360,7 +360,14 @@ export function Dashboard() {
                 {overdueTasks.map((task) => (
                   <div
                     key={task.id}
-                    className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm"
+                    className={`
+                      flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
+                      ${
+                        task.source === "google_calendar" || task.source === "google_tasks"
+                          ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+                          : ""
+                      }
+                      `}
                   >
                     <div>
                       <p className="font-medium">{task.title}</p>
@@ -400,7 +407,14 @@ export function Dashboard() {
                 {todayTasks.map((task) => (
                   <div
                     key={task.id}
-                    className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm"
+                    className={`
+                      flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
+                      ${
+                        task.source === "google_calendar" || task.source === "google_tasks"
+                          ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+                          : ""
+                      }
+                      `}
                   >
                     <div>
                       <p className="font-medium">{task.title}</p>
@@ -439,7 +453,14 @@ export function Dashboard() {
                 {highPriorityItems.map((item) => (
                   <div
                     key={"id" in item ? item.id : ""}
-                    className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm"
+                    className={`
+                      flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
+                      ${
+                        item.source === "google_calendar" || item.source === "google_tasks"
+                          ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+                          : ""
+                      }
+                      `}
                   >
                     <div>
                       <p className="font-medium">
@@ -503,7 +524,13 @@ export function Dashboard() {
                       task.status === "completed"
                         ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900"
                         : ""
-                    }`}
+                    }
+                    ${
+                      task.source === "google_calendar"
+                        ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+                        : ""
+                    }
+                    `}
                 >
                   <div className="flex items-center space-x-4">
                     <input
