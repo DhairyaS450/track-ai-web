@@ -4,9 +4,11 @@ import {
   setPersistence,
   signInWithEmailAndPassword,
   signOut,
+  sendEmailVerification,
+  User,
 } from "firebase/auth";
 import { db, auth } from "@/config/firebase";
-import { addDoc, collection, doc, setDoc} from "@firebase/firestore";
+import { doc, setDoc} from "@firebase/firestore";
 
 // Login
 // POST /auth/login
@@ -44,6 +46,9 @@ export const register = async (data: { email: string; password: string }) => {
     await setDoc(doc(db, "users", userCredential.user.uid), {
       email: userCredential.user.email,
     });
+
+    // Verify the email
+    await verifyEmail(userCredential.user);
   } catch (error: any) {
     throw new Error(error.message);
   }
@@ -58,3 +63,21 @@ export const logout = async () => {
     throw new Error(error.message);
   }
 };
+
+
+// Verify Email
+// POST /auth/verify-email
+// Request: { email: string }
+// Response: { success: boolean }
+export const verifyEmail = async (user: User | null) => { 
+  try {
+    if (!user) {
+      throw new Error("User not found");
+    }
+    await sendEmailVerification(user);
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error during email verification:", error);
+    throw new Error(error.message);
+  }
+}

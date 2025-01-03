@@ -4,10 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
-  // Allow access to /settings even if user is not logged in
+
   const currentPath = window.location.pathname;
-  if (!auth.isAuthenticated && currentPath !== '/settings') {
+  if (!auth.isAuthenticated && currentPath !== '/login') {
     return <Navigate to="/login" />;
+  }
+
+  if (auth.user?.emailVerified === false && currentPath !== '/verify-email') { 
+    return <Navigate to="/verify-email" />;
   }
 
   return <>{children}</>;

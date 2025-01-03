@@ -15,6 +15,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute"
 import { useState, useEffect } from 'react';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import api from "./api/Api"
+import { EmailVerification } from "./pages/EmailVerification"
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -58,6 +59,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/verify-email" element={<EmailVerification user={user} />} />
             <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route index element={<Dashboard />} />
               <Route path="calendar" element={<Calendar />} />

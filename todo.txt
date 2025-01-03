@@ -1,10 +1,11 @@
 Frontend:
 PRIORITY: Get google calendar working - in-progress
-- Problem: Off by 5 hours only for calendar events, probably related to timezone issues
+- Problem: Off by 5 hours only for google tasks, probably related to timezone issues
 - Problem: Any updates don't get synced back to google calendar
 - Solution: When task/event is updated, sync possible fields back to google calendar.
 PRIORITY: If a description is too long for a task, event or study session enable a collapse and view more button. DO NOT EXTEND THE PAGE, ESPECIALLY ON MOBILE
 Get search function on header actually working
+Fix ongoing session bugs
 Allow users to just add deadline or just add reminder rather than task, event or study session
 Add time blocking
 Improve settings page
