@@ -19,6 +19,8 @@ import { Event, Task } from "@/types";
 import { ScrollArea } from "./ui/scroll-area";
 import { X } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { ExternalUpdateDialog } from "./ExternalUpdateDialog";
+import { updateCalendarEvent } from "@/api/calendar";
 
 interface CreateEventDialogProps {
   open: boolean;
@@ -55,6 +57,8 @@ export function CreateEventDialog({
   const [associatedTaskIds, setAssociatedTaskIds] = useState<string[]>(
     initialEvent?.associatedTaskIds || []
   );
+  const [isUpdateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [newlyCreatedEvent, setNewlyCreatedEvent] = useState<Event | null>(null);
 
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { toast } = useToast();
@@ -112,6 +116,8 @@ export function CreateEventDialog({
         recurrence,
         reminders,
         associatedTaskIds,
+        source: initialEvent?.source || 'manual',
+        calendarId: initialEvent?.calendarId,
       };
 
       if (mode === "edit" && initialEvent?.id) {
@@ -120,13 +126,18 @@ export function CreateEventDialog({
           title: "Success",
           description: "Event updated successfully",
         });
+        setNewlyCreatedEvent(event);
         onEventCreated(event);
+        if (event.source === "google_calendar") {
+          setUpdateDialogOpen(true);
+        }
       } else {
         const { event } = await addEvent(eventData);
         toast({
           title: "Success",
           description: "Event created successfully",
         });
+        setNewlyCreatedEvent(event);
         onEventCreated(event);
       }
       onOpenChange(false);
@@ -139,7 +150,40 @@ export function CreateEventDialog({
     }
   };
 
+  const handleConfirmUpdate = async (event: Event | null) => {
+    try {
+      if (!event) {
+        return;
+      }
+      const calendarUpdates = {
+        summary: event.name,
+        start: {
+          dateTime: event.startTime,
+          timeZone: "UTC"
+        },
+        end: {
+          dateTime: event.endTime,
+          timeZone: "UTC"
+        },
+        location: event.location,
+        description: event.description,
+      }
+      
+      console.log('Updating event on Google Calendar:', event);
+      await updateCalendarEvent(event.calendarId || "", event.id || "", calendarUpdates)
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update event on Google Calendar",
+      });
+    } finally {
+      setUpdateDialogOpen(false);
+    }
+  }
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`sm:max-w-[600px] ${isMobile ? 'px-4' : ''} bg-background`}>
         <DialogHeader>
@@ -367,5 +411,18 @@ export function CreateEventDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <ExternalUpdateDialog
+      open={isUpdateDialogOpen}
+      title="Update Google Calendar Event"
+      dialogContent="Do you want to update the event on Google Calendar?"
+      note="This will update the event on Google Calendar with the changes made in Track AI."
+      onConfirm={() => {
+        handleConfirmUpdate(newlyCreatedEvent);
+      }}
+      onCancel={() => {
+        setUpdateDialogOpen(false);
+      }}/>
+      </>
   );
 }

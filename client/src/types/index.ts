@@ -16,6 +16,7 @@ export interface Task {
   recurrence?: 'daily' | 'weekly' | 'monthly';
   completion: number;
   source?: 'google_calendar' | 'google_tasks' | 'manual';
+  taskListId?: string;
 }
 
 export interface StudySession {
@@ -82,4 +83,5 @@ export interface Event {
   recurrence?: 'daily' | 'weekly' | 'monthly';
   associatedTaskIds?: string[];
   source?: 'google_calendar' | 'manual';
+  calendarId?: string;
 }

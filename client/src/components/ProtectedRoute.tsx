@@ -6,7 +6,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
 
   const currentPath = window.location.pathname;
-  if (!auth.isAuthenticated && currentPath !== '/login') {
+  if (!auth.isAuthenticated && currentPath !== '/settings') {
     return <Navigate to="/login" />;
   }
 

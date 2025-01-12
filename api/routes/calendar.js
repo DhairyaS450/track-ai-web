@@ -1,6 +1,6 @@
 const express = require('express');
 const { isAuthenticated } = require('./middleware/auth');
-const { getAuthUrl, connectCalendar, getConnectionStatus, syncGoogleEvents, getEvents, getGoogleCalendars, getGoogleTasks, updateGoogleEvent } = require('../controllers/calendarController');
+const { getAuthUrl, connectCalendar, getConnectionStatus, syncGoogleEvents, getEvents, getGoogleCalendars, getGoogleTasks, updateGoogleEvent, updateGoogleTask } = require('../controllers/calendarController');
 const { defaultLogger } = require('../utils/log');
 
 const router = express.Router();
@@ -24,12 +24,19 @@ router.post('/sync', isAuthenticated, (req, res, next) => {
   syncGoogleEvents(req, res, next);
 });
 router.get('/events', isAuthenticated, getEvents);
-router.patch('/events/:eventId', isAuthenticated, (req, res, next) => {
+router.patch('/events/:calendarId/:eventId', isAuthenticated, (req, res, next) => {
   defaultLogger.info('Received calendar event update request', {
     body: req.body,
     headers: req.headers
   });
   updateGoogleEvent(req, res, next);
+});
+router.patch('/tasks/:taskListId/:taskId', isAuthenticated, (req, res, next) => {
+  defaultLogger.info('Received calendar task update request', {
+    body: req.body,
+    headers: req.headers
+  });
+  updateGoogleTask(req, res, next);
 });
 
 module.exports = router;

@@ -301,7 +301,7 @@ export function Calendar() {
                           key={`deadline-${task.id}`}
                           className={`flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors
                             ${
-                              task.source === "google_calendar"
+                              task.source === "google_calendar" || task.source === "google_tasks"
                                 ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
                                 : ""
                             }
@@ -483,7 +483,7 @@ export function Calendar() {
                           key={task.id}
                           className={`flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors
                             ${
-                              task.source === "google_calendar"
+                              task.source === "google_calendar" || task.source === "google_tasks"
                                 ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
                                 : ""
                             }

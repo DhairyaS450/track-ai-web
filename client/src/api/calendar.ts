@@ -92,3 +92,65 @@ export const getCalendarEvents = async () => {
     throw new Error(error?.response?.data?.error || error.message);
   }
 };
+
+// Update Calendar Event
+// PATCH /api/calendar/events/:calendarId/:eventId
+// Request: { updates: any }
+// Response: { success: boolean, message: string }
+export const updateCalendarEvent = async (calendarId: string, eventId: string, updates: any) => {
+  try {
+    console.log('Updating calendar event:', event);
+    const response = await api.patch(`/api/calendar/events/${calendarId}/${eventId}`, { updates });
+    console.log('Successfully updated calendar event');
+    return response.data;
+  } catch (error: any) {
+    console.error('Error updating calendar event:', error);
+    throw new Error(error?.response?.data?.error || error.message);
+  }
+};
+
+// Delete Calendar Event
+// DELETE /api/calendar/events/:calendarId/:eventId
+// Response: { success: boolean, message: string }
+export const deleteCalendarEvent = async (calendarId: string, eventId: string) => {
+  try {
+    console.log('Deleting calendar event:', eventId);
+    const response = await api.delete(`/api/calendar/events/${calendarId}/${eventId}`);
+    console.log('Successfully deleted calendar event');
+    return response.data;
+  } catch (error: any) {
+    console.error('Error deleting calendar event:', error);
+    throw new Error(error?.response?.data?.error || error.message);
+  }
+};
+
+// Update Google Tasks Task
+// PATCH /api/calendar/tasks/:taskListId/:taskId
+// Request: { updates: any }
+// Response: { success: boolean, message: string }
+export const updateGoogleTasksTask = async (taskListId: string, taskId: string, updates: any) => {
+  try {
+    console.log('Updating Google Tasks task:', taskId);
+    const response = await api.patch(`/api/calendar/tasks/${taskListId}/${taskId}`, { updates });
+    console.log('Successfully updated Google Tasks task');
+    return response.data;
+  } catch (error: any) {
+    console.error('Error updating Google Tasks task:', error);
+    throw new Error(error?.response?.data?.error || error.message);
+  }
+};
+
+// Delete Google Tasks Task
+// DELETE /api/calendar/tasks/:taskListId/:taskId
+// Response: { success: boolean, message: string }
+export const deleteGoogleTasksTask = async (taskListId: string, taskId: string) => {
+  try {
+    console.log('Deleting Google Tasks task:', taskId);
+    const response = await api.delete(`/api/calendar/tasks/${taskListId}/${taskId}`);
+    console.log('Successfully deleted Google Tasks task');
+    return response.data;
+  } catch (error: any) {
+    console.error('Error deleting Google Tasks task:', error);
+    throw new Error(error?.response?.data?.error || error.message);
+  }
+};

@@ -15,6 +15,7 @@ Notifications
 Much more unique branding and gamification
 Sync with other apps like outlook calendar, notion, etc 
 Improve mobile view and make this into an app and website version
+Offline support
 Testing and fixing bugs
 
 Backend:
@@ -23,4 +24,5 @@ Connect with other calendar applications
 Implement AI Functionalities
 Working interactive chatbot that can add, edit, delete -> tasks, events, study sessions, 
 time blocks, etc, and give good recommendations considering user profile
+Efficiency with firebase firestore: Using snapshots
 AI Notifications for any recommendations (ie recommended study session at 4:00PM tommorow for upcoming test event)

@@ -1,13 +1,17 @@
 const { getFirestore } = require("firebase-admin/firestore");
 const { defaultLogger } = require("../utils/log");
 const { format } = require("date-fns");
-const { google } = require("googleapis");
 
 const db = getFirestore();
 
 class CalendarEvent {
   static async create(userId, eventData) {
     try {
+      // Check if it is an all-day event
+      if (eventData.start.date) {
+        return;
+      }
+
       // Check if the event is actually a task or deadline
       const start = new Date(eventData.start.dateTime).getTime();
       const end = new Date(eventData.end.dateTime).getTime();
@@ -37,6 +41,7 @@ class CalendarEvent {
           location: eventData.location || "",
           recurrence: eventData.recurrence || null,
           updatedAt: new Date(),
+          calendarId: eventData.calendarId,
         });
       } else {
         await docRef.set({
@@ -57,6 +62,7 @@ class CalendarEvent {
           createdAt: new Date(),
           updatedAt: new Date(),
           source: "google_calendar",
+          calendarId: eventData.calendarId,
         });
       }
       // defaultLogger.info(`Created calendar event with ID: ${docRef.id}`);
@@ -87,6 +93,8 @@ class CalendarEvent {
           priority: "Medium",
           recurrence: taskData.recurrence || "none",
           updatedAt: new Date(),
+          taskListId: taskData.taskListId || taskData.calendarId,
+          source: taskData.taskListId ? "google_tasks" : "google_calendar",
         });
       } else {
         await docRef.set({
@@ -105,7 +113,8 @@ class CalendarEvent {
           timeSlots: [],
           createdAt: new Date(),
           updatedAt: new Date(),
-          source: "google_calendar",
+          source: taskData.taskListId ? "google_tasks" : "google_calendar",
+          taskListId: taskData.taskListId || taskData.calendarId,
         });
       }
       // defaultLogger.info(`Created calendar event with ID: ${docRef.id}`);
