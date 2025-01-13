@@ -263,7 +263,7 @@ export function StudySessionTimer({
           className="gap-2 w-full sm:w-auto"
         >
           <MessageSquare className="h-4 w-4" />
-          Need help? Chat with Track AI
+          Need help? Chat with Kai!
         </Button>
 
         <div className={`flex gap-2 ${isMobile ? "flex-col" : ""}`}>

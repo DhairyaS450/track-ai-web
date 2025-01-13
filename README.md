@@ -1,6 +1,6 @@
- # Track AI
+ # TaskTide AI
 
-Track AI is an AI-powered scheduling and productivity app tailored for high-school and university students. It integrates advanced features like Google Calendar sync, AI-driven study session planning, and a chatbot assistant to optimize time management and reduce stress.
+TaskTide AI is an AI-powered scheduling and productivity app tailored for high-school and university students. It integrates advanced features like Google Calendar sync, AI-driven study session planning, and a chatbot assistant to optimize time management and reduce stress.
 
 ---
 

@@ -1,5 +1,4 @@
 const { google } = require("googleapis");
-const calendar = require('')
 const { defaultLogger } = require("./log");
 require("dotenv").config();
 

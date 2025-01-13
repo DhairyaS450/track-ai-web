@@ -62,6 +62,8 @@ export const addEvent = async (eventData: Omit<Event, 'id'>) => {
       recurrence: eventData.recurrence || '',
       createdAt: serverTimestamp(),
       userId: auth.currentUser?.uid,
+      calendarId: eventData.calendarId || '',
+      priority: eventData.priority || 'Low'
     };
 
     const docRef = await addDoc(eventsRef, eventWithMetadata);

@@ -10,6 +10,7 @@ import { Bell, Calendar, Moon, User } from "lucide-react";
 import { connectGoogleCalendar, getGoogleCalendarStatus } from "@/api/calendar";
 import { useToast } from "@/hooks/useToast";
 import api from "@/api/Api";
+import { listenToSettings, saveSettings } from "@/api/settings";
 
 export function Settings() {
   const [notifications, setNotifications] = useState({
@@ -23,6 +24,7 @@ export function Settings() {
   const [calendar, setCalendar] = useState("google");
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [loading, setLoading] = useState(true); // Add loading state
   const { toast } = useToast();
 
   const [profile, setProfile] = useState({
@@ -34,6 +36,55 @@ export function Settings() {
     goals: "",
     preferredStudyTimes: "",
   });
+  const [tempProfile, setTempProfile] = useState(profile);
+
+  const handleTempProfileChange = (field: string, value: string) => {
+    setTempProfile((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleNotificationChange = (type: string, value: boolean) => {
+    const updatedNotifications = { ...notifications, [type]: value };
+    setNotifications(updatedNotifications);
+    saveSettings({}, { notifications: updatedNotifications });
+  };
+  
+  const handleProfileChange = (field: string, value: string) => {
+    const updatedProfile = { ...profile, [field]: value };
+    setProfile(updatedProfile);
+    saveSettings({ profile: updatedProfile }, {});
+  };
+  
+  const handleThemeChange = (value: string) => {
+    setTheme(value);
+    saveSettings({ theme: value }, {});
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setProfile(tempProfile); // Update the profile state
+      await saveSettings({ profile: tempProfile }, {}); // Persist to Firestore
+      toast({ title: "Success", description: "Profile saved successfully" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+  
+  useEffect(() => {
+    const unsubscribe = listenToSettings((settings: any) => {
+      if (loading) {
+        // Only set initial state on first load
+        setNotifications(settings.notifications || notifications);
+        setProfile(settings.profile || profile);
+        setTempProfile(settings.profile || tempProfile);
+        setTheme(settings.theme || theme);
+        setLoading(false); // Finish loading
+      }
+    });
+  
+    return () => {
+      unsubscribe();
+    };
+  }, [loading]);
 
   const checkCalendarStatus = async () => {
     try {
@@ -100,19 +151,26 @@ export function Settings() {
 
       <div className="grid gap-6">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex justify-between p-4 border-b">
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
               Student Profile
             </CardTitle>
+            <Button 
+              onClick={handleSaveProfile} 
+              className="ml-auto"
+              disabled={JSON.stringify(tempProfile) === JSON.stringify(profile)}
+            >
+              Save Profile
+            </Button>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Level of Study</Label>
               <RadioGroup
-                value={profile.studyLevel}
+                value={tempProfile?.studyLevel || 'highschool'}
                 onValueChange={(value) =>
-                  setProfile((prev) => ({ ...prev, studyLevel: value }))
+                  handleTempProfileChange('studyLevel', value)
                 }
                 className="flex space-x-4"
               >
@@ -131,9 +189,9 @@ export function Settings() {
               <Label htmlFor="major">Subjects/Major</Label>
               <Input
                 id="major"
-                value={profile.major}
+                value={tempProfile?.major || ''}
                 onChange={(e) =>
-                  setProfile((prev) => ({ ...prev, major: e.target.value }))
+                  handleTempProfileChange('major', e.target.value)
                 }
                 placeholder="e.g., Computer Science, Biology"
               />
@@ -143,12 +201,9 @@ export function Settings() {
               <Label htmlFor="extracurriculars">Extracurricular Activities</Label>
               <Textarea
                 id="extracurriculars"
-                value={profile.extracurriculars}
+                value={tempProfile?.extracurriculars || ''}
                 onChange={(e) =>
-                  setProfile((prev) => ({
-                    ...prev,
-                    extracurriculars: e.target.value,
-                  }))
+                  handleTempProfileChange('extracurriculars', e.target.value)
                 }
                 placeholder="List your extracurricular activities"
               />
@@ -158,9 +213,9 @@ export function Settings() {
               <Label htmlFor="strengths">Academic Strengths</Label>
               <Textarea
                 id="strengths"
-                value={profile.strengths}
+                value={tempProfile?.strengths || ''}
                 onChange={(e) =>
-                  setProfile((prev) => ({ ...prev, strengths: e.target.value }))
+                  handleTempProfileChange('strengths', e.target.value)
                 }
                 placeholder="What are your academic strengths?"
               />
@@ -170,9 +225,9 @@ export function Settings() {
               <Label htmlFor="weaknesses">Areas for Improvement</Label>
               <Textarea
                 id="weaknesses"
-                value={profile.weaknesses}
+                value={tempProfile?.weaknesses || ''}
                 onChange={(e) =>
-                  setProfile((prev) => ({ ...prev, weaknesses: e.target.value }))
+                  handleTempProfileChange('weaknesses', e.target.value)
                 }
                 placeholder="What areas would you like to improve?"
               />
@@ -182,9 +237,9 @@ export function Settings() {
               <Label htmlFor="goals">Academic Goals</Label>
               <Textarea
                 id="goals"
-                value={profile.goals}
+                value={tempProfile?.goals || ''}
                 onChange={(e) =>
-                  setProfile((prev) => ({ ...prev, goals: e.target.value }))
+                  handleTempProfileChange('goals', e.target.value)
                 }
                 placeholder="What are your academic goals?"
               />
@@ -194,12 +249,9 @@ export function Settings() {
               <Label htmlFor="studyTimes">Preferred Study Times</Label>
               <Input
                 id="studyTimes"
-                value={profile.preferredStudyTimes}
+                value={tempProfile?.preferredStudyTimes || ''}
                 onChange={(e) =>
-                  setProfile((prev) => ({
-                    ...prev,
-                    preferredStudyTimes: e.target.value,
-                  }))
+                  handleTempProfileChange('preferredStudyTimes', e.target.value)
                 }
                 placeholder="e.g., Mornings 9-11 AM, Evenings 6-8 PM"
               />
@@ -219,9 +271,9 @@ export function Settings() {
               <Label htmlFor="email-notifications">Email Notifications</Label>
               <Switch
                 id="email-notifications"
-                checked={notifications.email}
+                checked={notifications?.email}
                 onCheckedChange={(checked) =>
-                  setNotifications((prev) => ({ ...prev, email: checked }))
+                  handleNotificationChange("email", checked)
                 }
               />
             </div>
@@ -229,9 +281,9 @@ export function Settings() {
               <Label htmlFor="push-notifications">Push Notifications</Label>
               <Switch
                 id="push-notifications"
-                checked={notifications.push}
+                checked={notifications?.push}
                 onCheckedChange={(checked) =>
-                  setNotifications((prev) => ({ ...prev, push: checked }))
+                  handleNotificationChange("push", checked)
                 }
               />
             </div>
@@ -239,9 +291,9 @@ export function Settings() {
               <Label htmlFor="task-reminders">Task Reminders</Label>
               <Switch
                 id="task-reminders"
-                checked={notifications.tasks}
+                checked={notifications?.tasks}
                 onCheckedChange={(checked) =>
-                  setNotifications((prev) => ({ ...prev, tasks: checked }))
+                  handleNotificationChange("tasks", checked)
                 }
               />
             </div>
@@ -249,9 +301,9 @@ export function Settings() {
               <Label htmlFor="session-reminders">Study Session Reminders</Label>
               <Switch
                 id="session-reminders"
-                checked={notifications.sessions}
+                checked={notifications?.sessions}
                 onCheckedChange={(checked) =>
-                  setNotifications((prev) => ({ ...prev, sessions: checked }))
+                  handleNotificationChange("sessions", checked)
                 }
               />
             </div>
@@ -268,7 +320,7 @@ export function Settings() {
           <CardContent>
             <RadioGroup
               value={theme}
-              onValueChange={setTheme}
+              onValueChange={(value) => handleThemeChange(value)}
               className="space-y-2"
             >
               <div className="flex items-center space-x-2">

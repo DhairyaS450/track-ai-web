@@ -35,7 +35,7 @@ export function Header({ onMenuClick }: HeaderProps) {
       case "/settings":
         return "Settings";
       default:
-        return "Track AI Web";
+        return "TaskTide AI";
     }
   };
 
@@ -52,7 +52,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         </Button>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <img src="/logo.png" alt="Track AI Web" className="h-8 w-auto" />
+          <img src="/logo.png" alt="TaskTide AI" className="h-8 w-auto" />
         </div>
 
         <div className="flex-1 flex items-center justify-center">
