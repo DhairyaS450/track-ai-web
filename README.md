@@ -118,12 +118,12 @@ track-ai-web/
 |   |-- tailwind.config.js   # TailwindCSS configuration
 |   |-- postcss.config.js    # PostCSS configuration
 |   |-- vite.config.ts       # Vite configuration
-|-- server/                  # Backend of the application
+|-- api/                     # Backend of the application
 |   |-- config/              # Server-side configurations (Firebase, Express)
 |   |-- controllers/         # API endpoint logic
 |   |-- models/              # Data models (Task, Event, StudySession)
 |   |-- routes/              # Express routes
-|   |-- services/            # Service layers (Database interactions, Google API integration)
+|   |-- services/            # Service layers (Database interactions, Google API integration, LLM)
 |   |-- utils/               # Server-side utility functions
 |   |-- server.js            # Express server entry point
 |   |-- package.json         # Node.js dependencies for server
