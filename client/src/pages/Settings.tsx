@@ -51,18 +51,18 @@ export function Settings() {
   const handleProfileChange = (field: string, value: string) => {
     const updatedProfile = { ...profile, [field]: value };
     setProfile(updatedProfile);
-    saveSettings({ profile: updatedProfile }, {});
+    saveSettings({ userProfile: updatedProfile }, {});
   };
   
   const handleThemeChange = (value: string) => {
     setTheme(value);
-    saveSettings({ theme: value }, {});
+    saveSettings({}, { theme: value });
   };
 
   const handleSaveProfile = async () => {
     try {
-      setProfile(tempProfile); // Update the profile state
-      await saveSettings({ profile: tempProfile }, {}); // Persist to Firestore
+      setProfile(tempProfile);
+      await saveSettings({ userProfile: tempProfile }, {});
       toast({ title: "Success", description: "Profile saved successfully" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -70,21 +70,28 @@ export function Settings() {
   };
   
   useEffect(() => {
+    let isMounted = true;
     const unsubscribe = listenToSettings((settings: any) => {
-      if (loading) {
-        // Only set initial state on first load
-        setNotifications(settings.notifications || notifications);
-        setProfile(settings.profile || profile);
-        setTempProfile(settings.profile || tempProfile);
-        setTheme(settings.theme || theme);
-        setLoading(false); // Finish loading
+      if (isMounted) {
+        if (settings.preferences?.notifications) {
+          setNotifications(settings.preferences.notifications);
+        }
+        if (settings.userProfile) {
+          setProfile(settings.userProfile);
+          setTempProfile(settings.userProfile);
+        }
+        if (settings.preferences?.theme) {
+          setTheme(settings.preferences.theme);
+        }
+        setLoading(false);
       }
     });
   
     return () => {
+      isMounted = false;
       unsubscribe();
     };
-  }, [loading]);
+  }, []);
 
   const checkCalendarStatus = async () => {
     try {
