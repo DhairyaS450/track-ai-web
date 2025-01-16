@@ -1,5 +1,5 @@
 import { db, auth } from '@/config/firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, getDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Task } from '@/types';
 import { isSameDay, parseISO } from 'date-fns';
 
@@ -59,6 +59,27 @@ export const getTodayTasks = async () => {
       stack: error.stack
     });
     throw new Error(`Failed to fetch today's tasks: ${error.message}`);
+  }
+};
+
+// Get Task by ID
+// GET /tasks/:id
+// Response: { task: Task }
+export const getTaskById = async (id: string) => {
+  try {
+    console.log('Fetching task by ID:', id);
+    const taskRef = doc(db, 'tasks', id);
+    const taskSnapshot = await getDoc(taskRef);
+    const task = taskSnapshot.data() as Task;
+    console.log('Successfully fetched task by ID:', id);
+    return { task };
+  } catch (error: any) {
+    console.error('Error fetching task by ID:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to fetch task by ID: ${error.message}`);
   }
 };
 

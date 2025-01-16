@@ -93,6 +93,27 @@ export const getStudySessions = async () => {
     }
 };
 
+// Get Study Session by ID
+// GET /sessions/:id
+// Response: { session: StudySession }
+export const getStudySessionById = async (id: string) => {
+  try {
+    console.log('Fetching study session by ID:', id);
+    const studySessionRef = doc(db, 'studySessions', id);
+    const studySessionSnapshot = await getDoc(studySessionRef);
+    const studySession = studySessionSnapshot.data() as StudySession;
+    console.log('Successfully fetched study session by ID:', id);
+    return { session: studySession };
+  } catch (error: any) {
+    console.error('Error fetching study session by ID:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to fetch study session by ID: ${error.message}`);
+  }
+};
+
 // Add Study Session
 // POST /sessions
 // Request: StudySession

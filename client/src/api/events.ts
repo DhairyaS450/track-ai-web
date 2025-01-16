@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { db, auth } from '@/config/firebase';
 import { Event } from '@/types';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from '@firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, getDoc } from '@firebase/firestore';
 
 // Helper functions for local storage
 // const getLocalEvents = (): Event[] => {
@@ -47,6 +47,27 @@ export const getEvents = async () => {
   }
 };
 
+// Get Event by ID
+// GET /events/:id
+// Response: { event: Event }
+export const getEventById = async (id: string) => {
+  try {
+    console.log('Fetching event by ID:', id);
+    const eventRef = doc(db, 'events', id);
+    const eventSnapshot = await getDoc(eventRef);
+    const event = eventSnapshot.data() as Event;
+    console.log('Successfully fetched event by ID:', id);
+    return { event };
+  } catch (error: any) {
+    console.error('Error fetching event by ID:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to fetch event by ID: ${error.message}`);
+  }
+};
+
 // Add Event
 // POST /events
 // Request: Event
@@ -63,6 +84,8 @@ export const addEvent = async (eventData: Omit<Event, 'id'>) => {
       createdAt: serverTimestamp(),
       userId: auth.currentUser?.uid,
       calendarId: eventData.calendarId || '',
+      isAllDay: eventData.isAllDay || false,
+      isFlexible: eventData.isFlexible || false,
       priority: eventData.priority || 'Low'
     };
 
