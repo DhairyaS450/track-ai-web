@@ -1,0 +1,142 @@
+import { Deadline, Reminder } from '@/types';
+import { db } from '@/config/firebase';
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  where,
+  Timestamp,
+} from 'firebase/firestore';
+
+// Deadlines
+export async function createDeadline(deadline: Omit<Deadline, 'id' | 'createdAt' | 'updatedAt'>) {
+  try {
+    const now = new Date().toISOString();
+    const docRef = await addDoc(collection(db, 'deadlines'), {
+      ...deadline,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { id: docRef.id };
+  } catch (error) {
+    console.error('Error creating deadline:', error);
+    throw error;
+  }
+}
+
+export async function updateDeadline(id: string, deadline: Partial<Deadline>) {
+  try {
+    const now = new Date().toISOString();
+    await updateDoc(doc(db, 'deadlines', id), {
+      ...deadline,
+      updatedAt: now,
+    });
+  } catch (error) {
+    console.error('Error updating deadline:', error);
+    throw error;
+  }
+}
+
+export async function deleteDeadline(id: string) {
+  try {
+    await deleteDoc(doc(db, 'deadlines', id));
+  } catch (error) {
+    console.error('Error deleting deadline:', error);
+    throw error;
+  }
+}
+
+export async function getDeadlines() {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'deadlines'));
+    const deadlines = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Deadline[];
+    return { deadlines };
+  } catch (error) {
+    console.error('Error getting deadlines:', error);
+    throw error;
+  }
+}
+
+// Reminders
+export async function createReminder(reminder: Omit<Reminder, 'id' | 'createdAt' | 'updatedAt'>) {
+  try {
+    const now = new Date().toISOString();
+    
+    const docToAdd = {
+      ...reminder,
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    if (reminder.recurring == undefined) {
+      delete docToAdd.recurring;
+    }
+
+    const docRef = await addDoc(collection(db, 'reminders'), docToAdd);
+    return { id: docRef.id };
+  } catch (error) {
+    console.error('Error creating reminder:', error);
+    throw error;
+  }
+}
+
+export async function updateReminder(id: string, reminder: Partial<Reminder>) {
+  try {
+    const now = new Date().toISOString();
+    await updateDoc(doc(db, 'reminders', id), {
+      ...reminder,
+      updatedAt: now,
+    });
+  } catch (error) {
+    console.error('Error updating reminder:', error);
+    throw error;
+  }
+}
+
+export async function deleteReminder(id: string) {
+  try {
+    await deleteDoc(doc(db, 'reminders', id));
+  } catch (error) {
+    console.error('Error deleting reminder:', error);
+    throw error;
+  }
+}
+
+export async function getReminders() {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'reminders'));
+    const reminders = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Reminder[];
+    return { reminders };
+  } catch (error) {
+    console.error('Error getting reminders:', error);
+    throw error;
+  }
+}
+
+export async function markDeadlineAsComplete(id: string) {
+  try {
+    await updateDeadline(id, { status: 'Completed' });
+  } catch (error) {
+    console.error('Error marking deadline as complete:', error);
+    throw error;
+  }
+}
+
+export async function dismissReminder(id: string) {
+  try {
+    await updateReminder(id, { status: 'Dismissed' });
+  } catch (error) {
+    console.error('Error dismissing reminder:', error);
+    throw error;
+  }
+}

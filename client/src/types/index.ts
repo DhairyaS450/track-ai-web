@@ -85,3 +85,5 @@ export interface Event {
   source?: 'google_calendar' | 'manual';
   calendarId?: string;
 }
+
+export * from './deadlines';

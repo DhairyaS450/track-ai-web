@@ -4,7 +4,6 @@ PRIORITY: Get google calendar working - in-progress
 - Problem: Any updates don't get synced back to google calendar
 - Solution: When task/event is updated, sync possible fields back to google calendar.
 PRIORITY: If a description is too long for a task, event or study session enable a collapse and view more button. DO NOT EXTEND THE PAGE, ESPECIALLY ON MOBILE
-Get search function on header actually working
 Fix ongoing session bugs
 Allow users to just add deadline or just add reminder rather than task, event or study session
 Add time blocking
@@ -13,6 +12,7 @@ Add user profile
 Add in mood tracker
 Notifications
 Much more unique branding and gamification
+Much better analytics
 Sync with other apps like outlook calendar, notion, etc 
 Improve mobile view and make this into an app and website version
 Offline support

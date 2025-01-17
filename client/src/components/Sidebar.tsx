@@ -21,6 +21,8 @@ import { FeedbackDialog } from "./FeedbackDialog";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { CreateEventDialog } from "./CreateEventDialog";
 import { CreateStudySessionDialog } from "./CreateStudySessionDialog";
+import { CreateDeadlineDialog } from "./CreateDeadlineDialog";
+import { CreateReminderDialog } from "./CreateReminderDialog";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { SyncDialog } from "./SyncDialog";
 
@@ -47,6 +49,8 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [createEventOpen, setCreateEventOpen] = useState(false);
   const [createSessionOpen, setCreateSessionOpen] = useState(false);
+  const [createDeadlineOpen, setCreateDeadlineOpen] = useState(false);
+  const [createReminderOpen, setCreateReminderOpen] = useState(false);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
@@ -60,7 +64,7 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
     }
   };
 
-  const handleAddItemSelect = (option: 'task' | 'event' | 'session') => {
+  const handleAddItemSelect = (option: 'task' | 'event' | 'session' | 'deadline' | 'reminder') => {
     setAddItemOpen(false);
     switch (option) {
       case 'task':
@@ -71,6 +75,12 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
         break;
       case 'session':
         setCreateSessionOpen(true);
+        break;
+      case 'deadline':
+        setCreateDeadlineOpen(true);
+        break;
+      case 'reminder':
+        setCreateReminderOpen(true);
         break;
     }
   };
@@ -133,12 +143,6 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
           <Button
             className="w-full justify-start"
             onClick={() => {
-              // await syncGoogleCalendar()
-              // toast({
-              //   title: 'Success',
-              //   description: 'Successfully synced Google Calendar events',
-              // })
-
               setDialogOpen(true);
             }}
           >
@@ -212,10 +216,28 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
         events={[]}
       />
 
+      <CreateDeadlineDialog
+        open={createDeadlineOpen}
+        onOpenChange={setCreateDeadlineOpen}
+        onDeadlineCreated={() => {
+          setCreateDeadlineOpen(false);
+        }}
+        mode="create"
+      />
+
+      <CreateReminderDialog
+        open={createReminderOpen}
+        onOpenChange={setCreateReminderOpen}
+        onReminderCreated={() => {
+          setCreateReminderOpen(false);
+        }}
+        mode="create"
+      />
+
       <SyncDialog
         open={isDialogOpen}
-        onOpenChange={setDialogOpen}>
-      </SyncDialog>
+        onOpenChange={setDialogOpen}
+      />
     </>
   );
 }
