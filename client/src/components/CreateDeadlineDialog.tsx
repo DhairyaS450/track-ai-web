@@ -79,14 +79,38 @@ export function CreateDeadlineDialog({
 
   useEffect(() => {
     if (initialDeadline && mode === "edit") {
-      const dueDate = new Date(initialDeadline.dueDate);
-      setSelectedTime(format(dueDate, "HH:mm"));
-      form.reset({
-        title: initialDeadline.title,
-        dueDate: dueDate,
-        priority: initialDeadline.priority || "Medium",
-        category: initialDeadline.category || "",
-      });
+      try {
+        const dueDate = initialDeadline.dueDate ? new Date(initialDeadline.dueDate) : new Date();
+        if (!isNaN(dueDate.getTime())) {
+          setSelectedTime(format(dueDate, "HH:mm"));
+          form.reset({
+            title: initialDeadline.title,
+            dueDate: dueDate,
+            priority: initialDeadline.priority || "Medium",
+            category: initialDeadline.category || "",
+          });
+        } else {
+          console.error("Invalid date from initialDeadline:", initialDeadline.dueDate);
+          const now = new Date();
+          setSelectedTime(format(now, "HH:mm"));
+          form.reset({
+            title: initialDeadline.title,
+            dueDate: now,
+            priority: initialDeadline.priority || "Medium",
+            category: initialDeadline.category || "",
+          });
+        }
+      } catch (error) {
+        console.error("Error processing initialDeadline date:", error);
+        const now = new Date();
+        setSelectedTime(format(now, "HH:mm"));
+        form.reset({
+          title: initialDeadline.title,
+          dueDate: now,
+          priority: initialDeadline.priority || "Medium",
+          category: initialDeadline.category || "",
+        });
+      }
     }
   }, [initialDeadline, mode]);
 
@@ -211,38 +235,46 @@ export function CreateDeadlineDialog({
               name="dueDate"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Due Date</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) =>
-                          date < new Date(new Date().setHours(0, 0, 0, 0))
-                        }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <FormLabel>Due Date & Time</FormLabel>
+                  <div className="flex space-x-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-[240px] pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date < new Date(new Date().setHours(0, 0, 0, 0))
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Input
+                      type="time"
+                      value={selectedTime}
+                      onChange={(e) => setSelectedTime(e.target.value)}
+                      className="w-[120px]"
+                    />
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

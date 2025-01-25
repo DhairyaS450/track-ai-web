@@ -4,13 +4,13 @@ import { db, auth } from "@/config/firebase";
 export interface SearchResult {
   id: string;
   title: string;
-  type: "task" | "event" | "study";
+  type: "task" | "event" | "study" | "deadline" | "reminder";
   dueDate?: Date;
   completed?: boolean;
+  status?: string;
 }
 
 export async function searchItems(searchQuery: string): Promise<SearchResult[]> {
-  console.log("Searching for:", searchQuery);
   if (!searchQuery.trim() || !auth.currentUser) return [];
 
   const userId = auth.currentUser.uid;
@@ -29,7 +29,6 @@ export async function searchItems(searchQuery: string): Promise<SearchResult[]> 
   const taskDocs = await getDocs(tasksQuery);
   taskDocs.forEach((doc) => {
     const data = doc.data();
-    console.log(data.deadline);
     results.push({
       id: doc.id,
       title: data.title,
@@ -78,6 +77,50 @@ export async function searchItems(searchQuery: string): Promise<SearchResult[]> 
       title: data.subject,
       type: "study",
       dueDate: data.scheduledFor ? new Date(data.scheduledFor) : undefined,
+    });
+  });
+
+  // Search deadlines
+  const deadlinesQuery = query(
+    collection(db, "deadlines"),
+    where("userId", "==", userId),
+    where("title", ">=", searchQuery),
+    where("title", "<=", searchQuery + "\uf8ff"),
+    orderBy("title"),
+    orderBy("dueDate", "asc")
+  );
+
+  const deadlineDocs = await getDocs(deadlinesQuery);
+  deadlineDocs.forEach((doc) => {
+    const data = doc.data();
+    results.push({
+      id: doc.id,
+      title: data.title,
+      type: "deadline",
+      dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
+      status: data.status,
+    });
+  });
+
+  // Search reminders
+  const remindersQuery = query(
+    collection(db, "reminders"),
+    where("userId", "==", userId),
+    where("title", ">=", searchQuery),
+    where("title", "<=", searchQuery + "\uf8ff"),
+    orderBy("title"),
+    orderBy("reminderTime", "asc")
+  );
+
+  const reminderDocs = await getDocs(remindersQuery);
+  reminderDocs.forEach((doc) => {
+    const data = doc.data();
+    results.push({
+      id: doc.id,
+      title: data.title,
+      type: "reminder",
+      dueDate: data.reminderTime ? new Date(data.reminderTime) : undefined,
+      status: data.status,
     });
   });
 

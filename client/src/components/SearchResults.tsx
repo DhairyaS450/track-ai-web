@@ -1,4 +1,4 @@
-import { Check, Clock, Edit2, FileText, X } from "lucide-react";
+import { Check, CheckSquare, Bell, BookOpen, Calendar, Clock, Edit2, FileText, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { format } from "date-fns";
@@ -7,9 +7,10 @@ import { cn } from "@/lib/utils";
 interface SearchResult {
   id: string;
   title: string;
-  type: "task" | "event" | "study";
+  type: "task" | "event" | "study" | "deadline" | "reminder";
   dueDate?: Date;
   completed?: boolean;
+  status?: string;
 }
 
 interface SearchResultsProps {
@@ -21,21 +22,20 @@ interface SearchResultsProps {
 }
 
 export function SearchResults({ results, isOpen, onClose, onEdit, onToggleComplete }: SearchResultsProps) {
-  console.log("SearchResults render:", { results, isOpen });
-  
   if (!isOpen) return null;
 
   const groupedResults = results.reduce((acc, result) => {
     const category = result.type === "task" ? "Tasks" : 
-                    result.type === "event" ? "Events" : "Study Sessions";
+                    result.type === "event" ? "Events" : 
+                    result.type === "study" ? "Study Sessions" :
+                    result.type === "deadline" ? "Deadlines" :
+                    "Reminders";
     if (!acc[category]) {
       acc[category] = [];
     }
     acc[category].push(result);
     return acc;
   }, {} as Record<string, SearchResult[]>);
-
-  console.log("Grouped results:", groupedResults);
 
   if (Object.keys(groupedResults).length === 0) {
     return (
@@ -48,11 +48,27 @@ export function SearchResults({ results, isOpen, onClose, onEdit, onToggleComple
   const getIcon = (type: string) => {
     switch (type) {
       case "Tasks":
-        return <FileText className="h-4 w-4" />;
+        return <CheckSquare className="h-4 w-4" />;
       case "Events":
-        return <Clock className="h-4 w-4" />;
+        return <Calendar className="h-4 w-4" />;
       case "Study Sessions":
+        return <BookOpen className="h-4 w-4" />;
+      case "Deadlines":
+        return <Clock className="h-4 w-4" />;
+      case "Reminders":
+        return <Bell className="h-4 w-4" />;
+      default:
         return <FileText className="h-4 w-4" />;
+    }
+  };
+
+  const getActionIcon = (type: string) => {
+    switch (type) {
+      case "task":
+      case "deadline":
+        return <Check className="h-4 w-4" />;
+      case "reminder":
+        return <X className="h-4 w-4" />;
       default:
         return null;
     }
@@ -82,7 +98,8 @@ export function SearchResults({ results, isOpen, onClose, onEdit, onToggleComple
                   <div className="flex items-center gap-2">
                     <span className={cn(
                       "text-sm",
-                      item.completed && "line-through text-muted-foreground"
+                      (item.completed || item.status === "Completed" || item.status === "Dismissed") && 
+                      "line-through text-muted-foreground"
                     )}>
                       {item.title}
                     </span>
@@ -101,14 +118,16 @@ export function SearchResults({ results, isOpen, onClose, onEdit, onToggleComple
                     >
                       <Edit2 className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7"
-                      onClick={() => onToggleComplete(item.id, item.type)}
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
+                    {(item.type === "task" || item.type === "deadline" || item.type === "reminder") && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7"
+                        onClick={() => onToggleComplete(item.id, item.type)}
+                      >
+                        {getActionIcon(item.type)}
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

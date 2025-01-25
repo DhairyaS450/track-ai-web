@@ -12,15 +12,21 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { CreateEventDialog } from "./CreateEventDialog";
 import { CreateStudySessionDialog } from "./CreateStudySessionDialog";
-import { getTaskById } from "@/api/tasks";
+import { deleteTask, getTaskById } from "@/api/tasks";
 import { getEventById } from "@/api/events";
 import { getStudySessionById } from "@/api/sessions";
+import { deleteDeadline, getDeadlineById } from "@/api/deadlines";
+import { getReminder, dismissReminder } from "@/api/reminders";
+import { useToast } from "@/hooks/useToast";
+import { CreateDeadlineDialog } from "./CreateDeadlineDialog";
+import { CreateReminderDialog } from "./CreateReminderDialog";
 
 interface HeaderProps {
   onMenuClick: () => void;
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
+  const { toast } = useToast();
   const [date, setDate] = useState(new Date());
   const [search, setSearch] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -31,6 +37,8 @@ export function Header({ onMenuClick }: HeaderProps) {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [isStudyDialogOpen, setIsStudyDialogOpen] = useState(false);
+  const [isDeadlineDialogOpen, setIsDeadlineDialogOpen] = useState(false);
+  const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
   useEffect(() => {
@@ -68,54 +76,75 @@ export function Header({ onMenuClick }: HeaderProps) {
     setSearch("");
     setSelectedItemId(id);
     
-    switch (type) {
-      case "task":
-        const task = await getTaskById(id);
-        setSelectedItem(task.task);
-        console.log(selectedItem);
-        setIsTaskDialogOpen(true);
-        break;
-      case "event":
-        const event = await getEventById(id);
-        setSelectedItem(event.event);
-        setIsEventDialogOpen(true);
-        break;
-      case "study":
-        const study = await getStudySessionById(id);
-        setSelectedItem(study.session);
-        setIsStudyDialogOpen(true);
-        break;
+    try {
+      switch (type) {
+        case "task":
+          const task = await getTaskById(id);
+          setSelectedItem(task.task);
+          setIsTaskDialogOpen(true);
+          break;
+        case "event":
+          const event = await getEventById(id);
+          setSelectedItem(event.event);
+          setIsEventDialogOpen(true);
+          break;
+        case "study":
+          const study = await getStudySessionById(id);
+          setSelectedItem(study.session);
+          setIsStudyDialogOpen(true);
+          break;
+        case "deadline":
+          const deadline = await getDeadlineById(id);
+          setSelectedItem(deadline.deadline);
+          setIsDeadlineDialogOpen(true);
+          break;
+        case "reminder":
+          const reminder = await getReminder(id);
+          setSelectedItem(reminder.reminder);
+          setIsReminderDialogOpen(true);
+          break;
+      }
+    } catch (error) {
+      console.error("Error fetching item:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load item",
+      });
     }
   };
 
   const handleToggleComplete = async (id: string, type: string) => {
-    if (type === "task") {
-      // Implement task completion toggle
-      // You'll need to create this function in your tasks API
-      // await toggleTaskComplete(id);
+    try {
+      switch (type) {
+        case "task":
+          await deleteTask(id);
+          break;
+        case "deadline":
+          await deleteDeadline(id);
+          break;
+        case "reminder":
+          await dismissReminder(id);
+          break;
+      }
       
       // Refresh search results
       const results = await searchItems(search);
       setSearchResults(results);
+
+      toast({
+        title: "Success",
+        description: `${type === "reminder" ? "Dismissed" : "Completed"} successfully`,
+      });
+    } catch (error) {
+      console.error(`Error handling ${type}:`, error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to ${type === "reminder" ? "dismiss" : "complete"} ${type}`,
+      });
     }
   };
-
-  // const getPageTitle = (pathname: string) => {
-  //   switch (pathname) {
-  //     case "/":
-  //       return "Dashboard";
-  //     case "/calendar":
-  //       return "Calendar";
-  //     case "/study":
-  //       return "Study Sessions";
-  //     case "/analytics":
-  //       return "Analytics";
-  //     case "/settings":
-  //       return "Settings";
-  //     default:
-  //       return "TaskTide AI";
-  //   }
-  // };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -212,6 +241,26 @@ export function Header({ onMenuClick }: HeaderProps) {
         }}
         mode="edit"
         initialSession={{id: selectedItemId, ...selectedItem}}
+      />
+      <CreateDeadlineDialog
+        open={isDeadlineDialogOpen}
+        onOpenChange={setIsDeadlineDialogOpen}
+        onDeadlineCreated={() => {
+          setIsDeadlineDialogOpen(false); 
+          setSelectedItem(null)
+        }}
+        mode="edit"
+        initialDeadline={{id: selectedItemId, ...selectedItem}}
+      />
+      <CreateReminderDialog
+        open={isReminderDialogOpen}
+        onOpenChange={setIsReminderDialogOpen}
+        onReminderCreated={() => {
+          setIsReminderDialogOpen(false); 
+          setSelectedItem(null)
+        }}
+        mode="edit"
+        initialReminder={{id: selectedItemId, ...selectedItem}}
       />
     </header>
   );

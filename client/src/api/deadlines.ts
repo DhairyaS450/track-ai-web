@@ -10,6 +10,7 @@ import {
   query,
   where,
   Timestamp,
+  getDoc,
 } from 'firebase/firestore';
 
 // Deadlines
@@ -62,6 +63,21 @@ export async function getDeadlines() {
     return { deadlines };
   } catch (error) {
     console.error('Error getting deadlines:', error);
+    throw error;
+  }
+}
+
+export async function getDeadlineById(id: string) {
+  try {
+    const docRef = doc(db, 'deadlines', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { deadline: docSnap.data() as Deadline };
+    } else {
+      throw new Error('Deadline not found');
+    }
+  } catch (error) {
+    console.error('Error getting deadline:', error);
     throw error;
   }
 }

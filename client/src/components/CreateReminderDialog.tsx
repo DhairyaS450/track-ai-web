@@ -84,17 +84,45 @@ export function CreateReminderDialog({
 
   useEffect(() => {
     if (initialReminder && mode === "edit") {
-      const reminderTime = new Date(initialReminder.reminderTime);
-      setSelectedTime(format(reminderTime, "HH:mm"));
-      setIsRecurring(!!initialReminder.recurring);
-      form.reset({
-        title: initialReminder.title,
-        reminderTime: reminderTime,
-        notificationMessage: initialReminder.notificationMessage || "",
-        frequency: initialReminder.recurring?.frequency || "Once",
-        interval: initialReminder.recurring?.interval || 1,
-        endDate: initialReminder.recurring?.endDate ? new Date(initialReminder.recurring.endDate) : undefined,
-      });
+      try {
+        const reminderTime = initialReminder.reminderTime ? new Date(initialReminder.reminderTime) : new Date();
+        if (!isNaN(reminderTime.getTime())) {
+          setSelectedTime(format(reminderTime, "HH:mm"));
+          setIsRecurring(!!initialReminder.recurring);
+          form.reset({
+            title: initialReminder.title,
+            reminderTime: reminderTime,
+            notificationMessage: initialReminder.notificationMessage || "",
+            frequency: initialReminder.recurring?.frequency || "Once",
+            interval: initialReminder.recurring?.interval || 1,
+            endDate: new Date(initialReminder.recurring?.endDate || ''),
+          });
+        } else {
+          console.error("Invalid date from initialReminder:", initialReminder.reminderTime);
+          const now = new Date();
+          setSelectedTime(format(now, "HH:mm"));
+          setIsRecurring(false);
+          form.reset({
+            title: initialReminder.title,
+            reminderTime: now,
+            notificationMessage: initialReminder.notificationMessage || "",
+            frequency: "Once",
+            interval: 1,
+          });
+        }
+      } catch (error) {
+        console.error("Error processing initialReminder date:", error);
+        const now = new Date();
+        setSelectedTime(format(now, "HH:mm"));
+        setIsRecurring(false);
+        form.reset({
+          title: initialReminder.title,
+          reminderTime: now,
+          notificationMessage: initialReminder.notificationMessage || "",
+          frequency: "Once",
+          interval: 1,
+        });
+      }
     }
   }, [initialReminder, mode]);
 
@@ -234,35 +262,46 @@ export function CreateReminderDialog({
               name="reminderTime"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Reminder Time</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <FormLabel>Reminder Date & Time</FormLabel>
+                  <div className="flex space-x-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-[240px] pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date < new Date(new Date().setHours(0, 0, 0, 0))
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Input
+                      type="time"
+                      value={selectedTime}
+                      onChange={(e) => setSelectedTime(e.target.value)}
+                      className="w-[120px]"
+                    />
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
