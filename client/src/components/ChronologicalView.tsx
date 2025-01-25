@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Task, Event, StudySession, Deadline, Reminder } from "@/types";
 import { format, isSameDay, isBefore, isAfter } from "date-fns";
 import {
@@ -6,7 +5,6 @@ import {
   Calendar,
   CheckSquare,
   BookOpen,
-  Clock,
   Bell,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
@@ -117,7 +115,7 @@ export function ChronologicalView({
   });
 
   // Sort hours numerically
-  const sortedHours = Object.keys(itemsByHour).sort((a, b) => parseInt(a) - parseInt(b));
+  // const sortedHours = Object.keys(itemsByHour).sort((a, b) => parseInt(a) - parseInt(b));
 
   // Check if time overlaps
   const isOverlapping = (start1: Date, end1: Date, start2: Date, end2: Date) => {

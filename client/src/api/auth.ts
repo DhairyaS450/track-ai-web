@@ -49,6 +49,11 @@ export const register = async (data: { email: string; password: string }) => {
 
     // Verify the email
     await verifyEmail(userCredential.user);
+
+    return {
+      success: true,
+      user: userCredential,
+    };
   } catch (error: any) {
     throw new Error(error.message);
   }

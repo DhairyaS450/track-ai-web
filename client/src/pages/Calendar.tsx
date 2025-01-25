@@ -10,14 +10,11 @@ import { format, isSameDay, addWeeks, startOfWeek } from "date-fns";
 import {
   Calendar as CalendarIcon,
   Loader2,
-  Plus,
   Edit,
   Trash2,
   AlertCircle,
-  ViewIcon,
   List,
   Grid,
-  Clock,
   Bell,
   Check,
   X,
@@ -250,15 +247,15 @@ export function Calendar() {
     }
   };
 
-  const handleDeadlineClick = (deadline: Deadline) => {
-    setSelectedDeadline(deadline);
-    setIsDeadlineDialogOpen(true);
-  };
+  // const handleDeadlineClick = (deadline: Deadline) => {
+  //   setSelectedDeadline(deadline);
+  //   setIsDeadlineDialogOpen(true);
+  // };
 
-  const handleReminderClick = (reminder: Reminder) => {
-    setSelectedReminder(reminder);
-    setIsReminderDialogOpen(true);
-  };
+  // const handleReminderClick = (reminder: Reminder) => {
+  //   setSelectedReminder(reminder);
+  //   setIsReminderDialogOpen(true);
+  // };
 
   return (
     <div className="space-y-6">

@@ -52,7 +52,7 @@ export function StudySessionTimer({
     return savedPhase === "break";
   });
   const [isPaused, setIsPaused] = useState(false);
-  const [phaseStartTime, setPhaseStartTime] = useState<Date>(new Date());
+  const setPhaseStartTime = useState<Date>(new Date())[1];
   const [phaseEndTime, setPhaseEndTime] = useState<Date>(new Date());
   const [progress, setProgress] = useState(initialProgress);
   const [currentBreakSuggestion, setCurrentBreakSuggestion] = useState("");

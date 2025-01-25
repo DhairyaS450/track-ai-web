@@ -24,7 +24,7 @@ export function Settings() {
   const [calendar, setCalendar] = useState("google");
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [loading, setLoading] = useState(true); // Add loading state
+  const setLoading = useState(true)[1]; // Add loading state
   const { toast } = useToast();
 
   const [profile, setProfile] = useState({
@@ -48,11 +48,11 @@ export function Settings() {
     saveSettings({}, { notifications: updatedNotifications });
   };
   
-  const handleProfileChange = (field: string, value: string) => {
-    const updatedProfile = { ...profile, [field]: value };
-    setProfile(updatedProfile);
-    saveSettings({ userProfile: updatedProfile }, {});
-  };
+  // const handleProfileChange = (field: string, value: string) => {
+  //   const updatedProfile = { ...profile, [field]: value };
+  //   setProfile(updatedProfile);
+  //   saveSettings({ userProfile: updatedProfile }, {});
+  // };
   
   const handleThemeChange = (value: string) => {
     setTheme(value);

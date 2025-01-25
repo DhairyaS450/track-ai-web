@@ -1,4 +1,3 @@
-import api from './Api';
 import { MoodEntry } from '@/types';
 
 // Get Mood Entries

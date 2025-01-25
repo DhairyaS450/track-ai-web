@@ -39,7 +39,7 @@ import { CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { createReminder, updateReminder } from "@/api/deadlines";
 import { addEvent } from "@/api/events";
-import { Reminder, ReminderFrequency } from "@/types";
+import { Reminder } from "@/types";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),

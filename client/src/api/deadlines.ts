@@ -7,9 +7,6 @@ import {
   deleteDoc,
   doc,
   getDocs,
-  query,
-  where,
-  Timestamp,
   getDoc,
 } from 'firebase/firestore';
 

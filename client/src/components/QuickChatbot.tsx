@@ -7,7 +7,7 @@ import {
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Send, MessageSquare, Bot } from "lucide-react";
+import { Send, Bot } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 
 interface Message {

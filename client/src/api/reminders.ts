@@ -9,7 +9,6 @@ import {
   query,
   where,
   orderBy,
-  Timestamp,
 } from "firebase/firestore";
 import { db, auth } from "@/config/firebase";
 

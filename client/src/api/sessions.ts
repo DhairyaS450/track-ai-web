@@ -1,4 +1,3 @@
-import api from './Api';
 import { StudySession } from '@/types';
 import { isToday } from 'date-fns';
 import { db } from '@/config/firebase';

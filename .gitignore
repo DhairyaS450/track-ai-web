@@ -8,3 +8,4 @@ package-lock.json
 api/*.env
 client/*.env
 firebase-service-account.json
+.vercel

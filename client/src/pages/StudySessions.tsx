@@ -2,16 +2,12 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getStudySessions, endStudySession } from "@/api/sessions";
-import { CircularProgress } from "@/components/CircularProgress";
 import { StudySession } from "@/types";
 import { format } from "date-fns";
 import {
-  Play,
-  Pause,
   Timer,
   Plus,
   Check,
-  Calendar as CalendarIcon,
   ChevronDown,
   ChevronUp,
   Edit,
@@ -24,12 +20,10 @@ import {
   Sparkles,
   Settings,
 } from "lucide-react";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { PostponeSessionDialog } from "@/components/PostponeSessionDialog";
 import { CreateStudySessionDialog } from "@/components/CreateStudySessionDialog";
@@ -75,7 +69,6 @@ export function StudySessions() {
   const [rescheduleSessionOpen, setRescheduleSessionOpen] = useState(false);
   const [sessionToReschedule, setSessionToReschedule] = useState<StudySession | null>(null);
 
-  const isMobile = useMediaQuery("(max-width: 640px)");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -536,7 +529,7 @@ export function StudySessions() {
       <PostponeSessionDialog
         open={postponeSessionOpen}
         onOpenChange={setPostponeSessionOpen}
-        onConfirm={async (data) => {
+        onConfirm={async () => {
           if (!sessionToPostpone) return;
           try {
             // Implement postpone functionality

@@ -1,3 +1,6 @@
+Overall:
+Deploy to vercel
+
 Frontend:
 PRIORITY: Task deadlines need to also be added to deadlines in firestore database
 PRIORITY: Get google calendar working - in-progress
