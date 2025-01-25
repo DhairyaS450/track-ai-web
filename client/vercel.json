@@ -16,7 +16,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://track-ai-web.vercel.app/:path*"
+      "destination": "/api/:path*"
     },
     {
       "source": "/(.*)",
