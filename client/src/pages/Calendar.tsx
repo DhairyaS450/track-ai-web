@@ -98,7 +98,7 @@ export function Calendar() {
       );
 
       const filteredReminders = remindersData.reminders.filter((reminder) =>
-        isSameDay(new Date(reminder.reminderTime), selectedDate)
+        isSameDay(new Date(reminder.reminderTime), selectedDate) && reminder.status !== "Dismissed"
       );
 
       const filteredEvents = eventsData.events.filter((event) =>

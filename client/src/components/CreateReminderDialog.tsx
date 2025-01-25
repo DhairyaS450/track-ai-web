@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -36,10 +36,10 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
+import { useToast } from "@/hooks/useToast";
 import { createReminder, updateReminder } from "@/api/deadlines";
 import { addEvent } from "@/api/events";
 import { Reminder, ReminderFrequency } from "@/types";
-import { useToast } from "@/hooks/useToast";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -69,48 +69,71 @@ export function CreateReminderDialog({
 }: CreateReminderDialogProps) {
   const { toast } = useToast();
   const [isRecurring, setIsRecurring] = useState(false);
+  const [selectedTime, setSelectedTime] = useState<string>("00:00");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: initialReminder?.title || "",
-      reminderTime: initialReminder?.reminderTime ? new Date(initialReminder.reminderTime) : new Date(),
-      notificationMessage: initialReminder?.notificationMessage || "",
-      frequency: (initialReminder?.recurring?.frequency as ReminderFrequency) || "Once",
-      interval: initialReminder?.recurring?.interval || 1,
-      endDate: initialReminder?.recurring?.endDate ? new Date(initialReminder.recurring.endDate) : undefined,
+      title: "",
+      reminderTime: new Date(),
+      notificationMessage: "",
+      frequency: "Once",
+      interval: 1,
     },
   });
 
+  useEffect(() => {
+    if (initialReminder && mode === "edit") {
+      const reminderTime = new Date(initialReminder.reminderTime);
+      setSelectedTime(format(reminderTime, "HH:mm"));
+      setIsRecurring(!!initialReminder.recurring);
+      form.reset({
+        title: initialReminder.title,
+        reminderTime: reminderTime,
+        notificationMessage: initialReminder.notificationMessage || "",
+        frequency: initialReminder.recurring?.frequency || "Once",
+        interval: initialReminder.recurring?.interval || 1,
+        endDate: initialReminder.recurring?.endDate ? new Date(initialReminder.recurring.endDate) : undefined,
+      });
+    }
+  }, [initialReminder, mode]);
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      const [hours, minutes] = selectedTime.split(":").map(Number);
+      const reminderTime = new Date(values.reminderTime);
+      reminderTime.setHours(hours, minutes, 0, 0);
+
       const baseReminderData = {
-        ...values,
-        reminderTime: values.reminderTime.toISOString(),
-        endDate: values.endDate?.toISOString() || values.reminderTime?.toISOString(),
+        title: values.title,
+        reminderTime: reminderTime.toISOString(),
+        notificationMessage: values.notificationMessage,
         status: "Active" as const,
         type: "Quick Reminder" as const,
       };
-      
+
       const reminderData = isRecurring
         ? {
             ...baseReminderData,
             recurring: {
               frequency: values.frequency!,
               interval: values.interval!,
-              endDate: values.endDate?.toISOString() || values.reminderTime.toISOString(),
+              endDate: values.endDate?.toISOString(),
             },
           }
         : baseReminderData;
 
-      if (reminderData.endDate && new Date(reminderData.endDate) < new Date(reminderData.reminderTime)) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "End date must be greater than or equal to the reminder time",
-        });
-        throw new Error("End date must be greater than or equal to the reminder time");
-      }
+      // if (
+      //   reminderData.recurring?.endDate &&
+      //   new Date(reminderData.recurring?.endDate).getTime() < new Date(reminderData.reminderTime).getTime()
+      // ) {
+      //   toast({
+      //     variant: "destructive",
+      //     title: "Error",
+      //     description: "End date must be greater than or equal to the reminder time",
+      //   });
+      //   throw new Error("End date must be greater than or equal to the reminder time");
+      // }
 
       console.log(reminderData);
 
@@ -118,18 +141,24 @@ export function CreateReminderDialog({
 
       if (mode === "edit" && initialReminder) {
         await updateReminder(initialReminder.id, reminderData);
+        onReminderCreated({
+          ...reminderData,
+          id: initialReminder.id,
+          createdAt: initialReminder.createdAt,
+          updatedAt: new Date().toISOString(),
+        });
         toast({
           title: "Success",
           description: "Reminder updated successfully",
         });
       } else {
         newReminder = await createReminder(reminderData);
+        onReminderCreated(newReminder as Reminder);
         toast({
           title: "Success",
           description: "Reminder created successfully",
         });
       }
-      onReminderCreated(newReminder as Reminder);
       onOpenChange(false);
     } catch (error) {
       console.error("Error creating/updating reminder:", error);

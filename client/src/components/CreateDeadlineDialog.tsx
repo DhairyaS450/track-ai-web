@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -35,10 +35,10 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
+import { useToast } from "@/hooks/useToast";
 import { createDeadline, updateDeadline } from "@/api/deadlines";
 import { addTask } from "@/api/tasks";
-import { Deadline } from "@/types";
-import { useToast } from "@/hooks/useToast";
+import { Deadline, DeadlineStatus } from "@/types";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -65,26 +65,59 @@ export function CreateDeadlineDialog({
   mode = "create",
 }: CreateDeadlineDialogProps) {
   const { toast } = useToast();
+  const [selectedTime, setSelectedTime] = useState<string>("00:00");
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: initialDeadline?.title || "",
-      dueDate: initialDeadline?.dueDate ? new Date(initialDeadline.dueDate) : new Date(),
-      priority: (initialDeadline?.priority as "Low" | "Medium" | "High") || "Medium",
-      category: initialDeadline?.category || "",
+      title: "",
+      dueDate: new Date(),
+      priority: "Medium",
+      category: "",
     },
   });
 
+  useEffect(() => {
+    if (initialDeadline && mode === "edit") {
+      const dueDate = new Date(initialDeadline.dueDate);
+      setSelectedTime(format(dueDate, "HH:mm"));
+      form.reset({
+        title: initialDeadline.title,
+        dueDate: dueDate,
+        priority: initialDeadline.priority || "Medium",
+        category: initialDeadline.category || "",
+      });
+    }
+  }, [initialDeadline, mode]);
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      if (mode === "create") {
-        const response = await createDeadline({
-          title: values.title,
-          dueDate: values.dueDate.toISOString(),
-          priority: values.priority,
-          category: values.category,
-          status: "Pending"
+      const [hours, minutes] = selectedTime.split(":").map(Number);
+      const dueDate = new Date(values.dueDate);
+      dueDate.setHours(hours, minutes, 0, 0);
+
+      const deadlineData = {
+        title: values.title,
+        dueDate: dueDate.toISOString(),
+        priority: values.priority,
+        category: values.category,
+        status: "Pending" as DeadlineStatus
+      };
+
+      if (mode === "edit" && initialDeadline) {
+        await updateDeadline(initialDeadline.id, deadlineData);
+        onDeadlineCreated({
+          ...deadlineData,
+          id: initialDeadline.id,
+          createdAt: initialDeadline.createdAt,
+          updatedAt: new Date().toISOString(),
         });
+        toast({
+          title: "Success",
+          description: "Deadline updated successfully",
+        });
+      } else {
+        const response = await createDeadline(deadlineData);
         onDeadlineCreated({
           ...response,
           id: response.id,
@@ -97,31 +130,14 @@ export function CreateDeadlineDialog({
           title: "Success",
           description: "Deadline created successfully",
         });
-      } else if (mode === "edit" && initialDeadline) {
-        await updateDeadline(initialDeadline.id, {
-          ...values,
-          dueDate: values.dueDate.toISOString(),
-        });
-        toast({
-          title: "Success",
-          description: "Deadline updated successfully",
-        });
       }
-      onDeadlineCreated({
-        ...values,
-        id: initialDeadline?.id || crypto.randomUUID(),
-        status: initialDeadline?.status || 'Pending',
-        createdAt: initialDeadline?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        dueDate: values.dueDate.toISOString()
-      });
       onOpenChange(false);
     } catch (error) {
       console.error("Error creating/updating deadline:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to save deadline",
+        description: "Failed to create/update deadline",
       });
     }
   };
