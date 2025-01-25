@@ -16,12 +16,14 @@ import {
 export async function createDeadline(deadline: Omit<Deadline, 'id' | 'createdAt' | 'updatedAt'>) {
   try {
     const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, 'deadlines'), {
+    const deadlineData = {
       ...deadline,
       createdAt: now,
       updatedAt: now,
-    });
-    return { id: docRef.id };
+    };
+    
+    const docRef = await addDoc(collection(db, 'deadlines'), deadlineData);
+    return { id: docRef.id, ...deadlineData };
   } catch (error) {
     console.error('Error creating deadline:', error);
     throw error;
@@ -68,19 +70,14 @@ export async function getDeadlines() {
 export async function createReminder(reminder: Omit<Reminder, 'id' | 'createdAt' | 'updatedAt'>) {
   try {
     const now = new Date().toISOString();
-    
-    const docToAdd = {
+    const reminderData = {
       ...reminder,
       createdAt: now,
       updatedAt: now,
     };
     
-    if (reminder.recurring == undefined) {
-      delete docToAdd.recurring;
-    }
-
-    const docRef = await addDoc(collection(db, 'reminders'), docToAdd);
-    return { id: docRef.id };
+    const docRef = await addDoc(collection(db, 'reminders'), reminderData);
+    return { id: docRef.id, ...reminderData };
   } catch (error) {
     console.error('Error creating reminder:', error);
     throw error;

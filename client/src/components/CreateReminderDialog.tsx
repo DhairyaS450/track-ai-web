@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -36,6 +37,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { createReminder, updateReminder } from "@/api/deadlines";
+import { addEvent } from "@/api/events";
 import { Reminder, ReminderFrequency } from "@/types";
 import { useToast } from "@/hooks/useToast";
 
@@ -45,7 +47,6 @@ const formSchema = z.object({
     required_error: "Reminder time is required",
   }),
   notificationMessage: z.string().optional(),
-  recurring: z.boolean().default(false),
   frequency: z.enum(["Once", "Daily", "Weekly", "Monthly", "Yearly"]).optional(),
   interval: z.number().min(1).optional(),
   endDate: z.date().optional(),
@@ -54,7 +55,7 @@ const formSchema = z.object({
 interface CreateReminderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onReminderCreated: () => void;
+  onReminderCreated: (reminder: Reminder) => void;
   initialReminder?: Reminder | null;
   mode?: "create" | "edit";
 }
@@ -75,7 +76,6 @@ export function CreateReminderDialog({
       title: initialReminder?.title || "",
       reminderTime: initialReminder?.reminderTime ? new Date(initialReminder.reminderTime) : new Date(),
       notificationMessage: initialReminder?.notificationMessage || "",
-      recurring: !!initialReminder?.recurring,
       frequency: (initialReminder?.recurring?.frequency as ReminderFrequency) || "Once",
       interval: initialReminder?.recurring?.interval || 1,
       endDate: initialReminder?.recurring?.endDate ? new Date(initialReminder.recurring.endDate) : undefined,
@@ -84,19 +84,37 @@ export function CreateReminderDialog({
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const reminderData = {
+      const baseReminderData = {
         ...values,
         reminderTime: values.reminderTime.toISOString(),
-        recurring: isRecurring
-          ? {
-              frequency: values.frequency!,
-              interval: values.interval!,
-              endDate: values.endDate?.toISOString(),
-            }
-          : undefined,
+        endDate: values.endDate?.toISOString() || values.reminderTime?.toISOString(),
         status: "Active" as const,
         type: "Quick Reminder" as const,
       };
+      
+      const reminderData = isRecurring
+        ? {
+            ...baseReminderData,
+            recurring: {
+              frequency: values.frequency!,
+              interval: values.interval!,
+              endDate: values.endDate?.toISOString() || values.reminderTime.toISOString(),
+            },
+          }
+        : baseReminderData;
+
+      if (reminderData.endDate && new Date(reminderData.endDate) < new Date(reminderData.reminderTime)) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "End date must be greater than or equal to the reminder time",
+        });
+        throw new Error("End date must be greater than or equal to the reminder time");
+      }
+
+      console.log(reminderData);
+
+      let newReminder: Reminder | null = null;
 
       if (mode === "edit" && initialReminder) {
         await updateReminder(initialReminder.id, reminderData);
@@ -105,13 +123,13 @@ export function CreateReminderDialog({
           description: "Reminder updated successfully",
         });
       } else {
-        await createReminder(reminderData);
+        newReminder = await createReminder(reminderData);
         toast({
           title: "Success",
           description: "Reminder created successfully",
         });
       }
-      onReminderCreated();
+      onReminderCreated(newReminder as Reminder);
       onOpenChange(false);
     } catch (error) {
       console.error("Error creating/updating reminder:", error);
@@ -119,6 +137,41 @@ export function CreateReminderDialog({
         variant: "destructive",
         title: "Error",
         description: "Failed to save reminder",
+      });
+    }
+  };
+
+  const handleConvertToEvent = async () => {
+    try {
+      const reminderTime = form.getValues("reminderTime");
+      const eventData = {
+        name: form.getValues("title"),
+        description: form.getValues("notificationMessage"),
+        startTime: format(reminderTime, "yyyy-MM-dd'T'HH:mm"), // Default start time is the same as reminderTime,
+        endTime: format(new Date(reminderTime.getTime() + 30 * 60000), "yyyy-MM-dd'T'HH:mm"), // Default 30 min duration
+        isAllDay: false,
+        isFlexible: false,
+        reminders: [{
+          type: "minutes" as const,
+          amount: 15,
+        }],
+        source: "manual" as const,
+      };
+
+      await addEvent(eventData);
+
+      toast({
+        title: "Success",
+        description: "Reminder converted to event successfully",
+      });
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error converting reminder to event:", error);
+      toast({
+        title: "Error",
+        description: "Failed to convert reminder to event",
+        variant: "destructive",
       });
     }
   };
@@ -307,9 +360,21 @@ export function CreateReminderDialog({
               </div>
             )}
 
-            <Button type="submit" className="w-full">
-              {mode === "edit" ? "Update Reminder" : "Create Reminder"}
-            </Button>
+            <DialogFooter>
+              <div className="flex justify-between w-full">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleConvertToEvent}
+                  disabled={!form.formState.isValid}
+                >
+                  Convert to Event
+                </Button>
+                <Button type="submit" disabled={!form.formState.isValid}>
+                  {mode === "create" ? "Create" : "Update"} Reminder
+                </Button>
+              </div>
+            </DialogFooter>
           </form>
         </Form>
       </DialogContent>

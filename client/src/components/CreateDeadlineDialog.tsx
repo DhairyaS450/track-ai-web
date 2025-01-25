@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -35,6 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { createDeadline, updateDeadline } from "@/api/deadlines";
+import { addTask } from "@/api/tasks";
 import { Deadline } from "@/types";
 import { useToast } from "@/hooks/useToast";
 
@@ -44,13 +46,13 @@ const formSchema = z.object({
     required_error: "Due date is required",
   }),
   priority: z.enum(["Low", "Medium", "High"]),
-  category: z.string().min(1, "Category is required"),
+  category: z.string(),
 });
 
 interface CreateDeadlineDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onDeadlineCreated: () => void;
+  onDeadlineCreated: (deadline: Deadline) => void;
   initialDeadline?: Deadline | null;
   mode?: "create" | "edit";
 }
@@ -75,7 +77,27 @@ export function CreateDeadlineDialog({
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      if (mode === "edit" && initialDeadline) {
+      if (mode === "create") {
+        const response = await createDeadline({
+          title: values.title,
+          dueDate: values.dueDate.toISOString(),
+          priority: values.priority,
+          category: values.category,
+          status: "Pending"
+        });
+        onDeadlineCreated({
+          ...response,
+          id: response.id,
+          status: response.status,
+          createdAt: response.createdAt,
+          updatedAt: response.updatedAt,
+          dueDate: response.dueDate
+        });
+        toast({
+          title: "Success",
+          description: "Deadline created successfully",
+        });
+      } else if (mode === "edit" && initialDeadline) {
         await updateDeadline(initialDeadline.id, {
           ...values,
           dueDate: values.dueDate.toISOString(),
@@ -84,18 +106,15 @@ export function CreateDeadlineDialog({
           title: "Success",
           description: "Deadline updated successfully",
         });
-      } else {
-        await createDeadline({
-          ...values,
-          dueDate: values.dueDate.toISOString(),
-          status: "Pending",
-        });
-        toast({
-          title: "Success",
-          description: "Deadline created successfully",
-        });
       }
-      onDeadlineCreated();
+      onDeadlineCreated({
+        ...values,
+        id: initialDeadline?.id || crypto.randomUUID(),
+        status: initialDeadline?.status || 'Pending',
+        createdAt: initialDeadline?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        dueDate: values.dueDate.toISOString()
+      });
       onOpenChange(false);
     } catch (error) {
       console.error("Error creating/updating deadline:", error);
@@ -103,6 +122,46 @@ export function CreateDeadlineDialog({
         variant: "destructive",
         title: "Error",
         description: "Failed to save deadline",
+      });
+    }
+  };
+
+  const handleConvertToTask = async () => {
+    try {
+      const status : 'todo' | 'in-progress' | 'completed' = 'todo'
+      const taskData = {
+        title: form.getValues("title"),
+        description: "",
+        priority: form.getValues("priority").toLowerCase() as "High" | "Medium" | "Low",
+        deadline: form.getValues("dueDate").toISOString(),
+        timeSlots: [],
+        status: status,
+        subject: form.getValues("category"),
+        completion: 0,
+        source: "manual" as const,
+      };
+
+      const { task } = await addTask(taskData);
+      
+      if (initialDeadline) {
+        // Update the deadline with the associated task ID
+        await updateDeadline(initialDeadline.id, {
+          associatedTaskId: task.id,
+        });
+      }
+
+      toast({
+        title: "Success",
+        description: "Deadline converted to task successfully",
+      });
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error converting deadline to task:", error);
+      toast({
+        title: "Error",
+        description: "Failed to convert deadline to task",
+        variant: "destructive",
       });
     }
   };
@@ -213,9 +272,21 @@ export function CreateDeadlineDialog({
               )}
             />
 
-            <Button type="submit" className="w-full">
-              {mode === "edit" ? "Update Deadline" : "Create Deadline"}
-            </Button>
+            <DialogFooter>
+              <div className="flex justify-between w-full">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleConvertToTask}
+                  disabled={!form.formState.isValid}
+                >
+                  Convert to Task
+                </Button>
+                <Button type="submit" disabled={!form.formState.isValid}>
+                  {mode === "create" ? "Create" : "Update"} Deadline
+                </Button>
+              </div>
+            </DialogFooter>
           </form>
         </Form>
       </DialogContent>

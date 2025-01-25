@@ -12,6 +12,8 @@ export interface Deadline {
   status: DeadlineStatus;
   createdAt: string;
   updatedAt: string;
+  source?: 'google_calendar' | 'google_tasks' |'manual';
+  calendarId?: string;
 }
 
 export type ReminderFrequency = 'Once' | 'Daily' | 'Weekly' | 'Monthly' | 'Yearly';

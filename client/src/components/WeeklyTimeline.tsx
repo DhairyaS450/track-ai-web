@@ -3,7 +3,7 @@ import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
-import { Task, Event, StudySession } from "@/types";
+import { Task, Event, StudySession, Deadline, Reminder } from "@/types";
 
 interface WeeklyTimelineProps {
   currentDate: Date;
@@ -12,7 +12,8 @@ interface WeeklyTimelineProps {
   tasks: Task[];
   events: Event[];
   sessions: StudySession[];
-  deadlines: Task[];
+  deadlines: Deadline[];
+  reminders: Reminder[];
 }
 
 export function WeeklyTimeline({
@@ -23,6 +24,7 @@ export function WeeklyTimeline({
   events,
   sessions,
   deadlines,
+  reminders,
 }: WeeklyTimelineProps) {
   const weekDays = useMemo(() => {
     const start = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -42,8 +44,11 @@ export function WeeklyTimeline({
       sessions: sessions.filter((session) =>
         isSameDay(new Date(session.scheduledFor), date)
       ),
-      deadlines: deadlines.filter((task) =>
-        isSameDay(new Date(task.deadline), date)
+      deadlines: deadlines.filter((deadline) =>
+        isSameDay(new Date(deadline.dueDate), date)
+      ),
+      reminders: reminders.filter((reminder) =>
+        isSameDay(new Date(reminder.reminderTime), date)
       ),
     };
   };
@@ -77,7 +82,8 @@ export function WeeklyTimeline({
             dayEvents.tasks.length > 0 ||
             dayEvents.events.length > 0 ||
             dayEvents.sessions.length > 0 ||
-            dayEvents.deadlines.length > 0;
+            dayEvents.deadlines.length > 0 ||
+            dayEvents.reminders.length > 0;
 
           return (
             <button
@@ -99,10 +105,13 @@ export function WeeklyTimeline({
                   {dayEvents.deadlines.length > 0 && (
                     <span className="w-2 h-2 rounded-full bg-red-500" />
                   )}
-                  {dayEvents.tasks.length > 0 && (
-                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                  {dayEvents.reminders.length > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-yellow-500" />
                   )}
                   {dayEvents.events.length > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                  )}
+                  {dayEvents.tasks.length > 0 && (
                     <span className="w-2 h-2 rounded-full bg-green-500" />
                   )}
                   {dayEvents.sessions.length > 0 && (
@@ -119,10 +128,13 @@ export function WeeklyTimeline({
           <span className="w-2 h-2 rounded-full bg-red-500" /> Deadlines
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-blue-500" /> Tasks
+          <span className="w-2 h-2 rounded-full bg-yellow-500" /> Reminders
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-500" /> Events
+          <span className="w-2 h-2 rounded-full bg-blue-500" /> Events
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-green-500" /> Tasks
         </div>
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-purple-500" /> Study Sessions

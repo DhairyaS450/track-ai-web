@@ -1,4 +1,5 @@
 Frontend:
+PRIORITY: Task deadlines need to also be added to deadlines in firestore database
 PRIORITY: Get google calendar working - in-progress
 - Problem: Google tasks not fully implemented, and off by 5 hrs
 - Problem: Any updates don't get synced back to google calendar

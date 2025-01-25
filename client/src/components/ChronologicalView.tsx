@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Task, Event, StudySession } from "@/types";
+import { Task, Event, StudySession, Deadline, Reminder } from "@/types";
 import { format, isSameDay, isBefore, isAfter } from "date-fns";
 import {
   AlertTriangle,
@@ -7,6 +7,7 @@ import {
   CheckSquare,
   BookOpen,
   Clock,
+  Bell,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import {
@@ -23,18 +24,21 @@ interface ChronologicalViewProps {
   tasks: Task[];
   events: Event[];
   sessions: StudySession[];
-  deadlines: Task[];
-  onItemClick: (item: Task | Event | StudySession) => void;
+  deadlines: Deadline[];
+  reminders: Reminder[];
+  onItemClick: (item: Task | Event | StudySession | Deadline | Reminder) => void;
 }
 
 interface TimeSlotItem {
   id: string;
-  type: 'task' | 'event' | 'session' | 'deadline';
+  type: 'task' | 'event' | 'session' | 'deadline' | 'reminder';
   title: string;
   startTime: string;
   endTime?: string;
   isDeadline?: boolean;
-  item: Task | Event | StudySession;
+  isReminder?: boolean;
+  priority?: string;
+  item: Task | Event | StudySession | Deadline | Reminder;
 }
 
 export function ChronologicalView({
@@ -43,6 +47,7 @@ export function ChronologicalView({
   events,
   sessions,
   deadlines,
+  reminders,
   onItemClick,
 }: ChronologicalViewProps) {
   // Combine all items into a single array with normalized structure
@@ -75,13 +80,22 @@ export function ChronologicalView({
       ), 'yyyy-MM-dd HH:mm'),
       item: session,
     })),
-    ...deadlines.map((task) => ({
-      id: `deadline-${task.id}`,
+    ...deadlines.map((deadline) => ({
+      id: `deadline-${deadline.id}`,
       type: "deadline" as const,
-      title: task.title,
-      startTime: task.deadline,
+      title: deadline.title,
+      startTime: deadline.dueDate,
       isDeadline: true,
-      item: task,
+      priority: deadline.priority,
+      item: deadline,
+    })),
+    ...reminders.map((reminder) => ({
+      id: `reminder-${reminder.id}`,
+      type: "reminder" as const,
+      title: reminder.title,
+      startTime: reminder.reminderTime,
+      isReminder: true,
+      item: reminder,
     })),
   ].filter((item) => isSameDay(new Date(item.startTime), date));
 
@@ -112,7 +126,7 @@ export function ChronologicalView({
 
   // Check for time conflicts (only for non-deadline items)
   const hasConflict = (item: TimeSlotItem) => {
-    if (!item.endTime || item.isDeadline) return false;
+    if (!item.endTime || item.isDeadline || item.isReminder) return false;
     return allItems.some(
       (other) =>
         other.id !== item.id &&
@@ -128,10 +142,6 @@ export function ChronologicalView({
   };
 
   const getItemStyle = (type: string, isDeadline?: boolean) => {
-    if (isDeadline) {
-      return "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800";
-    }
-
     switch (type) {
       case "task":
         return "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800";
@@ -139,6 +149,12 @@ export function ChronologicalView({
         return "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800";
       case "session":
         return "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800";
+      case "reminder":
+        return "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800";
+      case "deadline":
+        return isDeadline
+          ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+          : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800";
       default:
         return "";
     }
@@ -156,98 +172,82 @@ export function ChronologicalView({
         return <Calendar className="h-4 w-4 text-green-500" />;
       case "session":
         return <BookOpen className="h-4 w-4 text-purple-500" />;
+      case "reminder":
+        return <Bell className="h-4 w-4 text-yellow-500" />;
+      case "deadline":
+        return <AlertTriangle className="h-4 w-4 text-red-500" />;
       default:
         return null;
     }
   };
 
   return (
-    <ScrollArea className="h-[calc(100vh-16rem)] pr-4">
-      <div className="space-y-2">
-        {sortedHours.map((hour) => (
-          <div key={hour} className="group">
-            <div className="flex items-center gap-2 sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 py-2">
-              <div className="w-16 text-sm font-medium text-muted-foreground">
-                {format(new Date(`2000-01-01T${hour}:00`), "h:mm a")}
-              </div>
-              <div className="h-px flex-1 bg-border group-first:bg-transparent" />
-            </div>
-            <div className="ml-16 space-y-2">
-              {itemsByHour[hour].map((item) => (
-                <TooltipProvider key={item.id}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div
-                        className={cn(
-                          "flex items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-accent cursor-pointer relative",
-                          getItemStyle(item.type, item.isDeadline),
-                          hasConflict(item) &&
-                            "ring-2 ring-red-500 dark:ring-red-400"
-                        )}
-                        onClick={() => onItemClick(item.item)}
-                      >
-                        {hasConflict(item) && (
-                          <AlertTriangle className="absolute -top-2 -right-2 h-4 w-4 text-red-500" />
-                        )}
-                        {getItemIcon(item.type, item.isDeadline)}
-                        <div className="flex-1">
-                          <p className="font-medium">{item.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(item.startTime), "h:mm a")}
-                            {item.endTime && !item.isDeadline && (
-                              <>
-                                {" - "}
-                                {format(new Date(item.endTime), "h:mm a")}
-                              </>
-                            )}
-                          </p>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          {'priority' in item.item && item.item.priority && (
-                            <Badge variant={
-                              item.item.priority === 'High'
-                                ? 'destructive'
-                                : item.item.priority === 'Medium'
-                                ? 'default'
-                                : 'secondary'
-                            }>
-                              {item.item.priority}
-                            </Badge>
-                          )}
-                          {'completion' in item.item && (
-                            <div className="flex items-center gap-2">
-                              <div className="h-2 w-24 bg-secondary rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-primary transition-all"
-                                  style={{ width: `${item.item.completion}%` }}
-                                />
-                              </div>
-                              <span className="text-xs text-muted-foreground">
-                                {item.item.completion}%
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" align="start" className="max-w-sm">
-                      <div className="space-y-2">
-                        {'description' in item.item && item.item.description && (
-                          <p className="text-sm">{item.item.description}</p>
-                        )}
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+    <ScrollArea className="h-[calc(100vh-20rem)]">
+      <div className="space-y-4">
+        {Object.entries(itemsByHour).map(([hour, items]) => (
+          <div key={hour} className="space-y-2">
+            <h4 className="text-sm font-medium text-muted-foreground">
+              {format(new Date().setHours(parseInt(hour), 0), 'h a')}
+            </h4>
+            <div className="space-y-1">
+              {items.map((item) => (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-accent transition-colors",
+                    getItemStyle(item.type, item.isDeadline),
+                    item.priority && item.priority === "High" && "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
+                    item.priority && item.priority === "Medium" && "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800",
+                    item.priority && item.priority === "Low" && "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800",
+                    hasConflict(item) && 
+                      "ring-2 ring-red-500 dark:ring-red-400"
+                  )}
+                  onClick={() => onItemClick(item.item)}
+                >
+                  {hasConflict(item) && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <AlertTriangle className="h-4 w-4 text-red-500" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Time conflict</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                  {getItemIcon(item.type, item.isDeadline)}
+                  <div className="flex-1 ml-2">
+                    <div className="truncate">
+                      <p className="font-medium truncate">{item.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(item.startTime), "h:mm a")}
+                        {item.endTime && ` - ${format(new Date(item.endTime), "h:mm a")}`}
+                      </p>
+                    </div>
+                  </div>
+                  {item.priority && (
+                    <Badge
+                      variant={
+                        item.priority === "High"
+                          ? "destructive"
+                          : item.priority === "Medium"
+                          ? "default"
+                          : "secondary"
+                      }
+                    >
+                      {item.priority}
+                    </Badge>
+                  )}
+                </div>
               ))}
             </div>
           </div>
         ))}
-
         {allItems.length === 0 && (
-          <div className="text-center text-muted-foreground py-8">
-            No items scheduled for this day
-          </div>
+          <p className="text-center text-muted-foreground py-8">
+            No events scheduled for this day
+          </p>
         )}
       </div>
     </ScrollArea>

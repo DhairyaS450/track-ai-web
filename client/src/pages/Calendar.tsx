@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTasks, deleteTask } from "@/api/tasks";
 import { getStudySessions, deleteStudySession } from "@/api/sessions";
 import { getEvents, deleteEvent } from "@/api/events";
-import { Task, StudySession, Event } from "@/types";
+import { getDeadlines, getReminders, markDeadlineAsComplete, dismissReminder } from "@/api/deadlines";
+import { Task, StudySession, Event, Deadline, Reminder } from "@/types";
 import { format, isSameDay, addWeeks, startOfWeek } from "date-fns";
 import {
   Calendar as CalendarIcon,
@@ -16,6 +17,10 @@ import {
   ViewIcon,
   List,
   Grid,
+  Clock,
+  Bell,
+  Check,
+  X,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -30,6 +35,8 @@ import { useToast } from "@/hooks/useToast";
 import { ChronologicalView } from "@/components/ChronologicalView";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { CreateDeadlineDialog } from "@/components/CreateDeadlineDialog";
+import { CreateReminderDialog } from "@/components/CreateReminderDialog";
 
 export function Calendar() {
   const [date, setDate] = useState<Date>(new Date());
@@ -37,7 +44,8 @@ export function Calendar() {
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [deadlines, setDeadlines] = useState<Task[]>([]);
+  const [deadlines, setDeadlines] = useState<Deadline[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +64,10 @@ export function Calendar() {
   const [viewType, setViewType] = useState<"categorized" | "chronological">(
     "categorized"
   );
+  const [selectedDeadline, setSelectedDeadline] = useState<Deadline | null>(null);
+  const [selectedReminder, setSelectedReminder] = useState<Reminder | null>(null);
+  const [isDeadlineDialogOpen, setIsDeadlineDialogOpen] = useState(false);
+  const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
 
@@ -63,10 +75,12 @@ export function Calendar() {
     try {
       setLoading(true);
       setError(null);
-      const [tasksData, sessionsData, eventsData] = await Promise.all([
+      const [tasksData, sessionsData, eventsData, deadlinesData, remindersData] = await Promise.all([
         getTasks(),
         getStudySessions(),
         getEvents(),
+        getDeadlines(),
+        getReminders(),
       ]);
 
       const filteredTasks = tasksData.tasks.filter((task) =>
@@ -79,8 +93,12 @@ export function Calendar() {
         isSameDay(new Date(session.scheduledFor), selectedDate)
       );
 
-      const filteredDeadlines = tasksData.tasks.filter((task) =>
-        isSameDay(new Date(task.deadline), selectedDate)
+      const filteredDeadlines = deadlinesData.deadlines.filter((deadline) =>
+        isSameDay(new Date(deadline.dueDate), selectedDate)
+      );
+
+      const filteredReminders = remindersData.reminders.filter((reminder) =>
+        isSameDay(new Date(reminder.reminderTime), selectedDate)
       );
 
       const filteredEvents = eventsData.events.filter((event) =>
@@ -90,6 +108,7 @@ export function Calendar() {
       setTasks(filteredTasks);
       setSessions(filteredSessions);
       setDeadlines(filteredDeadlines);
+      setReminders(filteredReminders);
       setEvents(filteredEvents);
     } catch (err) {
       setError("Failed to load calendar events. Please try again later.");
@@ -162,7 +181,41 @@ export function Calendar() {
     }
   };
 
-  const handleAddItemSelect = (option: "task" | "event" | "session") => {
+  const handleCompleteDeadline = async (deadlineId: string) => {
+    try {
+      await markDeadlineAsComplete(deadlineId);
+      setDeadlines(deadlines.filter(d => d.id !== deadlineId)); 
+      toast({
+        title: "Success",
+        description: "Deadline marked as complete",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to mark deadline as complete",
+      });
+    }
+  };
+
+  const handleDismissReminder = async (reminderId: string) => {
+    try {
+      await dismissReminder(reminderId);
+      setReminders(reminders.filter(r => r.id !== reminderId)); 
+      toast({
+        title: "Success",
+        description: "Reminder dismissed",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to dismiss reminder",
+      });
+    }
+  };
+
+  const handleAddItemSelect = (option: "task" | "event" | "session" | "deadline" | "reminder") => {
     setAddItemOpen(false);
     if (option === "task") {
       setCreateTaskOpen(true);
@@ -178,17 +231,33 @@ export function Calendar() {
     setCurrentWeek(newWeek);
   };
 
-  const handleItemClick = (item: Task | Event | StudySession) => {
-    if ("title" in item) {
-      setTaskToEdit(item as Task);
+  const handleItemClick = (item: Task | Event | StudySession | Deadline | Reminder) => {
+    if ('dueDate' in item) {
+      setSelectedDeadline(item);
+      setIsDeadlineDialogOpen(true);
+    } else if ('reminderTime' in item) {
+      setSelectedReminder(item);
+      setIsReminderDialogOpen(true);
+    } else if ('timeSlots' in item) {
+      setTaskToEdit(item);
       setCreateTaskOpen(true);
-    } else if ("name" in item) {
-      setEventToEdit(item as Event);
+    } else if ('startTime' in item && 'endTime' in item && !('scheduledFor' in item)) {
+      setEventToEdit(item);
       setCreateEventOpen(true);
-    } else if ("subject" in item) {
-      setSessionToEdit(item as StudySession);
+    } else if ('scheduledFor' in item) {
+      setSessionToEdit(item);
       setCreateSessionOpen(true);
     }
+  };
+
+  const handleDeadlineClick = (deadline: Deadline) => {
+    setSelectedDeadline(deadline);
+    setIsDeadlineDialogOpen(true);
+  };
+
+  const handleReminderClick = (reminder: Reminder) => {
+    setSelectedReminder(reminder);
+    setIsReminderDialogOpen(true);
   };
 
   return (
@@ -227,6 +296,7 @@ export function Calendar() {
           events={events}
           sessions={sessions}
           deadlines={deadlines}
+          reminders={reminders}
         />
       )}
 
@@ -285,6 +355,7 @@ export function Calendar() {
                 events={events}
                 sessions={sessions}
                 deadlines={deadlines}
+                reminders={reminders}
                 onItemClick={handleItemClick}
               />
             ) : (
@@ -296,25 +367,26 @@ export function Calendar() {
                       Deadlines
                     </h3>
                     <div className="space-y-2">
-                      {deadlines.map((task) => (
+                      {deadlines.map((deadline) => (
                         <div
-                          key={`deadline-${task.id}`}
-                          className={`flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors
+                          key={`deadline-${deadline.id}`}
+                          className={`flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors cursor-pointer
                             ${
-                              task.source === "google_calendar" || task.source === "google_tasks"
+                              deadline.source === "google_calendar" || deadline.source === "google_tasks"
                                 ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
                                 : ""
                             }
                             `}
+                          onClick={() => handleItemClick(deadline)}
                         >
                           <div>
-                            <p className="font-medium">{task.title}</p>
+                            <p className="font-medium">{deadline.title}</p>
                             <p className="text-sm text-muted-foreground">
-                              Due: {format(new Date(task.deadline), "p")}
+                              Due: {format(new Date(deadline.dueDate), "p")}
                             </p>
-                            {task.description && (
+                            {deadline.title && (
                               <p className="text-sm text-muted-foreground mt-1">
-                                {task.description}
+                                {deadline.title}
                               </p>
                             )}
                           </div>
@@ -323,64 +395,52 @@ export function Calendar() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => {
-                                  setTaskToEdit(task);
-                                  setCreateTaskOpen(true);
-                                }}
+                                onClick={() => handleCompleteDeadline(deadline.id)}
                               >
-                                <Edit className="h-4 w-4" />
+                                <Check className="h-4 w-4" />
                               </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {reminders.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-3 flex items-center">
+                      <Bell className="h-5 w-5 mr-2 text-accent" />
+                      Reminders
+                    </h3>
+                    <div className="space-y-2">
+                      {reminders.map((reminder) => (
+                        <div
+                          key={`reminder-${reminder.id}`}
+                          className={`flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors cursor-pointer`}
+                          onClick={() => handleItemClick(reminder)}
+                        >
+                          <div>
+                            <p className="font-medium">{reminder.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Reminder: {format(new Date(reminder.reminderTime), "p")}
+                            </p>
+                            {reminder.title && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {reminder.title}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="flex items-center space-x-2">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => {
-                                  setTaskToDelete(task.id);
-                                  setDeleteTaskOpen(true);
-                                }}
+                                onClick={() => handleDismissReminder(reminder.id)}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <X className="h-4 w-4" />
                               </Button>
                             </div>
-                            <span
-                              className={`rounded-full px-2 py-1 text-xs font-medium
-                              ${
-                                task.priority === "High"
-                                  ? "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300"
-                                  : ""
-                              }
-                              ${
-                                task.priority === "Medium"
-                                  ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300"
-                                  : ""
-                              }
-                              ${
-                                task.priority === "Low"
-                                  ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300"
-                                  : ""
-                              }`}
-                            >
-                              {task.priority}
-                            </span>
-                            <span
-                              className={`text-xs font-medium rounded-full px-2 py-1
-                            ${
-                              task.status === "completed"
-                                ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300"
-                                : ""
-                            }
-                            ${
-                              task.status === "in-progress"
-                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
-                                : ""
-                            }
-                            ${
-                              task.status === "todo"
-                                ? "bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300"
-                                : ""
-                            }`}
-                            >
-                              {task.status}
-                            </span>
                           </div>
                         </div>
                       ))}
@@ -650,7 +710,8 @@ export function Calendar() {
                 {events.length === 0 &&
                   tasks.length === 0 &&
                   sessions.length === 0 &&
-                  deadlines.length === 0 && (
+                  deadlines.length === 0 &&
+                  reminders.length === 0 && (
                     <p className="text-center text-muted-foreground py-8">
                       No events scheduled for this day
                     </p>
@@ -704,6 +765,35 @@ export function Calendar() {
         mode={sessionToEdit ? "edit" : "create"}
         tasks={tasks}
         events={events}
+      />
+
+      <CreateDeadlineDialog
+        open={isDeadlineDialogOpen}
+        onOpenChange={setIsDeadlineDialogOpen}
+        initialDeadline={selectedDeadline}
+        mode={selectedDeadline ? "edit" : "create"}
+        onDeadlineCreated={(newDeadline: Deadline) => {
+          if (selectedDeadline) {
+            setDeadlines(deadlines.map(d => d.id === selectedDeadline.id ? newDeadline : d));
+          } else {
+            setDeadlines([...deadlines, newDeadline]);
+          }
+          setSelectedDeadline(null);
+        }}
+      />
+      <CreateReminderDialog
+        open={isReminderDialogOpen}
+        onOpenChange={setIsReminderDialogOpen}
+        initialReminder={selectedReminder}
+        mode={selectedReminder ? "edit" : "create"}
+        onReminderCreated={(newReminder) => {
+          if (selectedReminder) {
+            setReminders(reminders.map(r => r.id === selectedReminder.id ? newReminder : r));
+          } else {
+            setReminders([...reminders, newReminder]);
+          }
+          setSelectedReminder(null);
+        }}
       />
 
       <DeleteTaskDialog
