@@ -20,9 +20,15 @@ const app = express();
 const port = parseInt(process.env.PORT) || 3000;
 
 // Ensure CORS middleware is applied early
+console.log('CORS middleware configured with:', {
+  origin: process.env.NODE_ENV === 'production'
+    ? [/\.vercel\.app$/, process.env.CLIENT_URL].filter(Boolean)
+    : 'http://localhost:5173',
+  credentials: true,
+});
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.CLIENT_URL 
+  origin: process.env.NODE_ENV === 'production'
+    ? [/\.vercel\.app$/, process.env.CLIENT_URL].filter(Boolean)
     : 'http://localhost:5173',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -31,10 +37,15 @@ app.use(cors({
 
 // Handle preflight requests globally
 app.options('*', (req, res) => {
-  console.log('Preflight request received:', req.method, req.path, req.headers)
-  res.header('Access-Control-Allow-Origin', process.env.NODE_ENV === 'production' 
-    ? process.env.CLIENT_URL 
-    : 'http://localhost:5173');
+  console.log('Preflight request received:', req.method, req.path, req.headers);
+  const origin = req.get('origin');
+  if (process.env.NODE_ENV === 'production') {
+    if (origin?.endsWith('.vercel.app') || origin === process.env.CLIENT_URL) {
+      res.header('Access-Control-Allow-Origin', origin);
+    }
+  } else {
+    res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
+  }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');
