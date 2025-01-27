@@ -1,32 +1,6 @@
 // /api/chatbot.js
 import admin from 'firebase-admin';
 import { processChatMessage } from '../lib/controllers/chatbotController';
-import serviceAccount from '../lib/config/firebase-service-account.json';
-
-if (!admin.apps.length) {
-  console.log('Initializing Firebase Admin SDK...');
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-  console.log('Firebase Admin SDK initialized successfully');
-}
-
-const isFirebaseAuthenticated = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
-  const token = authHeader.split('Bearer ')[1];
-  try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    req.user = decodedToken;
-    next();
-  } catch (error) {
-    console.error('Error verifying Firebase token:', error);
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
 
 // The main handler for the Vercel serverless function
 export default async function handler(req, res) {
@@ -40,11 +14,11 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    // Firebase authentication middleware
-    await new Promise((resolve, reject) => {
-      isFirebaseAuthenticated(req, res, (err) => (err ? reject(err) : resolve()));
-    });
-
+    const isAuthenticatedResult = await isAuthenticated(req);
+    if (!isAuthenticatedResult) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
     try {
       const { message } = req.body;
       if (!message) {
