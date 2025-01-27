@@ -55,18 +55,12 @@ TaskTide AI is an AI-powered scheduling and productivity app tailored for high-s
 2. Install dependencies:
    ```bash
    npm install
-   cd server
-   npm install
-   cd ..
-   cd client
-   npm install
-   cd ..
    ```
 
 3. Set up Firebase:
    - Create a Firebase project in the [Firebase Console](https://console.firebase.google.com/).
    - Enable required Firebase services.
-   - Download the `firebase-adminsdk.json` file for server-side usage.
+   - Download the `firebase-service-account.json` file for server-side usage.
    - Add Firebase configuration to your environment variables.
 
 4. Start the server:
@@ -98,36 +92,37 @@ TaskTide AI is an AI-powered scheduling and productivity app tailored for high-s
 
 ## Folder Structure
 ```
-track-ai-web/
+tasktide-ai/
 |-- client/                  # Frontend of the application
 |   |-- public/              # Public static assets (images, icons, etc.)
 |   |-- src/                 # Main source code directory
-|   |   |-- api/             # API calls (Firebase, external APIs)
-|   |   |-- components/      # Reusable React components
-|   |   |-- config/          # Configuration files (Firebase, environment variables)
-|   |   |-- contexts/        # React Contexts for app-wide state management
-|   |   |-- hooks/           # Custom React hooks
-|   |   |-- lib/             # Libraries/utilities (helper functions, constants)
-|   |   |-- pages/           # Next.js pages
-|   |   |-- types/           # TypeScript types/interfaces
-|   |   |-- utils/           # General-purpose utility functions
+|   |   |-- api/             # API calls (Firebase, Google API, etc.)
+|   |   |-- components/      # Reusable React components (UI elements, widgets)
+|   |   |-- config/          # Configuration files (Firebase setup, environment variables)
+|   |   |-- contexts/        # React Contexts for global state management
+|   |   |-- hooks/           # Custom React hooks for reusable logic
+|   |   |-- lib/             # Server-side logic and utilities (e.g., database interactions, AI integrations)
+|   |   |-- pages/           # Next.js pages for routing
+|   |   |-- styles/          # Global CSS and TailwindCSS configuration
+|   |   |-- types/           # TypeScript types and interfaces
+|   |   |-- utils/           # Utility functions for general purposes
 |   |   |-- App.tsx          # Main App component
-|   |   |-- index.tsx        # Entry point for React
-|   |   |-- main.tsx         # Main file for rendering React app
-|   |-- index.html           # HTML template for Vite
+|   |   |-- index.tsx        # React entry point
+|   |   |-- main.tsx         # Main rendering entry point
+|   |-- index.html           # HTML template for the app
 |   |-- tailwind.config.js   # TailwindCSS configuration
 |   |-- postcss.config.js    # PostCSS configuration
 |   |-- vite.config.ts       # Vite configuration
-|-- api/                     # Backend of the application
-|   |-- config/              # Server-side configurations (Firebase, Express)
-|   |-- controllers/         # API endpoint logic
-|   |-- models/              # Data models (Task, Event, StudySession)
-|   |-- routes/              # Express routes
-|   |-- services/            # Service layers (Database interactions, Google API integration, LLM)
-|   |-- utils/               # Server-side utility functions
-|   |-- server.js            # Express server entry point
-|   |-- package.json         # Node.js dependencies for server
-|-- .gitignore               # Ignored files and directories
+|-- api/                     # Vercel serverless API routes
+|   |-- [route]/             # Individual serverless functions (e.g., CRUD operations, integrations)
+|-- lib/                     # Server-side logic moved from Express (now used in serverless functions)
+|   |-- config/              # Configuration for Firebase and third-party APIs
+|   |-- controllers/         # Logic for API endpoints
+|   |-- models/              # Database models (Tasks, Events, StudySessions, etc.)
+|   |-- services/            # Business logic (AI integrations, scheduling algorithms)
+|   |-- utils/               # Utility functions for server-side operations
+|-- .gitignore               # Files and directories to be ignored by Git
+|-- vercel.json              # Vercel deployment configuration
 |-- README.md                # Project documentation
 |-- LICENSE                  # Licensing information
 ```
