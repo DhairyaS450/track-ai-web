@@ -1,6 +1,6 @@
 // /api/chatbot.js
 import { processChatMessage } from '../lib/controllers/chatbotController';
-import { isAuthenticated } from './middleware/auth';
+import { isAuthenticated } from '../lib/middleware/auth';
 
 // The main handler for the Vercel serverless function
 export default async function handler(req, res) {

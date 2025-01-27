@@ -39,6 +39,7 @@ import { useToast } from "@/hooks/useToast";
 import { createDeadline, updateDeadline } from "@/api/deadlines";
 import { addTask } from "@/api/tasks";
 import { Deadline, DeadlineStatus } from "@/types";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -65,6 +66,7 @@ export function CreateDeadlineDialog({
   mode = "create",
 }: CreateDeadlineDialogProps) {
   const { toast } = useToast();
+  const isMobile = useMediaQuery("(max-width: 640px)");
   const [selectedTime, setSelectedTime] = useState<string>("00:00");
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -234,9 +236,9 @@ export function CreateDeadlineDialog({
               control={form.control}
               name="dueDate"
               render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Due Date & Time</FormLabel>
-                  <div className="flex space-x-2">
+                <FormItem className="flex flex-col md:flex-row md:items-center">
+                  <FormLabel className="md:w-1/3">Due Date & Time</FormLabel>
+                  <div className="flex flex-col md:flex-row space-x-2">
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -268,12 +270,21 @@ export function CreateDeadlineDialog({
                         />
                       </PopoverContent>
                     </Popover>
-                    <Input
-                      type="time"
-                      value={selectedTime}
-                      onChange={(e) => setSelectedTime(e.target.value)}
-                      className="w-[120px]"
-                    />
+                    {isMobile ? (
+                      <Input
+                        type="time"
+                        value={selectedTime}
+                        onChange={(e) => setSelectedTime(e.target.value)}
+                        className="mt-2 w-[120px]"
+                      />
+                    ) : (
+                      <Input
+                        type="time"
+                        value={selectedTime}
+                        onChange={(e) => setSelectedTime(e.target.value)}
+                        className="mt-0 w-[120px]"
+                      />
+                    )}
                   </div>
                   <FormMessage />
                 </FormItem>
