@@ -4,9 +4,11 @@ import { processChatMessage } from '../lib/controllers/chatbotController';
 import serviceAccount from '../lib/config/firebase-service-account.json';
 
 if (!admin.apps.length) {
+  console.log('Initializing Firebase Admin SDK...');
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   });
+  console.log('Firebase Admin SDK initialized successfully');
 }
 
 const isFirebaseAuthenticated = async (req, res, next) => {
