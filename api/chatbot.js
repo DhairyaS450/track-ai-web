@@ -1,6 +1,6 @@
 // /api/chatbot.js
-import admin from 'firebase-admin';
 import { processChatMessage } from '../lib/controllers/chatbotController';
+import { isAuthenticated } from './middleware/auth';
 
 // The main handler for the Vercel serverless function
 export default async function handler(req, res) {
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     if (!isAuthenticatedResult) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    
+
     try {
       const { message } = req.body;
       if (!message) {
