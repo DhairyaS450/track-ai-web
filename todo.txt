@@ -1,5 +1,7 @@
 Overall:
 Deploy to vercel
+Convert to PWA
+Release on App Store and Play Store
 
 Frontend:
 PRIORITY: Task deadlines need to also be added to deadlines in firestore database
@@ -22,6 +24,7 @@ Sync with other apps like outlook calendar, notion, etc
 Improve mobile view and make this into an app and website version
 Offline support
 Testing and fixing bugs
+Onboard new users and features
 
 Backend:
 PRIORITY: Store user profile and settings

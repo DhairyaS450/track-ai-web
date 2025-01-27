@@ -39,7 +39,9 @@ export function UserProfileMenu() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon">
           <Avatar className="h-8 w-8">
-            <AvatarFallback>US</AvatarFallback>
+            <AvatarFallback>
+              <User className="h-4 w-4" />
+            </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -47,7 +49,8 @@ export function UserProfileMenu() {
         <DropdownMenuLabel>My Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => navigate("/profile")}>
+          {/* TODO: Add profile page */}
+          <DropdownMenuItem onClick={() => navigate("/settings")}>
             <User className="mr-2 h-4 w-4" />
             Profile
           </DropdownMenuItem>

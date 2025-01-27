@@ -11,6 +11,7 @@ import { connectGoogleCalendar, getGoogleCalendarStatus } from "@/api/calendar";
 import { useToast } from "@/hooks/useToast";
 import api from "@/api/Api";
 import { listenToSettings, saveSettings } from "@/api/settings";
+import { useTheme } from "@/components/ui/theme-provider";
 
 export function Settings() {
   const [notifications, setNotifications] = useState({
@@ -20,7 +21,7 @@ export function Settings() {
     sessions: true,
   });
 
-  const [theme, setTheme] = useState("system");
+  const { theme, setTheme } = useTheme();
   const [calendar, setCalendar] = useState("google");
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -54,7 +55,7 @@ export function Settings() {
   //   saveSettings({ userProfile: updatedProfile }, {});
   // };
   
-  const handleThemeChange = (value: string) => {
+  const handleThemeChange = (value: 'light' | 'dark' | 'system') => {
     setTheme(value);
     saveSettings({}, { theme: value });
   };
@@ -327,7 +328,7 @@ export function Settings() {
           <CardContent>
             <RadioGroup
               value={theme}
-              onValueChange={(value) => handleThemeChange(value)}
+              onValueChange={(value) => handleThemeChange(value as 'light' | 'dark' | 'system')}
               className="space-y-2"
             >
               <div className="flex items-center space-x-2">
