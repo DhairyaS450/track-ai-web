@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "postinstall": "concurrently -n \"client,api\" \"npm run client-install\" \"npm run api-install\"",
+    "postinstall": "concurrently -n \"client,lib\" \"npm run client-install\" \"npm run lib-install\"",
     "test": "echo \"Error: no test specified\" && exit 1",
     "client": "cd client && npm run dev",
     "client-install": "cd client && npm install",
-    "api": "cd api && npm run dev",
-    "api-install": "cd api && npm install",
-    "start": "concurrently -n \"client,api\" \"npm run client\" \"npm run api\""
+    "lib": "cd lib && npm run dev",
+    "lib-install": "cd lib && npm install",
+    "start": "concurrently -n \"client,lib\" \"npm run client\" \"npm run lib\""
   },
   "author": "",
   "license": "ISC",
