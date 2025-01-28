@@ -81,7 +81,7 @@ export function Calendar() {
       ]);
 
       const filteredTasks = tasksData.tasks.filter((task) =>
-        task.timeSlots.some((slot) =>
+        task.timeSlots?.some((slot) =>
           isSameDay(new Date(slot.startDate), selectedDate)
         )
       );
@@ -135,6 +135,7 @@ export function Calendar() {
         title: "Error",
         description: "Failed to delete task",
       });
+      console.error("Error deleting task:", error);
     }
     setTaskToDelete(null);
     setDeleteTaskOpen(false);
@@ -156,6 +157,7 @@ export function Calendar() {
         title: "Error",
         description: "Failed to delete study session",
       });
+      console.error("Error deleting study session:", error);
     }
     setSessionToDelete(null);
     setDeleteSessionOpen(false);
@@ -175,6 +177,7 @@ export function Calendar() {
         title: "Error",
         description: "Failed to delete event",
       });
+      console.error("Error deleting event:", error);
     }
   };
 
@@ -192,6 +195,7 @@ export function Calendar() {
         title: "Error",
         description: "Failed to mark deadline as complete",
       });
+      console.error("Error marking deadline as complete:", error);
     }
   };
 
@@ -209,6 +213,7 @@ export function Calendar() {
         title: "Error",
         description: "Failed to dismiss reminder",
       });
+      console.error("Error dismissing reminder:", error);
     }
   };
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { db, auth } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, getDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Task } from '@/types';
@@ -43,7 +44,7 @@ export const getTodayTasks = async () => {
     const today = new Date();
 
     const todayTasks = tasks.filter(task =>
-      task.timeSlots.some(slot => isSameDay(parseISO(slot.startDate), today))
+      task.timeSlots?.some(slot => isSameDay(parseISO(slot.startDate), today))
     ).sort((a, b) => {
       const aTime = new Date(a.timeSlots[0].startDate).getTime();
       const bTime = new Date(b.timeSlots[0].startDate).getTime();

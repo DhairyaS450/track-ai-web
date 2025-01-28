@@ -32,7 +32,8 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
         <CardHeader>
           <CardTitle>Welcome back</CardTitle>
           <CardDescription>
-            Please verify your email to continue.
+            Please verify your email {user?.email || ""} to continue. <br />
+            If you did not receive the email, please check your spam folder.
           </CardDescription>
         </CardHeader>
         <CardContent>

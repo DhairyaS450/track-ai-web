@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,27 @@ import { useLocation } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { processChatMessage } from '@/api/chatbot';
 import { getAuth } from 'firebase/auth';
+import { addTask, updateTask } from "@/api/tasks";
+import { addEvent } from "@/api/events";
+import { addStudySession } from "@/api/sessions";
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: (event: any) => void;
+  onerror: (event: any) => void;
+  onend: (event: any) => void;
+  start: () => void;
+}
+
+
+declare global {
+  interface Window {
+    webkitSpeechRecognition: new () => SpeechRecognition;
+    SpeechRecognition: new () => SpeechRecognition;
+  }
+}
 
 interface Message {
   id: string;
@@ -36,6 +58,11 @@ interface Suggestion {
   action: () => void;
 }
 
+const createSpeechRecognition = () => {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  return SpeechRecognition ? new SpeechRecognition() : null;
+};
+
 export function Chatbot() {
   const location = useLocation()
   const [messages, setMessages] = useState<Message[]>([
@@ -47,7 +74,7 @@ export function Chatbot() {
     }
   ]);
   const [input, setInput] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -127,14 +154,45 @@ export function Chatbot() {
     setInput('');
 
     try {
-      const { response } = await processChatMessage(content);
+      // Convert messages to the format expected by the API
+      const chatHistory = messages.map(msg => ({
+        type: msg.type,
+        content: msg.content
+      }));
+
+      const { response: result } = await processChatMessage(content, chatHistory);
+      
+      console.log(JSON.stringify(result, null, 2));
+
+
+      // Handle any actions returned by the chatbot
+      if (result.action) {
+        console.log(result.action);
+        switch (result.action.type) {
+          case 'CREATE_TASK':
+            await addTask(result.action.data);
+            break;
+          case 'CREATE_EVENT':
+            await addEvent(result.action.data);
+            break;
+          case 'CREATE_SESSION':
+            await addStudySession(result.action.data);
+            break;
+          case 'UPDATE_TASK':
+            await updateTask(result.action.data.id, result.action.data.updates);
+            break;
+          // ... handle other action types
+        }
+      }
+
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: response,
+        content: result.response.toString(),
         timestamp: new Date()
       };
       setMessages(prev => [...prev, botResponse]);
+
     } catch (error: any) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -157,6 +215,46 @@ export function Chatbot() {
     if (suggestionsRef.current) {
       const scrollAmount = 200;
       suggestionsRef.current.scrollLeft += direction === 'left' ? -scrollAmount : scrollAmount;
+    }
+  };
+
+  const handleSpeechRecognition = () => {
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = createSpeechRecognition();
+    if (!recognition) {
+      console.error('Speech recognition not supported in this browser');
+      return;
+    }
+
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(input + transcript);
+      setIsListening(false);
+    };
+
+
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    try {
+      recognition.start();
+      setIsListening(true);
+    } catch (err) {
+      console.error('Speech recognition error:', err);
+      setIsListening(false);
     }
   };
 
@@ -248,8 +346,8 @@ export function Chatbot() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setIsRecording(!isRecording)}
-                    className={isRecording ? 'text-red-500' : ''}
+                    onClick={handleSpeechRecognition}
+                    className={isListening ? 'text-red-500' : ''}
                   >
                     <Mic className="h-4 w-4" />
                   </Button>
@@ -277,8 +375,8 @@ export function Chatbot() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsRecording(!isRecording)}
-                className={isRecording ? 'text-red-500' : ''}
+                onClick={handleSpeechRecognition}
+                className={isListening ? 'text-red-500' : ''}
               >
                 <Mic className="h-4 w-4" />
               </Button>

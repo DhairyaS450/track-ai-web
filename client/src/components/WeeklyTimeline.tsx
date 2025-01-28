@@ -34,7 +34,7 @@ export function WeeklyTimeline({
   const getEventsForDay = (date: Date) => {
     return {
       tasks: tasks.filter((task) =>
-        task.timeSlots.some((slot) =>
+        task.timeSlots?.some((slot) =>
           isSameDay(new Date(slot.startDate), date)
         )
       ),

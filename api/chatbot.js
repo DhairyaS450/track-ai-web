@@ -6,7 +6,7 @@ import { isAuthenticated } from '../lib/middleware/auth';
 export default async function handler(req, res) {
   // Handle preflight requests for CORS
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
+    res.setHeader('Access-Control-Allow-Origin', 'https://track-ai-web.vercel.app');
     res.setHeader('Access-Control-Allow-Methods', 'POST');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -20,12 +20,12 @@ export default async function handler(req, res) {
     }
 
     try {
-      const { message } = req.body;
+      const { message, context } = req.body;
       if (!message) {
         return res.status(400).json({ error: 'Message is required' });
       }
 
-      const response = await processChatMessage(message, req.user);
+      const response = await processChatMessage(message, req.user, context);
       return res.status(200).json({ response });
     } catch (error) {
       console.error('Error processing chat message:', error);
