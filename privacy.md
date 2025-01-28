@@ -10,7 +10,7 @@ Thank you for choosing TaskTide AI. We respect your privacy and are committed to
 - Service Description: A scheduling and productivity application tailored for high-school and university students.
 - Platform: Web and Mobile
 - Privacy Policy Version: 1.0
-- Primary Contact: support@track-ai-web.vercel.app
+- Primary Contact: support@tasktide-ai.vercel.app
 - No Physical Office: Our team is remote, and we do not have a physical office.
 - Governing Law: This Privacy Policy is governed by the laws of Canada.
 
@@ -132,8 +132,8 @@ We may update this Privacy Policy to reflect changes in our practices or for oth
 **12. Contact Us** <br />
 If you have questions or concerns about this Privacy Policy or our data practices, please contact us at:
 
-**Email**: support@track-ai-web.vercel.app <br />
-**Web**: track-ai-web.vercel.app <br />
+**Email**: support@tasktide-ai.vercel.app <br />
+**Web**: tasktide-ai.vercel.app <br />
 **Phone**: +1 548-384-7522 <br />
 We are a remote team and do not have physical offices, but we are committed to addressing your concerns and will respond as quickly as possible.
 

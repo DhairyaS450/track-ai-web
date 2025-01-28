@@ -23,9 +23,11 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { processChatMessage } from '@/api/chatbot';
 import { getAuth } from 'firebase/auth';
 import { addTask, updateTask } from "@/api/tasks";
-import { addEvent } from "@/api/events";
-import { addStudySession } from "@/api/sessions";
+import { addEvent, updateEvent } from "@/api/events";
+import { addStudySession, updateStudySession } from "@/api/sessions";
 import ReactMarkdown from 'react-markdown';
+import { updateDeadline } from "@/api/deadlines";
+import { updateReminder } from "@/api/reminders";
 
 interface SpeechRecognition extends EventTarget {
   continuous: boolean;
@@ -182,6 +184,19 @@ export function Chatbot() {
           case 'UPDATE_TASK':
             await updateTask(result.action.data.id, result.action.data);
             break;
+          case 'UPDATE_EVENT':
+            await updateEvent(result.action.data.id, result.action.data);
+            break;
+          case 'UPDATE_SESSION':
+            await updateStudySession(result.action.data.id, result.action.data);
+            break;
+          case 'UPDATE_REMINDER':
+            await updateReminder(result.action.data.id, result.action.data);
+            break;
+          case 'UPDATE_DEADLINE':
+            await updateDeadline(result.action.data.id, result.action.data);
+            break;
+            
           // ... handle other action types
         }
       }

@@ -151,7 +151,7 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
           </Button>
           <div className="flex gap-2">
             <Input
-              placeholder="Quick message..."
+              placeholder="Ask Kai anything..."
               value={quickMessage}
               onChange={(e) => setQuickMessage(e.target.value)}
               onKeyDown={(e) => {
