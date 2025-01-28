@@ -25,6 +25,7 @@ import { getAuth } from 'firebase/auth';
 import { addTask, updateTask } from "@/api/tasks";
 import { addEvent } from "@/api/events";
 import { addStudySession } from "@/api/sessions";
+import ReactMarkdown from 'react-markdown';
 
 interface SpeechRecognition extends EventTarget {
   continuous: boolean;
@@ -69,7 +70,7 @@ export function Chatbot() {
     {
       id: '1',
       type: 'bot',
-      content: 'Hello! I can help you create tasks, plan study sessions, or answer any questions you have. What would you like to do?',
+      content: 'Hello! I am Kai, your personal AI assistant. How can I help you today?',
       timestamp: new Date()
     }
   ]);
@@ -179,7 +180,7 @@ export function Chatbot() {
             await addStudySession(result.action.data);
             break;
           case 'UPDATE_TASK':
-            await updateTask(result.action.data.id, result.action.data.updates);
+            await updateTask(result.action.data.id, result.action.data);
             break;
           // ... handle other action types
         }
@@ -273,11 +274,26 @@ export function Chatbot() {
                 <div
                   className={`max-w-[80%] rounded-lg px-4 py-2 ${
                     message.type === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
+                      ? 'bg-blue-300 dark:bg-blue-700'
+                      : 'bg-gray-200 dark:bg-gray-700'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
+                  <ReactMarkdown 
+                    className="whitespace-pre-wrap prose dark:prose-invert prose-sm max-w-none"
+                    components={{
+                      // Override default element styling
+                      // p: ({ children }) => <p className="mb-0">{children}</p>,
+                      // ul: ({ children }) => <ul className="my-1 list-disc pl-4">{children}</ul>,
+                      // ol: ({ children }) => <ol className="my-1 list-decimal pl-4">{children}</ol>,
+                      // li: ({ children }) => <li className="my-0.5">{children}</li>,
+                      // strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                      // h1: ({ children }) => <h1 className="text-lg font-bold mb-1">{children}</h1>,
+                      // h2: ({ children }) => <h2 className="text-base font-bold mb-1">{children}</h2>,
+                      // h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                    }}
+                  >
+                    {message.content.replace(/\n/gi, '\n&nbsp;')}
+                  </ReactMarkdown>
                   <p className="text-xs opacity-70 mt-1">
                     {message.timestamp.toLocaleTimeString()}
                   </p>
