@@ -101,11 +101,11 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
         )}
       >
         <div className="flex h-16 items-center border-b px-6 justify-between">
-          <h1 className="text-xl font-bold">TaskTide AI</h1>
+          <h1 className="text-xl font-bold dark:text-[#e0e0e0]">TaskTide AI</h1>
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className="md:hidden dark:text-[#e0e0e0]"
             onClick={() => onOpenChange(false)}
           >
             <X className="h-5 w-5" />
@@ -122,8 +122,8 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
                 className={cn(
                   "flex items-center gap-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   location.pathname === item.href
-                    ? "bg-secondary text-secondary-foreground"
-                    : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                    ? "bg-secondary text-secondary-foreground dark:text-[#e0e0e0]"
+                    : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground dark:text-[#e0e0e0]/70 dark:hover:text-[#e0e0e0]"
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -134,14 +134,14 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
         </nav>
         <div className="border-t p-4 space-y-4">
           <Button
-            className="w-full justify-start"
+            className="w-full justify-start dark:text-[#e0e0e0]"
             onClick={() => setAddItemOpen(true)}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add New
           </Button>
           <Button
-            className="w-full justify-start"
+            className="w-full justify-start dark:text-[#e0e0e0]"
             onClick={() => {
               setDialogOpen(true);
             }}
@@ -159,14 +159,15 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
                   handleQuickMessage();
                 }
               }}
+              className="dark:text-[#e0e0e0] dark:placeholder-[#e0e0e0]/50"
             />
-            <Button size="icon" onClick={handleQuickMessage}>
+            <Button size="icon" onClick={handleQuickMessage} className="dark:text-[#e0e0e0]">
               <Send className="h-4 w-4" />
             </Button>
           </div>
           <Button
             variant="outline"
-            className="w-full justify-start"
+            className="w-full justify-start dark:text-[#e0e0e0] dark:hover:text-[#e0e0e0]"
             onClick={() => setFeedbackOpen(true)}
           >
             <MessageCircle className="h-4 w-4 mr-2" />

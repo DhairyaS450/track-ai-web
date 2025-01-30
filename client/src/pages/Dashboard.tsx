@@ -363,7 +363,9 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Welcome back!</h1>
+      <div className="pb-2 border-b border-brand-primary">
+        <h1 className="text-4xl font-bold text-foreground">Welcome back!</h1>
+      </div>
 
       {/* Priority Items Card - Full Width */}
       <Card className="bg-gradient-to-br from-brand-primary/10 to-brand-secondary/10 border-brand-primary/20">
