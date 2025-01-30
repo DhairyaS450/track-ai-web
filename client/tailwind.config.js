@@ -1,16 +1,29 @@
-
 /** @type {import('tailwindcss').Config} */
 module.exports = {
     darkMode: ["class"],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
   	extend: {
+  		fontFamily: {
+  			poppins: ['Poppins', 'sans-serif'],
+  			inter: ['Inter', 'sans-serif'],
+  			montserrat: ['Montserrat', 'sans-serif'],
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+  			brand: {
+  				primary: '#0088cc',
+  				secondary: '#00b4d8',
+  				tertiary: '#ff6b6b',
+  				background: '#f8f9fa',
+  				'dark-bg': '#181818',
+  				text: '#222831',
+  				'text-secondary': '#495057',
+  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

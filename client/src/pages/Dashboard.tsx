@@ -16,7 +16,6 @@ import {
   Clock,
   Bell,
   ChevronDown,
-  ChevronUp,
   CalendarDays,
   Play,
   MoreVertical,
@@ -366,184 +365,149 @@ export function Dashboard() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Welcome back!</h1>
 
-      <Card className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950 dark:to-red-900">
+      {/* Priority Items Card - Full Width */}
+      <Card className="bg-gradient-to-br from-brand-primary/10 to-brand-secondary/10 border-brand-primary/20">
         <CardHeader>
-          <CardTitle className="text-lg font-medium flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-500" />
+          <CardTitle className="text-lg font-semibold text-brand-primary">
             Priority Items
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          {overdueTasks.length > 0 && (
-            <Collapsible
-              open={isOverdueOpen}
-              onOpenChange={setIsOverdueOpen}
-              className="mb-6"
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-red-500" />
-                  Overdue Tasks ({overdueTasks.length})
-                </h3>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    {isOverdueOpen ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </Button>
-                </CollapsibleTrigger>
+        <CardContent className="space-y-2">
+          <Collapsible
+            open={isOverdueOpen}
+            onOpenChange={setIsOverdueOpen}
+            className="space-y-2"
+          >
+            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg bg-brand-primary/5 p-4 font-medium text-brand-primary hover:bg-brand-primary/10 transition-colors">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                <span>Overdue Tasks ({overdueTasks.length})</span>
               </div>
-              <CollapsibleContent className="space-y-2">
-                {overdueTasks.map((deadline) => (
-                  <div
-                    key={deadline.id}
-                    className={`
+              <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2">
+              {overdueTasks.map((deadline) => (
+                <div
+                  key={deadline.id}
+                  className={`
 
-                      flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
-                      ${
-                        deadline.source === "google_calendar" || deadline.source === "google_tasks"
-                          ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
-                          : ""
-                      }
+                    flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
+                    ${
+                      deadline.source === "google_calendar" || deadline.source === "google_tasks"
+                        ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+                        : ""
+                    }
 
-                      `}
-                  >
-                    <div>
-                      <p className="font-medium">{deadline.title}</p> 
-                      <p className="text-sm text-muted-foreground">
-                        Due: {formatDate(deadline.dueDate)}
-                      </p>
-
-                    </div>
-                    <Badge variant="destructive">Overdue</Badge>
+                    `}
+                >
+                  <div>
+                    <p className="font-medium">{deadline.title}</p> 
+                    <p className="text-sm text-muted-foreground">
+                      Due: {formatDate(deadline.dueDate)}
+                    </p>
 
                   </div>
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
-          )}
+                  <Badge variant="destructive">Overdue</Badge>
 
-          {todayTasks.length > 0 && (
-            <Collapsible
-              open={isTodayOpen}
-              onOpenChange={setIsTodayOpen}
-              className="mb-6"
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-yellow-500" />
-                  Due Today ({todayTasks.length})
-                </h3>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    {isTodayOpen ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </Button>
-                </CollapsibleTrigger>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+
+          <Collapsible
+            open={isTodayOpen}
+            onOpenChange={setIsTodayOpen}
+            className="space-y-2"
+          >
+            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg bg-brand-secondary/5 p-4 font-medium text-brand-secondary hover:bg-brand-secondary/10 transition-colors">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                <span>Due Today ({todayTasks.length})</span>
               </div>
-              <CollapsibleContent className="space-y-2">
-                {todayTasks.map((deadline) => (
-                  <div
-                    key={deadline.id}
-                    className={`
+              <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2">
+              {todayTasks.map((deadline) => (
+                <div
+                  key={deadline.id}
+                  className={`
 
-                      flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
-                      ${
-                        deadline.source === "google_calendar" || deadline.source === "google_tasks"
-                          ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
-                          : ""
-                      }
+                    flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
+                    ${
+                      deadline.source === "google_calendar" || deadline.source === "google_tasks"
+                        ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+                        : ""
+                    }
 
-                      `}
-                  >
-                    <div>
-                      <p className="font-medium">{deadline.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Due: {formatDate(deadline.dueDate)}
-                      </p>
-                    </div>
-
-                    <Badge variant="secondary">Today</Badge>
+                    `}
+                >
+                  <div>
+                    <p className="font-medium">{deadline.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Due: {formatDate(deadline.dueDate)}
+                    </p>
                   </div>
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
-          )}
 
-          {highPriorityItems.length > 0 && (
-            <Collapsible
-              open={isHighPriorityOpen}
-              onOpenChange={setIsHighPriorityOpen}
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <Bell className="h-4 w-4 text-orange-500" />
-                  High Priority Items ({highPriorityItems.length})
-                </h3>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    {isHighPriorityOpen ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </Button>
-                </CollapsibleTrigger>
+                  <Badge variant="secondary">Today</Badge>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+
+          <Collapsible
+            open={isHighPriorityOpen}
+            onOpenChange={setIsHighPriorityOpen}
+            className="space-y-2"
+          >
+            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg bg-brand-primary/5 p-4 font-medium text-brand-primary hover:bg-brand-primary/10 transition-colors">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4" />
+                <span>High Priority Items ({highPriorityItems.length})</span>
               </div>
-              <CollapsibleContent className="space-y-2">
-                {highPriorityItems.map((item) => (
-                  <div
-                    key={"id" in item ? item.id : ""}
-                    className={`
-                      flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
-                      ${
-                        item.source === "google_calendar" || item.source === "google_tasks"
-                          ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
-                          : ""
-                      }
-                      `}
-                  >
-                    <div>
-                      <p className="font-medium">
-                        {"title" in item
-                          ? item.title
-                          : "subject" in item
-                          ? item.subject
-                          : item.name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {"deadline" in item && item.deadline
-                          ? `Due: ${formatDate(item.deadline)}`
-                          : "scheduledFor" in item && item.scheduledFor
-                          ? `Scheduled: ${formatDate(item.scheduledFor)}`
-                          : "startTime" in item && item.startTime
-                          ? `Event: ${formatDate(item.startTime)}`
-                          : ""}
-                      </p>
-                    </div>
-                    <Badge variant="default">High Priority</Badge>
+              <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2">
+              {highPriorityItems.map((item) => (
+                <div
+                  key={"id" in item ? item.id : ""}
+                  className={`
+                    flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
+                    ${
+                      item.source === "google_calendar" || item.source === "google_tasks"
+                        ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+                        : ""
+                    }
+                    `}
+                >
+                  <div>
+                    <p className="font-medium">
+                      {"title" in item
+                        ? item.title
+                        : "subject" in item
+                        ? item.subject
+                        : item.name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {"deadline" in item && item.deadline
+                        ? `Due: ${formatDate(item.deadline)}`
+                        : "scheduledFor" in item && item.scheduledFor
+                        ? `Scheduled: ${formatDate(item.scheduledFor)}`
+                        : "startTime" in item && item.startTime
+                        ? `Event: ${formatDate(item.startTime)}`
+                        : ""}
+                    </p>
                   </div>
-                ))}
-              </CollapsibleContent>
-            </Collapsible>
-          )}
-
-          {overdueTasks.length === 0 &&
-            todayTasks.length === 0 &&
-            highPriorityItems.length === 0 && (
-              <p className="text-center text-muted-foreground py-4">
-                No priority items to display
-              </p>
-            )}
+                  <Badge variant="default">High Priority</Badge>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
         </CardContent>
       </Card>
 
+      {/* Three Column Grid */}
       <div className="grid gap-6 md:grid-cols-3">
+        {/* Tasks Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tasks</CardTitle>
@@ -660,11 +624,10 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
+        {/* Study Sessions Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Today's Study Sessions
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Today's Study Sessions</CardTitle>
             <Button
               variant="outline"
               size="icon"
@@ -769,13 +732,14 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        <EventsTimeline
-          events={events}
-          onEventClick={(event) => {
-            setEventToEdit(event);
-            setCreateEventOpen(true);
-          }}
-        />
+        {/* Events Timeline Card */}
+            <EventsTimeline
+              events={events}
+              onEventClick={(event) => {
+                setEventToEdit(event);
+                setCreateEventOpen(true);
+              }}
+            />
       </div>
 
       <Card>
