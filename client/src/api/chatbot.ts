@@ -3,10 +3,11 @@ import api from './Api';
 import { getTasks } from './tasks';
 import { getEvents } from './events';
 import { getStudySessions } from './sessions';
-import { subMonths } from 'date-fns';
 import { getDeadlines } from './deadlines';
+import { getUserProfile } from './settings';
 
 interface FilteredTask {
+  id: string;
   title: string;
   description: string;
   deadline: string;
@@ -18,6 +19,7 @@ interface FilteredTask {
 }
 
 interface FilteredEvent {
+  id: string;
   title: string;
   description: string;
   startTime: string;
@@ -29,6 +31,7 @@ interface FilteredEvent {
 }
 
 interface FilteredSession {
+  id: string;
   subject: string;
   description: string;
   scheduledFor: string;
@@ -39,26 +42,33 @@ interface FilteredSession {
 }
 
 interface FilteredDeadline {
+  id: string;
   title: string;
   description: string;
   dueDate: string;
   priority: string;
 }
 
+
 const filterRecentData = <T>(
   data: T[],
   dateField: keyof T
 ): T[] => {
-  const oneMonthAgo = subMonths(new Date(), 1);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const thirtyDaysFromNow = new Date(today);
+  thirtyDaysFromNow.setDate(today.getDate() + 30);
+  
   return data.filter(item => {
     const itemDate = new Date(item[dateField] as string);
-    return itemDate >= oneMonthAgo;
+    return itemDate >= today && itemDate <= thirtyDaysFromNow;
   });
 };
 
 const filterTaskData = (task: any): FilteredTask => ({
-  title: task.title,
-  description: task.description,
+  id: task.id,
+  title: task.title?.substring(0, 50),
+  description: task.description?.substring(0, 100),
   deadline: task.deadline,
   priority: task.priority,
   status: task.status,
@@ -68,8 +78,9 @@ const filterTaskData = (task: any): FilteredTask => ({
 });
 
 const filterEventData = (event: any): FilteredEvent => ({
-  title: event.title,
-  description: event.description,
+  id: event.id,
+  title: event.title?.substring(0, 50),
+  description: event.description?.substring(0, 100),
   startTime: event.startTime,
   endTime: event.endTime,
   isAllDay: event.isAllDay,
@@ -79,8 +90,9 @@ const filterEventData = (event: any): FilteredEvent => ({
 });
 
 const filterSessionData = (session: any): FilteredSession => ({
-  subject: session.subject,
-  description: session.description,
+  id: session.id,
+  subject: session.subject?.substring(0, 50),
+  description: session.description?.substring(0, 100),
   scheduledFor: session.scheduledFor,
   duration: session.duration,
   status: session.status,
@@ -89,21 +101,24 @@ const filterSessionData = (session: any): FilteredSession => ({
 });
 
 const filterDeadlineData = (deadline: any): FilteredDeadline => ({
-  title: deadline.title,
-  description: deadline.description,
+  id: deadline.id,
+  title: deadline.title?.substring(0, 50),
+  description: deadline.description?.substring(0, 100),
   dueDate: deadline.dueDate,
   priority: deadline.priority
 });
+
 
 export const processChatMessage = async (message: string, chatHistory: { type: 'user' | 'bot', content: string }[]) => {
   try {
     // Gather context data
 
-    const [tasksResponse, eventsResponse, sessionsResponse, deadlinesResponse] = await Promise.all([
+    const [tasksResponse, eventsResponse, sessionsResponse, deadlinesResponse, profileResponse] = await Promise.all([
       getTasks(),
       getEvents(),
       getStudySessions(),
-      getDeadlines()
+      getDeadlines(),
+      getUserProfile()
     ]);
 
     // Filter and limit the context data
@@ -112,7 +127,8 @@ export const processChatMessage = async (message: string, chatHistory: { type: '
       events: filterRecentData(eventsResponse.events, 'startTime').map(filterEventData),
       sessions: filterRecentData(sessionsResponse.sessions, 'scheduledFor').map(filterSessionData),
       deadlines: filterRecentData(deadlinesResponse.deadlines, 'dueDate').map(filterDeadlineData),
-      chatHistory: chatHistory.slice(-10) // Only keep last 10 messages for context
+      profile: profileResponse,
+      chatHistory: chatHistory.slice(-5) // Only keep last 5 messages for context
     };
 
     const response = await api.post('/api/chatbot', { 

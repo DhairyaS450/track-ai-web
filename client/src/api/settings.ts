@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { doc, getDoc, onSnapshot, setDoc } from "@firebase/firestore"
 import { db, auth } from "@/config/firebase"
 
@@ -61,3 +62,15 @@ export const saveSettings = async (
     throw error;
   }
 };
+
+export const getUserProfile = async () => {
+  const userId = auth.currentUser?.uid;
+  if (!userId) {
+    throw Error("Cannot get userId for settings update");
+  }
+  const userDocRef = doc(db, "users", userId);
+  const snapshot = await getDoc(userDocRef);
+  const userProfile = snapshot.exists() ? snapshot.data().userProfile : {};
+  return userProfile;
+};
+

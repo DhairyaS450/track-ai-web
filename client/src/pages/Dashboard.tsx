@@ -6,7 +6,7 @@ import { deleteStudySession, getTodayStudySessions } from "@/api/sessions";
 import { startStudySession, postponeStudySession } from "@/api/sessions";
 import { getEvents } from "@/api/events";
 import { Task, StudySession, Event } from "@/types";
-import { format, isPast, isToday, isValid } from "date-fns";
+import { format, isPast, isToday, isValid, addDays, isTomorrow, isWithinInterval } from "date-fns";
 import {
   Plus,
   Edit,
@@ -45,6 +45,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteStudySessionDialog } from "@/components/DeleteStudySessionDialog";
 import { CreateStudySessionDialog } from "@/components/CreateStudySessionDialog";
+import { getDeadlines } from "@/api/deadlines";
+import { getReminders, dismissReminder } from "@/api/deadlines";
+import { Deadline, Reminder } from "@/types/deadlines";
 
 export function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -70,20 +73,32 @@ export function Dashboard() {
   const [sessionToPostpone, setSessionToPostpone] = useState<string | null>(
     null
   );
+  const [deadlines, setDeadlines] = useState<Deadline[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
   const { toast } = useToast();
 
   const fetchData = async () => {
-    const [currentTasks, allTasksData, sessionsData, eventsData] =
-      await Promise.all([
-        getTodayTasks(),
-        getTasks(true),
-        getTodayStudySessions(),
-        getEvents(),
-      ]);
+    const [
+      currentTasks, 
+      allTasksData, 
+      sessionsData, 
+      eventsData,
+      deadlinesData,
+      remindersData
+    ] = await Promise.all([
+      getTodayTasks(),
+      getTasks(true),
+      getTodayStudySessions(),
+      getEvents(),
+      getDeadlines(),
+      getReminders(),
+    ]);
     setTasks(currentTasks.tasks);
     setAllTasks(allTasksData.tasks);
     setSessions(sessionsData.sessions);
     setEvents(eventsData.events);
+    setDeadlines(deadlinesData.deadlines);
+    setReminders(remindersData.reminders);
   };
 
   useEffect(() => {
@@ -106,6 +121,7 @@ export function Dashboard() {
         title: "Error",
         description: "Failed to delete task",
       });
+      console.error("Error deleting task:", error);
     }
     setTaskToDelete(null);
     setDeleteTaskOpen(false);
@@ -136,53 +152,53 @@ export function Dashboard() {
     "What you get by achieving your goals is not as important as what you become by achieving them.",
     "Hardships often prepare ordinary people for an extraordinary destiny.",
     "The way to get started is to quit talking and begin doing.",
-    "You don’t have to be great to start, but you have to start to be great.",
+    "You don't have to be great to start, but you have to start to be great.",
     "You are never too old to set another goal or to dream a new dream.",
-    "Don’t wait for opportunity. Create it.",
+    "Don't wait for opportunity. Create it.",
     "A winner is a dreamer who never gives up.",
     "The best way to predict the future is to create it.",
-    "Your limitation—it’s only your imagination.",
+    "Your limitation—it's only your imagination.",
     "Push yourself, because no one else is going to do it for you.",
     "Great things never come from comfort zones.",
-    "Don’t stop when you’re tired. Stop when you’re done.",
+    "Don't stop when you're tired. Stop when you're done.",
     "Work hard in silence, let success make the noise.",
     "Do something today that your future self will thank you for.",
     "You are stronger than you think.",
     "Stay focused and never give up.",
     "Difficult roads often lead to beautiful destinations.",
-    "Success doesn’t just find you. You have to go out and get it.",
-    "Failure is not the opposite of success; it’s part of success.",
+    "Success doesn't just find you. You have to go out and get it.",
+    "Failure is not the opposite of success; it's part of success.",
     "Hustle until you no longer have to introduce yourself.",
     "Success is no accident. It is hard work, perseverance, learning, studying, sacrifice, and most of all, love for what you are doing.",
-    "You miss 100% of the shots you don’t take.",
+    "You miss 100% of the shots you don't take.",
     "Small steps in the right direction can turn out to be the biggest step of your life.",
     "It does not matter how slowly you go as long as you do not stop.",
     "Your only limit is you.",
-    "Set your goals high, and don’t stop till you get there.",
+    "Set your goals high, and don't stop till you get there.",
     "The man who moves a mountain begins by carrying away small stones.",
     "Start where you are. Use what you have. Do what you can.",
     "Action is the foundational key to all success.",
     "Every problem is a gift—without problems, we would not grow.",
-    "The harder you work for something, the greater you’ll feel when you achieve it.",
-    "Opportunities don’t happen, you create them.",
+    "The harder you work for something, the greater you'll feel when you achieve it.",
+    "Opportunities don't happen, you create them.",
     "If you can dream it, you can do it.",
-    "Don’t limit your challenges. Challenge your limits.",
+    "Don't limit your challenges. Challenge your limits.",
     "The difference between ordinary and extraordinary is that little extra.",
-    "Be so good they can’t ignore you.",
+    "Be so good they can't ignore you.",
     "Success usually comes to those who are too busy to be looking for it.",
     "Motivation is what gets you started. Habit is what keeps you going.",
     "Success is not how high you have climbed, but how you make a positive difference to the world.",
-    "Go as far as you can see; when you get there, you’ll be able to see further.",
+    "Go as far as you can see; when you get there, you'll be able to see further.",
     "I can and I will. Watch me.",
     "Make each day your masterpiece.",
     "Strength does not come from physical capacity. It comes from an indomitable will.",
-    "Don’t be afraid to give up the good to go for the great.",
+    "Don't be afraid to give up the good to go for the great.",
     "Focus on being productive instead of busy.",
-    "The struggle you’re in today is developing the strength you need for tomorrow.",
+    "The struggle you're in today is developing the strength you need for tomorrow.",
     "Dream it. Wish it. Do it.",
-    "You don’t have to see the whole staircase, just take the first step.",
+    "You don't have to see the whole staircase, just take the first step.",
     "The only way to do great work is to love what you do.",
-    "It’s not whether you get knocked down, it’s whether you get up.",
+    "It's not whether you get knocked down, it's whether you get up.",
     "Fall seven times, stand up eight.",
     "You only fail when you stop trying.",
   ];
@@ -204,22 +220,23 @@ export function Dashboard() {
   // };
 
   // Filter priority items
-  const overdueTasks = allTasks.filter(
-    (task) =>
-      task.deadline &&
-      isValid(new Date(task.deadline)) &&
-      isPast(new Date(task.deadline)) &&
-      !isToday(new Date(task.deadline)) &&
-      task.status !== "completed"
+  const overdueTasks = deadlines.filter(
+    (deadline) =>
+      deadline.dueDate &&
+      isValid(new Date(deadline.dueDate)) &&
+      isPast(new Date(deadline.dueDate)) &&
+      !isToday(new Date(deadline.dueDate)) &&
+      deadline.status !== "Completed"
   );
 
-  const todayTasks = allTasks.filter(
-    (task) =>
-      task.deadline &&
-      isValid(new Date(task.deadline)) &&
-      isToday(new Date(task.deadline)) &&
-      task.status !== "completed"
+  const todayTasks = deadlines.filter(
+    (deadline) =>
+      deadline.dueDate &&
+      isValid(new Date(deadline.dueDate)) &&
+      isToday(new Date(deadline.dueDate)) &&
+      deadline.status !== "Completed"
   );
+
 
   const highPriorityItems = [
     ...allTasks.filter(
@@ -256,6 +273,7 @@ export function Dashboard() {
       }
       return format(date, "PPp");
     } catch (error) {
+      console.error("Error formatting date:", error);
       return "Invalid date";
     }
   };
@@ -269,12 +287,14 @@ export function Dashboard() {
         description: "Study session started",
       });
     } catch (error) {
+      console.error("Error starting session:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to start session",
       });
     }
+
   };
 
   const handlePostponeSession = async (data: {
@@ -294,12 +314,14 @@ export function Dashboard() {
       setPostponeSessionOpen(false);
       setSessionToPostpone(null);
     } catch (error) {
+      console.error("Error postponing session:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to postpone session",
       });
     }
+
   };
 
   const handleDeleteSession = async () => {
@@ -313,15 +335,32 @@ export function Dashboard() {
         description: "Study session deleted",
       });
     } catch (error) {
+      console.error("Error deleting session:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to delete session",
       });
     }
+
     setSessionToDelete(null);
     setDeleteSessionOpen(false);
   };
+
+  // Filter deadlines and reminders
+  const filteredDeadlines = deadlines.filter(deadline => {
+    const dueDate = new Date(deadline.dueDate);
+    return (isToday(dueDate) || isTomorrow(dueDate)) && deadline.status !== 'Completed';
+  });
+
+  const filteredReminders = reminders.filter(reminder => {
+    const reminderDate = new Date(reminder.reminderTime);
+    const threeDaysFromNow = addDays(new Date(), 3);
+    return isWithinInterval(reminderDate, {
+      start: new Date(),
+      end: threeDaysFromNow
+    });
+  });
 
   return (
     <div className="space-y-6">
@@ -357,25 +396,29 @@ export function Dashboard() {
                 </CollapsibleTrigger>
               </div>
               <CollapsibleContent className="space-y-2">
-                {overdueTasks.map((task) => (
+                {overdueTasks.map((deadline) => (
                   <div
-                    key={task.id}
+                    key={deadline.id}
                     className={`
+
                       flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
                       ${
-                        task.source === "google_calendar" || task.source === "google_tasks"
+                        deadline.source === "google_calendar" || deadline.source === "google_tasks"
                           ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
                           : ""
                       }
+
                       `}
                   >
                     <div>
-                      <p className="font-medium">{task.title}</p>
+                      <p className="font-medium">{deadline.title}</p> 
                       <p className="text-sm text-muted-foreground">
-                        Due: {formatDate(task.deadline)}
+                        Due: {formatDate(deadline.dueDate)}
                       </p>
+
                     </div>
                     <Badge variant="destructive">Overdue</Badge>
+
                   </div>
                 ))}
               </CollapsibleContent>
@@ -404,24 +447,27 @@ export function Dashboard() {
                 </CollapsibleTrigger>
               </div>
               <CollapsibleContent className="space-y-2">
-                {todayTasks.map((task) => (
+                {todayTasks.map((deadline) => (
                   <div
-                    key={task.id}
+                    key={deadline.id}
                     className={`
+
                       flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
                       ${
-                        task.source === "google_calendar" || task.source === "google_tasks"
+                        deadline.source === "google_calendar" || deadline.source === "google_tasks"
                           ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
                           : ""
                       }
+
                       `}
                   >
                     <div>
-                      <p className="font-medium">{task.title}</p>
+                      <p className="font-medium">{deadline.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        Due: {formatDate(task.deadline)}
+                        Due: {formatDate(deadline.dueDate)}
                       </p>
                     </div>
+
                     <Badge variant="secondary">Today</Badge>
                   </div>
                 ))}
@@ -732,21 +778,69 @@ export function Dashboard() {
         />
       </div>
 
-      {/* <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Chatbot</CardTitle>
-          </CardHeader>
-        <CardContent className="pt-6">
-          <form onSubmit={handleChatbotSubmit} className="flex space-x-2">
-            <Input
-              name="chatbot"
-              className="flex-1"
-              placeholder="Quickly type what you want to do here..."
-            />
-            <Button type="submit">Send</Button>
-          </form>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Upcoming Deadlines & Reminders</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {filteredDeadlines.map((deadline) => (
+              <div
+                key={deadline.id}
+                className="flex items-center justify-between rounded-lg border p-4"
+              >
+                <div>
+                  <h3 className="font-medium">{deadline.title}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Due: {format(new Date(deadline.dueDate), "PPp")}
+                  </p>
+                </div>
+                <Badge
+                  variant={
+                    deadline.priority === "High"
+                      ? "destructive"
+                      : deadline.priority === "Medium"
+                      ? "default"
+                      : "secondary"
+                  }
+                >
+                  {deadline.priority}
+                </Badge>
+              </div>
+            ))}
+            
+            {filteredReminders.map((reminder) => (
+              <div
+                key={reminder.id}
+                className="flex items-center justify-between rounded-lg border p-4 bg-blue-50 dark:bg-blue-900/20"
+              >
+                <div>
+                  <h3 className="font-medium">{reminder.title}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    At: {format(new Date(reminder.reminderTime), "PPp")}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    await dismissReminder(reminder.id);
+                    await fetchData();
+                  }}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            ))}
+            
+            {filteredDeadlines.length === 0 && filteredReminders.length === 0 && (
+              <p className="text-center text-muted-foreground py-4">
+                No upcoming deadlines or reminders
+              </p>
+            )}
+          </div>
         </CardContent>
-      </Card> */}
+      </Card>
 
       <Card>
         <CardHeader>

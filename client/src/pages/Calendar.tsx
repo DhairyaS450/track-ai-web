@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTasks, deleteTask } from "@/api/tasks";
 import { getStudySessions, deleteStudySession } from "@/api/sessions";
 import { getEvents, deleteEvent } from "@/api/events";
-import { getDeadlines, getReminders, markDeadlineAsComplete, dismissReminder } from "@/api/deadlines";
+import { getDeadlines, markDeadlineAsComplete, dismissReminder } from "@/api/deadlines";
+import { getReminders } from "@/api/deadlines";
 import { Task, StudySession, Event, Deadline, Reminder } from "@/types";
 import { format, isSameDay, addWeeks, startOfWeek } from "date-fns";
+
 import {
   Calendar as CalendarIcon,
   Loader2,

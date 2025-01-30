@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { db, auth } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, getDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { Task } from '@/types';
+import { Task } from '@/types/index';
 import { isSameDay, parseISO } from 'date-fns';
+import { createDeadline } from '@/api/deadlines';
 
 // Get Tasks
 // GET /tasks
@@ -93,7 +94,6 @@ export const addTask = async (taskData: Omit<Task, 'id'>) => {
     console.log('Adding new task:', taskData);
     const tasksRef = collection(db, 'tasks');
 
-    // Add created timestamp and user ID
     const taskWithMetadata = {
       ...taskData,
       recurrence: taskData.recurrence || '',
@@ -102,22 +102,28 @@ export const addTask = async (taskData: Omit<Task, 'id'>) => {
     };
 
     const docRef = await addDoc(tasksRef, taskWithMetadata);
-    console.log('Task added successfully with ID:', docRef.id);
 
-    // Return the created task with its ID
-    const task: Task = {
-      id: docRef.id,
-      ...taskData
+    // Create corresponding deadline
+    if (taskData.deadline) {
+      await createDeadline({
+        title: taskData.title,
+        dueDate: taskData.deadline,
+        priority: taskData.priority,
+        category: taskData.subject || 'General',
+        associatedTaskId: docRef.id,
+        status: 'Pending',
+        source: 'manual'
+      });
+    }
+
+    return { 
+      task: {
+        id: docRef.id,
+        ...taskData
+      }
     };
-
-    return { task };
   } catch (error: any) {
     console.error('Error adding task:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      stack: error.stack
-    });
     throw new Error(`Failed to create task: ${error.message}`);
   }
 };

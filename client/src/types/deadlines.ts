@@ -36,4 +36,5 @@ export interface Reminder {
   type: 'Quick Reminder';
   createdAt: string;
   updatedAt: string;
+  linkedEventId?: string;
 }

@@ -8,12 +8,12 @@ import {
   getDocs,
   query,
   where,
-  orderBy,
 } from "firebase/firestore";
 import { db, auth } from "@/config/firebase";
 
 export interface Reminder {
   id: string;
+  userId: string;
   title: string;
   reminderTime: string;
   notificationMessage?: string;
@@ -24,9 +24,11 @@ export interface Reminder {
     interval: number;
     endDate?: string;
   };
+  linkedEventId?: string;
   createdAt: string;
   updatedAt: string;
 }
+
 
 export async function createReminder(data: Omit<Reminder, "id" | "createdAt" | "updatedAt">): Promise<Reminder> {
   try {
@@ -40,6 +42,7 @@ export async function createReminder(data: Omit<Reminder, "id" | "createdAt" | "
     };
 
     const docRef = await addDoc(collection(db, "reminders"), reminderData);
+    console.log('Reminder created:', docRef.id);
     return {
       ...reminderData,
       id: docRef.id,
@@ -96,8 +99,6 @@ export async function getReminders(): Promise<{ reminders: Reminder[] }> {
     const q = query(
       collection(db, "reminders"),
       where("userId", "==", auth.currentUser.uid),
-      where("status", "==", "Active"),
-      orderBy("reminderTime", "asc")
     );
 
     const querySnapshot = await getDocs(q);
@@ -105,6 +106,8 @@ export async function getReminders(): Promise<{ reminders: Reminder[] }> {
       id: doc.id,
       ...doc.data(),
     })) as Reminder[];
+
+    console.log('Reminders:', reminders);
 
     return { reminders };
   } catch (error) {

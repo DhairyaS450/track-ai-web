@@ -4,12 +4,16 @@ Convert to PWA
 Release on App Store and Play Store
 
 Frontend:
-PRIORITY: Task deadlines need to also be added to deadlines in firestore database
+Chatbot:
+- Enable adding attachments to messages
+- Allow it to display visuals such as calendars, charts, etc
+- Allow it to display images, videos, etc
 PRIORITY: Get google calendar working - in-progress
 - Problem: Google tasks not fully implemented, and off by 5 hrs
 - Problem: Any updates don't get synced back to google calendar
 - Solution: When task/event is updated, sync possible fields back to google calendar.
 PRIORITY: Mobile view is cut off for create deadline dialog and create reminder dialog
+
 PRIORITY: If a description is too long for a task, event or study session enable a collapse and view more button. DO NOT EXTEND THE PAGE, ESPECIALLY ON MOBILE
 Fix ongoing session bugs
 Allow users to just add deadline or just add reminder rather than task, event or study session
@@ -20,6 +24,7 @@ Add in mood tracker
 Notifications
 Much more unique branding and gamification
 Much better analytics
+Customizable filtering in dashboard and calendar
 Sync with other apps like outlook calendar, notion, etc 
 Improve mobile view and make this into an app and website version
 Offline support
@@ -27,7 +32,7 @@ Testing and fixing bugs
 Onboard new users and features
 
 Backend:
-PRIORITY: Store user profile and settings
+Add a query that the chatbot can use to get items outside the 30 day range
 Connect with other calendar applications
 Implement AI Functionalities
 Working interactive chatbot that can add, edit, delete -> tasks, events, study sessions, 

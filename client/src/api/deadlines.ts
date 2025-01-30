@@ -1,5 +1,5 @@
 import { Deadline, Reminder } from '@/types';
-import { db } from '@/config/firebase';
+import { auth, db } from '@/config/firebase';
 import {
   collection,
   addDoc,
@@ -8,6 +8,8 @@ import {
   doc,
   getDocs,
   getDoc,
+  where,
+  query,
 } from 'firebase/firestore';
 
 // Deadlines
@@ -85,11 +87,13 @@ export async function createReminder(reminder: Omit<Reminder, 'id' | 'createdAt'
     const now = new Date().toISOString();
     const reminderData = {
       ...reminder,
+      userId: auth.currentUser?.uid || '',
       createdAt: now,
       updatedAt: now,
     };
     
     const docRef = await addDoc(collection(db, 'reminders'), reminderData);
+    console.log('Reminder created:', docRef.id);
     return { id: docRef.id, ...reminderData };
   } catch (error) {
     console.error('Error creating reminder:', error);
@@ -121,9 +125,11 @@ export async function deleteReminder(id: string) {
 
 export async function getReminders() {
   try {
-    const querySnapshot = await getDocs(collection(db, 'reminders'));
+    const q = query(collection(db, 'reminders'), where('userId', '==', auth.currentUser?.uid || ''));
+    const querySnapshot = await getDocs(q);
     const reminders = querySnapshot.docs.map((doc) => ({
       id: doc.id,
+
       ...doc.data(),
     })) as Reminder[];
     return { reminders };
@@ -144,7 +150,7 @@ export async function markDeadlineAsComplete(id: string) {
 
 export async function dismissReminder(id: string) {
   try {
-    await updateReminder(id, { status: 'Dismissed' });
+    await deleteReminder(id);
   } catch (error) {
     console.error('Error dismissing reminder:', error);
     throw error;

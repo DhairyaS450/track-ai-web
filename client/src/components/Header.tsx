@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Search, Menu } from "lucide-react";
@@ -79,30 +80,30 @@ export function Header({ onMenuClick }: HeaderProps) {
     try {
       switch (type) {
         case "task":
-          const task = await getTaskById(id);
+          { const task = await getTaskById(id);
           setSelectedItem(task.task);
           setIsTaskDialogOpen(true);
-          break;
+          break; }
         case "event":
-          const event = await getEventById(id);
+          { const event = await getEventById(id);
           setSelectedItem(event.event);
           setIsEventDialogOpen(true);
-          break;
+          break; }
         case "study":
-          const study = await getStudySessionById(id);
+          { const study = await getStudySessionById(id);
           setSelectedItem(study.session);
           setIsStudyDialogOpen(true);
-          break;
+          break; }
         case "deadline":
-          const deadline = await getDeadlineById(id);
+          { const deadline = await getDeadlineById(id);
           setSelectedItem(deadline.deadline);
           setIsDeadlineDialogOpen(true);
-          break;
+          break; }
         case "reminder":
-          const reminder = await getReminder(id);
+          { const reminder = await getReminder(id);
           setSelectedItem(reminder.reminder);
           setIsReminderDialogOpen(true);
-          break;
+          break; }
       }
     } catch (error) {
       console.error("Error fetching item:", error);

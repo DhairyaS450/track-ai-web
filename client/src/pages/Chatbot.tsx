@@ -27,7 +27,7 @@ import { addEvent, updateEvent } from "@/api/events";
 import { addStudySession, updateStudySession } from "@/api/sessions";
 import ReactMarkdown from 'react-markdown';
 import { updateDeadline } from "@/api/deadlines";
-import { updateReminder } from "@/api/reminders";
+import { updateReminder } from "@/api/deadlines";
 
 interface SpeechRecognition extends EventTarget {
   continuous: boolean;
