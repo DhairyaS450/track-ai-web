@@ -141,6 +141,7 @@ export async function getReminders() {
 
 export async function markDeadlineAsComplete(id: string) {
   try {
+    // Maybe later update the deadline to completed instead of deleting it
     await deleteDoc(doc(db, 'deadlines', id));
   } catch (error) {
     console.error('Error marking deadline as complete:', error);

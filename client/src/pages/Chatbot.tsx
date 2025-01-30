@@ -21,13 +21,16 @@ import {
 import { useLocation } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { processChatMessage } from '@/api/chatbot';
-import { getAuth } from 'firebase/auth';
+import { auth } from '@/config/firebase';
 import { addTask, updateTask } from "@/api/tasks";
 import { addEvent, updateEvent } from "@/api/events";
 import { addStudySession, updateStudySession } from "@/api/sessions";
 import ReactMarkdown from 'react-markdown';
 import { updateDeadline } from "@/api/deadlines";
 import { updateReminder } from "@/api/deadlines";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { KaiQuickInfo } from "@/components/KaiQuickInfo";
+import { KaiFullInfo } from "@/components/KaiFullInfo";
 
 interface SpeechRecognition extends EventTarget {
   continuous: boolean;
@@ -72,7 +75,7 @@ export function Chatbot() {
     {
       id: '1',
       type: 'bot',
-      content: 'Hello! I am Kai, your personal AI assistant. How can I help you today?',
+      content: "Hey there! I'm Kai, your AI productivity assistant. Need help scheduling, organizing, or just staying on track? Ask me anything!",
       timestamp: new Date()
     }
   ]);
@@ -81,6 +84,8 @@ export function Chatbot() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const [isLoading, setIsLoading] = useState(false);
+  const [suggestionsEnabled, setSuggestionsEnabled] = useState(true);
 
   useEffect(() => {
     if (location.state?.message) {
@@ -134,7 +139,6 @@ export function Chatbot() {
   const handleSend = async (content: string = input) => {
     if (!content.trim()) return;
 
-    const auth = getAuth();
     const user = auth.currentUser;
     if (!user) {
       setMessages(prev => [...prev, {
@@ -155,6 +159,7 @@ export function Chatbot() {
 
     setMessages(prev => [...prev, newMessage]);
     setInput('');
+    setIsLoading(true);
 
     try {
       // Convert messages to the format expected by the API
@@ -217,6 +222,8 @@ export function Chatbot() {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -274,87 +281,138 @@ export function Chatbot() {
     }
   };
 
+  const handleNewChat = () => {
+    setMessages([{
+      id: '1',
+      type: 'bot',
+      content: "Hey there! I'm Kai, your AI productivity assistant. Need help scheduling, organizing, or just staying on track? Ask me anything!",
+      timestamp: new Date()
+    }]);
+  };
+
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] pb-6">
+    <div className="flex flex-col h-[calc(100vh-4rem)] pb-6 chat-container">
       <div className="relative flex-1 overflow-hidden">
         <ScrollArea className="h-full p-4">
-          <div className="space-y-4 pb-4">
+          <div className="space-y-6 pb-4">
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex ${
+                className={`flex message-animation ${
                   message.type === 'user' ? 'justify-end' : 'justify-start'
                 }`}
               >
-                <div
-                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                    message.type === 'user'
-                      ? 'bg-blue-300 dark:bg-blue-700'
-                      : 'bg-gray-200 dark:bg-gray-700'
-                  }`}
-                >
-                  <ReactMarkdown 
-                    className="whitespace-pre-wrap prose dark:prose-invert prose-sm max-w-none"
-                    components={{
-                      // Override default element styling
-                      // p: ({ children }) => <p className="mb-0">{children}</p>,
-                      // ul: ({ children }) => <ul className="my-1 list-disc pl-4">{children}</ul>,
-                      // ol: ({ children }) => <ol className="my-1 list-decimal pl-4">{children}</ol>,
-                      // li: ({ children }) => <li className="my-0.5">{children}</li>,
-                      // strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-                      // h1: ({ children }) => <h1 className="text-lg font-bold mb-1">{children}</h1>,
-                      // h2: ({ children }) => <h2 className="text-base font-bold mb-1">{children}</h2>,
-                      // h3: ({ children }) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
-                    }}
-                  >
-                    {message.content.replace(/\n/gi, '\n&nbsp;')}
-                  </ReactMarkdown>
-                  <p className="text-xs opacity-70 mt-1">
-                    {message.timestamp.toLocaleTimeString()}
-                  </p>
+                <div className={`flex gap-3 max-w-[80%] ${
+                  message.type === 'user' ? 'flex-row-reverse' : 'flex-row'
+                }`}>
+                  {message.type === 'bot' ? (
+                    <KaiQuickInfo onNewChat={handleNewChat} />
+                  ) : (
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={auth.currentUser?.photoURL || undefined} alt={auth.currentUser?.displayName || 'User'} />
+                      <AvatarFallback>{auth.currentUser?.displayName?.[0] || 'U'}</AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium">
+                        {message.type === 'bot' ? (
+                          <KaiFullInfo
+                            suggestionsEnabled={suggestionsEnabled}
+                            onToggleSuggestions={setSuggestionsEnabled}
+                          />
+                        ) : (
+                          auth.currentUser?.displayName || 'User'
+                        )}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className={`rounded-lg px-4 py-2 ${
+                      message.type === 'user'
+                        ? 'bg-blue-300 dark:bg-blue-700'
+                        : 'bg-gray-200 dark:bg-gray-700'
+                    }`}>
+                      <ReactMarkdown 
+                        className="whitespace-pre-wrap prose dark:prose-invert prose-sm max-w-none"
+                      >
+                        {message.content.replace(/\n/gi, '\n&nbsp;')}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
+            
+            {isLoading && (
+              <div className="flex justify-start message-animation">
+                <div className="flex gap-3 max-w-[80%]">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src="/chatbot-icon.png" alt="Kai" />
+                    <AvatarFallback>AI</AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium">Kai</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="rounded-lg px-4 py-2 bg-gray-200 dark:bg-gray-700">
+                      <div className="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
       </div>
 
       <div className="p-4 space-y-4">
-        <div className="relative">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10"
-            onClick={() => scrollSuggestions('left')}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10"
-            onClick={() => scrollSuggestions('right')}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <div
-            ref={suggestionsRef}
-            className="flex space-x-2 overflow-x-auto scrollbar-hide px-8"
-          >
-            {suggestions.map((suggestion) => (
-              <Button
-                key={suggestion.id}
-                variant="outline"
-                className="flex items-center space-x-2 whitespace-nowrap"
-                onClick={suggestion.action}
-              >
-                {suggestion.icon}
-                <span>{suggestion.text}</span>
-              </Button>
-            ))}
+        {suggestionsEnabled && (
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10"
+              onClick={() => scrollSuggestions('left')}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10"
+              onClick={() => scrollSuggestions('right')}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <div
+              ref={suggestionsRef}
+              className="flex space-x-2 overflow-x-auto scrollbar-hide px-8"
+            >
+              {suggestions.map((suggestion) => (
+                <Button
+                  key={suggestion.id}
+                  variant="outline"
+                  className="flex items-center space-x-2 whitespace-nowrap"
+                  onClick={suggestion.action}
+                >
+                  {suggestion.icon}
+                  <span>{suggestion.text}</span>
+                </Button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <Card className={`p-2 space-y-2 ${isMobile ? 'flex flex-col' : ''}`}>
           {isMobile ? (

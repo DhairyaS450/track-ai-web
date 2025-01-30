@@ -6,7 +6,15 @@ import { deleteStudySession, getTodayStudySessions } from "@/api/sessions";
 import { startStudySession, postponeStudySession } from "@/api/sessions";
 import { getEvents } from "@/api/events";
 import { Task, StudySession, Event } from "@/types";
-import { format, isPast, isToday, isValid, addDays, isTomorrow, isWithinInterval } from "date-fns";
+import {
+  format,
+  isPast,
+  isToday,
+  isValid,
+  addDays,
+  isTomorrow,
+  isWithinInterval,
+} from "date-fns";
 import {
   Plus,
   Edit,
@@ -20,6 +28,7 @@ import {
   Play,
   MoreVertical,
   Sparkles,
+  Check,
 } from "lucide-react";
 import { CircularProgress } from "@/components/CircularProgress";
 import { useToast } from "@/hooks/useToast";
@@ -44,7 +53,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteStudySessionDialog } from "@/components/DeleteStudySessionDialog";
 import { CreateStudySessionDialog } from "@/components/CreateStudySessionDialog";
-import { getDeadlines } from "@/api/deadlines";
+import { getDeadlines, markDeadlineAsComplete } from "@/api/deadlines";
 import { getReminders, dismissReminder } from "@/api/deadlines";
 import { Deadline, Reminder } from "@/types/deadlines";
 
@@ -78,12 +87,12 @@ export function Dashboard() {
 
   const fetchData = async () => {
     const [
-      currentTasks, 
-      allTasksData, 
-      sessionsData, 
+      currentTasks,
+      allTasksData,
+      sessionsData,
       eventsData,
       deadlinesData,
-      remindersData
+      remindersData,
     ] = await Promise.all([
       getTodayTasks(),
       getTasks(true),
@@ -199,7 +208,15 @@ export function Dashboard() {
     "The only way to do great work is to love what you do.",
     "It's not whether you get knocked down, it's whether you get up.",
     "Fall seven times, stand up eight.",
+    "Nothing is impossible. The word itself says 'I'm possible!'",
+    "The best way to predict the future is to create it.",
+    "Either you run the day or the day runs you.",
+    "Believe you can and you're halfway there.",
     "You only fail when you stop trying.",
+    "I'd rather be a failure at something I love than a success at something I hate.",
+    "I am not a product of my circumstances. I am a product of my decisions.",
+    "I'd rather regret the things I've done than regret the things I haven't done.",
+    "The only way to do great work is to love what you do.",
   ];
 
   const randomQuote =
@@ -235,7 +252,6 @@ export function Dashboard() {
       isToday(new Date(deadline.dueDate)) &&
       deadline.status !== "Completed"
   );
-
 
   const highPriorityItems = [
     ...allTasks.filter(
@@ -293,7 +309,6 @@ export function Dashboard() {
         description: "Failed to start session",
       });
     }
-
   };
 
   const handlePostponeSession = async (data: {
@@ -320,7 +335,6 @@ export function Dashboard() {
         description: "Failed to postpone session",
       });
     }
-
   };
 
   const handleDeleteSession = async () => {
@@ -347,17 +361,20 @@ export function Dashboard() {
   };
 
   // Filter deadlines and reminders
-  const filteredDeadlines = deadlines.filter(deadline => {
+  const filteredDeadlines = deadlines.filter((deadline) => {
     const dueDate = new Date(deadline.dueDate);
-    return (isToday(dueDate) || isTomorrow(dueDate)) && deadline.status !== 'Completed';
+    return (
+      (isToday(dueDate) || isTomorrow(dueDate)) &&
+      deadline.status !== "Completed"
+    );
   });
 
-  const filteredReminders = reminders.filter(reminder => {
+  const filteredReminders = reminders.filter((reminder) => {
     const reminderDate = new Date(reminder.reminderTime);
     const threeDaysFromNow = addDays(new Date(), 3);
     return isWithinInterval(reminderDate, {
       start: new Date(),
-      end: threeDaysFromNow
+      end: threeDaysFromNow,
     });
   });
 
@@ -383,7 +400,7 @@ export function Dashboard() {
             <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg bg-brand-primary/5 p-4 font-medium text-brand-primary hover:bg-brand-primary/10 transition-colors">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
-                <span>Overdue Tasks ({overdueTasks.length})</span>
+                <span>Overdue Deadlines ({overdueTasks.length})</span>
               </div>
               <ChevronDown className="h-4 w-4 transition-transform duration-200" />
             </CollapsibleTrigger>
@@ -395,7 +412,8 @@ export function Dashboard() {
 
                     flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
                     ${
-                      deadline.source === "google_calendar" || deadline.source === "google_tasks"
+                      deadline.source === "google_calendar" ||
+                      deadline.source === "google_tasks"
                         ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
                         : ""
                     }
@@ -403,14 +421,30 @@ export function Dashboard() {
                     `}
                 >
                   <div>
-                    <p className="font-medium">{deadline.title}</p> 
+                    <p className="font-medium">{deadline.title}</p>
                     <p className="text-sm text-muted-foreground">
                       Due: {formatDate(deadline.dueDate)}
                     </p>
-
                   </div>
-                  <Badge variant="destructive">Overdue</Badge>
-
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
+                      onClick={async () => {
+                        await markDeadlineAsComplete(deadline.id);
+                        await fetchData();
+                        toast({
+                          title: "Deadline completed",
+                          description:
+                            "The deadline has been marked as complete.",
+                        });
+                      }}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Badge variant="destructive">Overdue</Badge>
+                  </div>
                 </div>
               ))}
             </CollapsibleContent>
@@ -436,7 +470,8 @@ export function Dashboard() {
 
                     flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
                     ${
-                      deadline.source === "google_calendar" || deadline.source === "google_tasks"
+                      deadline.source === "google_calendar" ||
+                      deadline.source === "google_tasks"
                         ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
                         : ""
                     }
@@ -450,7 +485,25 @@ export function Dashboard() {
                     </p>
                   </div>
 
-                  <Badge variant="secondary">Today</Badge>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
+                      onClick={async () => {
+                        await markDeadlineAsComplete(deadline.id);
+                        await fetchData();
+                        toast({
+                          title: "Deadline completed",
+                          description:
+                            "The deadline has been marked as complete.",
+                        });
+                      }}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Badge variant="default">Today</Badge>
+                  </div>
                 </div>
               ))}
             </CollapsibleContent>
@@ -475,7 +528,8 @@ export function Dashboard() {
                   className={`
                     flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg border p-3 shadow-sm
                     ${
-                      item.source === "google_calendar" || item.source === "google_tasks"
+                      item.source === "google_calendar" ||
+                      item.source === "google_tasks"
                         ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
                         : ""
                     }
@@ -629,7 +683,9 @@ export function Dashboard() {
         {/* Study Sessions Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Study Sessions</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Today's Study Sessions
+            </CardTitle>
             <Button
               variant="outline"
               size="icon"
@@ -735,18 +791,20 @@ export function Dashboard() {
         </Card>
 
         {/* Events Timeline Card */}
-            <EventsTimeline
-              events={events}
-              onEventClick={(event) => {
-                setEventToEdit(event);
-                setCreateEventOpen(true);
-              }}
-            />
+        <EventsTimeline
+          events={events}
+          onEventClick={(event) => {
+            setEventToEdit(event);
+            setCreateEventOpen(true);
+          }}
+        />
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Upcoming Deadlines & Reminders</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            Upcoming Deadlines & Reminders
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -761,20 +819,38 @@ export function Dashboard() {
                     Due: {format(new Date(deadline.dueDate), "PPp")}
                   </p>
                 </div>
-                <Badge
-                  variant={
-                    deadline.priority === "High"
-                      ? "destructive"
-                      : deadline.priority === "Medium"
-                      ? "default"
-                      : "secondary"
-                  }
-                >
-                  {deadline.priority}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
+                    onClick={async () => {
+                      await markDeadlineAsComplete(deadline.id);
+                      await fetchData();
+                      toast({
+                        title: "Deadline completed",
+                        description:
+                          "The deadline has been marked as complete.",
+                      });
+                    }}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Badge
+                    variant={
+                      deadline.priority === "High"
+                        ? "destructive"
+                        : deadline.priority === "Medium"
+                        ? "default"
+                        : "secondary"
+                    }
+                  >
+                    {deadline.priority}
+                  </Badge>
+                </div>
               </div>
             ))}
-            
+
             {filteredReminders.map((reminder) => (
               <div
                 key={reminder.id}
@@ -798,12 +874,13 @@ export function Dashboard() {
                 </Button>
               </div>
             ))}
-            
-            {filteredDeadlines.length === 0 && filteredReminders.length === 0 && (
-              <p className="text-center text-muted-foreground py-4">
-                No upcoming deadlines or reminders
-              </p>
-            )}
+
+            {filteredDeadlines.length === 0 &&
+              filteredReminders.length === 0 && (
+                <p className="text-center text-muted-foreground py-4">
+                  No upcoming deadlines or reminders
+                </p>
+              )}
           </div>
         </CardContent>
       </Card>

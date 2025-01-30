@@ -145,3 +145,66 @@ body.dark::-webkit-scrollbar-thumb {
     height: 0;
   }
 }
+
+/* Add these animations to your index.css */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dotPulse {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+
+.chat-container {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.message-animation {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.typing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.typing-indicator span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: currentColor;
+  opacity: 0.4;
+}
+
+.typing-indicator span:nth-child(1) {
+  animation: dotPulse 1s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation: dotPulse 1s infinite 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation: dotPulse 1s infinite 0.4s;
+}
