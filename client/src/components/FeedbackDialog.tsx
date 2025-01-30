@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import {
   Dialog,
@@ -9,6 +10,9 @@ import {
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { Star } from "lucide-react";
+import { submitFeedback } from "@/api/feedback";
+import { useToast } from "@/hooks/useToast";
+import { Loader2 } from "lucide-react";
 
 interface FeedbackDialogProps {
   open: boolean;
@@ -18,13 +22,34 @@ interface FeedbackDialogProps {
 export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
-  const handleSubmit = () => {
-    // Here you would typically send the feedback to your backend
-    console.log({ rating, feedback });
-    onOpenChange(false);
-    setRating(0);
-    setFeedback("");
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true);
+      await submitFeedback({
+        rating,
+        feedback
+      });
+
+      toast({
+        title: "Thank you for your feedback!",
+        description: "We appreciate your input to help improve TaskTide.",
+      });
+
+      onOpenChange(false);
+      setRating(0);
+      setFeedback("");
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error submitting feedback",
+        description: error.message || "Please try again later",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -42,6 +67,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
                 size="icon"
                 onClick={() => setRating(star)}
                 className={star <= rating ? "text-yellow-400" : "text-gray-300"}
+                disabled={isSubmitting}
               >
                 <Star className="h-6 w-6 fill-current" />
               </Button>
@@ -52,11 +78,22 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
             className="min-h-[100px]"
+            disabled={isSubmitting}
           />
         </div>
         <DialogFooter>
-          <Button onClick={handleSubmit} disabled={!rating || !feedback.trim()}>
-            Submit Feedback
+          <Button 
+            onClick={handleSubmit} 
+            disabled={!rating || !feedback.trim() || isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              'Submit Feedback'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
