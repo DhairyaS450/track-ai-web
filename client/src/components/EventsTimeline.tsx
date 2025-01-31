@@ -8,12 +8,11 @@ import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 interface EventsTimelineProps {
-  events: Event[];
   onEventClick: (event: Event) => void;
+  events: Event[];
 }
 
-export function EventsTimeline({ events, onEventClick }: EventsTimelineProps) {
-  // Filter and sort events for today and tomorrow
+export function EventsTimeline({ onEventClick, events }: EventsTimelineProps) {
   const filteredEvents = events
     .filter((event) => {
       const eventDate = new Date(event.startTime);

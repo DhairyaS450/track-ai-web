@@ -9,7 +9,6 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { addStudySession, updateStudySession } from "@/api/sessions";
 import { useToast } from "@/hooks/useToast";
 import { StudySession, Task, Event } from "@/types";
 import { Textarea } from "./ui/textarea";
@@ -107,21 +106,7 @@ export function CreateStudySessionDialog({
         notes,
       };
 
-      let response;
-      if (mode === "edit" && initialSession?.id) {
-        response = await updateStudySession(initialSession.id, sessionData);
-        toast({
-          title: "Success",
-          description: "Study session updated successfully",
-        });
-      } else {
-        response = await addStudySession(sessionData);
-        toast({
-          title: "Success",
-          description: "Study session created successfully",
-        });
-      }
-      onSessionCreated(response.session);
+      onSessionCreated(sessionData as StudySession);
       onOpenChange(false);
     } catch (error) {
       toast({

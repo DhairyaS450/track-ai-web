@@ -9,21 +9,17 @@ import { Button } from "./ui/button";
 import { Edit, Trash2 } from "lucide-react";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { DeleteTaskDialog } from "./DeleteTaskDialog";
-import { deleteTask } from "@/api/tasks";
+import { useTasks } from "@/hooks/useTasks";
 import { useToast } from "@/hooks/useToast";
 
 interface ViewAllTasksDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  tasks: Task[];
-  onTasksChange?: () => void;
 }
 
 export function ViewAllTasksDialog({
   open,
   onOpenChange,
-  tasks,
-  onTasksChange
 }: ViewAllTasksDialogProps) {
   const [filters, setFilters] = useState<TaskFilters>({});
   const [editTask, setEditTask] = useState<Task | null>(null);
@@ -31,6 +27,8 @@ export function ViewAllTasksDialog({
   const [deleteTaskOpen, setDeleteTaskOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const { toast } = useToast();
+  
+  const { tasks, addTask, deleteTask } = useTasks(true);
 
   const filterTasks = (tasksToFilter: Task[]) => {
     return tasksToFilter.filter((task) => {
@@ -90,31 +88,42 @@ export function ViewAllTasksDialog({
         title: "Success",
         description: "Task deleted successfully",
       });
-      if (onTasksChange) {
-        onTasksChange();
-      }
+      setTaskToDelete(null);
+      setDeleteTaskOpen(false);
     } catch (error) {
+      console.error("Error deleting task:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to delete task",
       });
     }
-    setTaskToDelete(null);
-    setDeleteTaskOpen(false);
   };
 
-  // Split tasks into future and past based on deadline
-  const futureTasks = filterTasks(
-    tasks.filter(task => {
-      return task.status !== 'completed';
-    })
-  );
+  const handleCreateTask = async (taskData: Task) => {
+    try {
+      await addTask(taskData);
+      toast({
+        title: "Success",
+        description: "Task created successfully",
+      });
+      setCreateTaskOpen(false);
+      setEditTask(null);
+    } catch (error) {
+      console.error("Error creating task:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to create task",
+      });
+    }
+  };
 
+  const futureTasks = filterTasks(
+    tasks.filter((task) => task.status !== "completed")
+  );
   const oldTasks = filterTasks(
-    tasks.filter(task => {
-      return task.status === 'completed';
-    })
+    tasks.filter((task) => task.status === "completed")
   );
 
   const resetFilters = () => {
@@ -225,13 +234,7 @@ export function ViewAllTasksDialog({
         <CreateTaskDialog
           open={createTaskOpen}
           onOpenChange={setCreateTaskOpen}
-          onTaskCreated={() => {
-            if (onTasksChange) {
-              onTasksChange();
-            }
-            setCreateTaskOpen(false);
-            setEditTask(null);
-          }}
+          onTaskCreated={handleCreateTask}
           initialTask={editTask}
           mode={editTask ? 'edit' : 'create'}
         />

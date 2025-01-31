@@ -36,7 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
-import { createDeadline, updateDeadline } from "@/api/deadlines";
+import { updateDeadline } from "@/api/deadlines";
 import { addTask } from "@/api/tasks";
 import { Deadline, DeadlineStatus } from "@/types";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -131,7 +131,6 @@ export function CreateDeadlineDialog({
       };
 
       if (mode === "edit" && initialDeadline) {
-        await updateDeadline(initialDeadline.id, deadlineData);
         onDeadlineCreated({
           ...deadlineData,
           id: initialDeadline.id,
@@ -143,15 +142,7 @@ export function CreateDeadlineDialog({
           description: "Deadline updated successfully",
         });
       } else {
-        const response = await createDeadline(deadlineData);
-        onDeadlineCreated({
-          ...response,
-          id: response.id,
-          status: response.status,
-          createdAt: response.createdAt,
-          updatedAt: response.updatedAt,
-          dueDate: response.dueDate
-        });
+        onDeadlineCreated(deadlineData as Deadline);
         toast({
           title: "Success",
           description: "Deadline created successfully",

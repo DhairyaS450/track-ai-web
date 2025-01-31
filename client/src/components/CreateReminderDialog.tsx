@@ -37,7 +37,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
-import { createReminder, updateReminder } from "@/api/deadlines";
 import { addEvent } from "@/api/events";
 import { Reminder } from "@/types";
 
@@ -165,10 +164,7 @@ export function CreateReminderDialog({
 
       console.log(reminderData);
 
-      let newReminder: Reminder | null = null;
-
       if (mode === "edit" && initialReminder) {
-        await updateReminder(initialReminder.id, reminderData);
         onReminderCreated({
           ...reminderData,
           id: initialReminder.id,
@@ -180,8 +176,7 @@ export function CreateReminderDialog({
           description: "Reminder updated successfully",
         });
       } else {
-        newReminder = await createReminder(reminderData);
-        onReminderCreated(newReminder as Reminder);
+        onReminderCreated(reminderData as Reminder);
         toast({
           title: "Success",
           description: "Reminder created successfully",

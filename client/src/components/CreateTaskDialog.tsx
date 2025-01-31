@@ -11,7 +11,6 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { addTask, updateTask } from "@/api/tasks";
 import { useToast } from "@/hooks/useToast";
 import { Task, TimeSlot } from "@/types";
 import { Plus, Trash } from "lucide-react";
@@ -118,23 +117,11 @@ export function CreateTaskDialog({
         status,
       };
 
-      if (mode === "edit" && initialTask?.id) {
-        await updateTask(initialTask.id, taskData);
-        toast({
-          title: "Success",
-          description: "Task updated successfully",
-        });
-      } else {
-        await addTask(taskData);
-        toast({
-          title: "Success",
-          description: "Task created successfully",
-        });
-      }
-
+      // Just pass the data to the parent handler
       onTaskCreated(taskData as Task);
       onOpenChange(false);
     } catch (error) {
+      console.error("Error creating task:", error);
       toast({
         variant: "destructive",
         title: "Error",

@@ -97,6 +97,7 @@ export function StudySessions() {
         description: "Study session ended successfully",
       });
     } catch (error) {
+      console.error("Error ending session:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -126,6 +127,7 @@ export function StudySessions() {
         description: "Study session rescheduled",
       });
     } catch (error) {
+      console.error("Error rescheduling session:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -515,6 +517,7 @@ export function StudySessions() {
               description: "Study session deleted successfully",
             });
           } catch (error) {
+            console.error("Error deleting session:", error);
             toast({
               variant: "destructive",
               title: "Error",
@@ -538,6 +541,7 @@ export function StudySessions() {
               description: "Study session postponed successfully",
             });
           } catch (error) {
+            console.error("Error postponing session:", error);
             toast({
               variant: "destructive",
               title: "Error",

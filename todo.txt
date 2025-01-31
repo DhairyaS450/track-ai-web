@@ -12,8 +12,8 @@ PRIORITY: Get google calendar working - in-progress
 - Problem: Google tasks not fully implemented, and off by 5 hrs
 - Problem: Any updates don't get synced back to google calendar
 - Solution: When task/event is updated, sync possible fields back to google calendar.
-PRIORITY: Mobile view is cut off for create deadline dialog and create reminder dialog
-
+PRIORITY: When certain fields of a task are updated, it should update the associated deadline as well
+PRIORITY: When certain fields of an event are updated, it should update the associated reminders as well
 PRIORITY: If a description is too long for a task, event or study session enable a collapse and view more button. DO NOT EXTEND THE PAGE, ESPECIALLY ON MOBILE
 Fix ongoing session bugs
 Allow users to just add deadline or just add reminder rather than task, event or study session

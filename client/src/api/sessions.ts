@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { StudySession } from '@/types';
 import { isToday } from 'date-fns';
 import { db } from '@/config/firebase';
@@ -158,7 +159,17 @@ export const updateStudySession = async (id: string, updates: Partial<StudySessi
       const updatedData = {
         ...updates,
         completion: updates.completion ?? 0,
-        status: updates.status || 'scheduled'
+        status: updates.status || 'scheduled',
+        goal: updates.goal || '',
+        notes: updates.notes || '',
+        linkedTaskIds: updates.linkedTaskIds || [],
+        linkedEventIds: updates.linkedEventIds || [],
+        priority: updates.priority || 'Low',
+        duration: updates.duration || 0,
+        scheduledFor: updates.scheduledFor || new Date().toISOString(),
+        startTime: updates.startTime || null,
+        endTime: updates.endTime || null,
+        technique: updates.technique || 'Pomodoro',
       };
 
       await updateDoc(studySessionRef, updatedData);

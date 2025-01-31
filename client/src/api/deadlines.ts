@@ -18,6 +18,7 @@ export async function createDeadline(deadline: Omit<Deadline, 'id' | 'createdAt'
     const now = new Date().toISOString();
     const deadlineData = {
       ...deadline,
+      userId: auth.currentUser?.uid || '',
       createdAt: now,
       updatedAt: now,
     };

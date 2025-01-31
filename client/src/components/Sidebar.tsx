@@ -25,6 +25,14 @@ import { CreateDeadlineDialog } from "./CreateDeadlineDialog";
 import { CreateReminderDialog } from "./CreateReminderDialog";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { SyncDialog } from "./SyncDialog";
+import { useReminders } from "@/hooks/useReminders";
+import { useDeadlines } from "@/hooks/useDeadlines";
+import { useSessions } from "@/hooks/useSessions";
+import { useEvents } from "@/hooks/useEvents";
+import { useTasks } from "@/hooks/useTasks";
+import { Task, Event, StudySession } from "@/types";
+import { Deadline, Reminder } from "@/types/deadlines";
+import { toast } from "@/hooks/useToast";
 
 interface SidebarProps {
   open: boolean;
@@ -54,6 +62,12 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
   const [isDialogOpen, setDialogOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
+  const { addDeadline } = useDeadlines();
+  const { addReminder } = useReminders();
+  const { addTask } = useTasks();
+  const { addEvent } = useEvents();
+  const { addSession } = useSessions();
+  
   const handleQuickMessage = () => {
     if (quickMessage.trim()) {
       navigate("/chatbot", { state: { message: quickMessage } });
@@ -190,8 +204,22 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
       <CreateTaskDialog
         open={createTaskOpen}
         onOpenChange={setCreateTaskOpen}
-        onTaskCreated={() => {
-          setCreateTaskOpen(false);
+        onTaskCreated={(task: Task) => {
+          try {
+            addTask(task);
+            setCreateTaskOpen(false);
+            toast({
+              title: "Success",
+              description: "Task created successfully",
+            });
+          } catch (error) {
+            console.error("Error creating task:", error);
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Failed to create task",
+            });
+          }
         }}
         mode="create"
       />
@@ -199,8 +227,22 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
       <CreateEventDialog
         open={createEventOpen}
         onOpenChange={setCreateEventOpen}
-        onEventCreated={() => {
-          setCreateEventOpen(false);
+        onEventCreated={(event: Event) => {
+          try {
+            addEvent(event);
+            setCreateEventOpen(false);
+            toast({
+              title: "Success",
+              description: "Event created successfully",
+            });
+          } catch (error) {
+            console.error("Error creating event:", error);
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Failed to create event",
+            });
+          }
         }}
         mode="create"
         tasks={[]}
@@ -209,8 +251,22 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
       <CreateStudySessionDialog
         open={createSessionOpen}
         onOpenChange={setCreateSessionOpen}
-        onSessionCreated={() => {
-          setCreateSessionOpen(false);
+        onSessionCreated={(session: StudySession) => {
+          try {
+            addSession(session);
+            setCreateSessionOpen(false);
+            toast({
+              title: "Success",
+              description: "Session created successfully",
+            });
+          } catch (error) {
+            console.error("Error creating session:", error);
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Failed to create session",
+            });
+          }
         }}
         mode="create"
         tasks={[]}
@@ -220,8 +276,22 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
       <CreateDeadlineDialog
         open={createDeadlineOpen}
         onOpenChange={setCreateDeadlineOpen}
-        onDeadlineCreated={() => {
-          setCreateDeadlineOpen(false);
+        onDeadlineCreated={(deadline: Deadline) => {
+          try {
+            addDeadline(deadline);
+            setCreateDeadlineOpen(false);
+            toast({
+              title: "Success",
+              description: "Deadline created successfully",
+            });
+          } catch (error) {
+            console.error("Error creating deadline:", error);
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Failed to create deadline",
+            });
+          }
         }}
         mode="create"
       />
@@ -229,8 +299,22 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
       <CreateReminderDialog
         open={createReminderOpen}
         onOpenChange={setCreateReminderOpen}
-        onReminderCreated={() => {
-          setCreateReminderOpen(false);
+        onReminderCreated={(reminder: Reminder) => {
+          try {
+            addReminder(reminder);
+            setCreateReminderOpen(false);
+            toast({
+              title: "Success",
+              description: "Reminder created successfully",
+            });
+          } catch (error) {
+            console.error("Error creating reminder:", error);
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Failed to create reminder",
+            });
+          }
         }}
         mode="create"
       />

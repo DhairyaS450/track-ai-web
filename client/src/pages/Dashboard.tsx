@@ -1,19 +1,15 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getTasks, deleteTask, getTodayTasks } from "@/api/tasks";
-import { deleteStudySession, getTodayStudySessions } from "@/api/sessions";
-import { startStudySession, postponeStudySession } from "@/api/sessions";
-import { getEvents } from "@/api/events";
-import { Task, StudySession, Event } from "@/types";
+import { postponeStudySession } from "@/api/sessions";
+import { Task, StudySession, Event, Deadline, Reminder } from "@/types";
 import {
   format,
   isPast,
   isToday,
   isValid,
-  addDays,
   isTomorrow,
-  isWithinInterval,
 } from "date-fns";
 import {
   Plus,
@@ -53,15 +49,37 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteStudySessionDialog } from "@/components/DeleteStudySessionDialog";
 import { CreateStudySessionDialog } from "@/components/CreateStudySessionDialog";
-import { getDeadlines, markDeadlineAsComplete } from "@/api/deadlines";
-import { getReminders, dismissReminder } from "@/api/deadlines";
-import { Deadline, Reminder } from "@/types/deadlines";
+import { useTasks } from '@/hooks/useTasks';
+import { useEvents } from '@/hooks/useEvents';
+import { useSessions } from '@/hooks/useSessions';
+import { useDeadlines } from '@/hooks/useDeadlines';
+import { useReminders } from '@/hooks/useReminders';
 
 export function Dashboard() {
+  const { tasks: hookTasks, loading: tasksLoading, addTask, updateTask, deleteTask } = useTasks(true);
+  const { events: allEvents, loading: eventsLoading, addEvent, updateEvent } = useEvents();
+  const { 
+    sessions: allSessions, 
+    loading: sessionsLoading, 
+    addSession, 
+    updateSession, 
+    deleteSession,
+    startSession,
+  } = useSessions();
+  const {
+    deadlines: allDeadlines,
+    loading: deadlinesLoading,
+    markAsComplete: markDeadlineComplete
+  } = useDeadlines();
+  const {
+    reminders: allReminders,
+    loading: remindersLoading,
+    dismissReminder
+  } = useReminders();
+
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [allTasks, setAllTasks] = useState<Task[]>([]);
-  const [sessions, setSessions] = useState<StudySession[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [sessions, setSessions] = useState<StudySession[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [viewAllTasksOpen, setViewAllTasksOpen] = useState(false);
@@ -85,64 +103,105 @@ export function Dashboard() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const { toast } = useToast();
 
-  const fetchData = async () => {
-    const [
-      currentTasks,
-      allTasksData,
-      sessionsData,
-      eventsData,
-      deadlinesData,
-      remindersData,
-    ] = await Promise.all([
-      getTodayTasks(),
-      getTasks(true),
-      getTodayStudySessions(),
-      getEvents(),
-      getDeadlines(),
-      getReminders(),
-    ]);
-    setTasks(currentTasks.tasks);
-    setAllTasks(allTasksData.tasks);
-    setSessions(sessionsData.sessions);
-    setEvents(eventsData.events);
-    setDeadlines(deadlinesData.deadlines);
-    setReminders(remindersData.reminders);
-  };
+  useEffect(() => {
+    if (!tasksLoading) {
+      const todayTasks = hookTasks.filter(task => 
+        task.timeSlots?.some(slot => isToday(new Date(slot.startDate)))
+      );
+      setTasks(todayTasks);
+    }
+  }, [hookTasks, tasksLoading]);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (!eventsLoading) {
+      const todayEvents = allEvents.filter(event => 
+        isToday(new Date(event.startTime)) || isTomorrow(new Date(event.startTime))
+      );
+      setEvents(todayEvents);
+    }
+  }, [allEvents, eventsLoading]);
+
+  useEffect(() => {
+    if (!sessionsLoading) {
+      const todaySessions = allSessions.filter(session => 
+        isToday(new Date(session.scheduledFor))
+      );
+      setSessions(todaySessions);
+    }
+  }, [allSessions, sessionsLoading]);
+
+  useEffect(() => {
+    if (!deadlinesLoading) {
+      console.log(allDeadlines);
+      const todayDeadlines = allDeadlines.filter(deadline => 
+        isToday(new Date(deadline.dueDate)) || isTomorrow(new Date(deadline.dueDate))
+      );
+      setDeadlines(todayDeadlines);
+    }
+  }, [allDeadlines, deadlinesLoading]);
+
+  useEffect(() => {
+    if (!remindersLoading) {
+      console.log(allReminders);
+      const todayReminders = allReminders.filter(reminder => 
+        isToday(new Date(reminder.reminderTime)) || isTomorrow(new Date(reminder.reminderTime))
+      );
+      setReminders(todayReminders);
+    }
+  }, [allReminders, remindersLoading]);
+
+
+  const handleCreateTask = async (taskData: Task) => {
+    try {
+      if (editTask) {
+        await updateTask(editTask.id, taskData);
+        toast({
+          title: "Success",
+          description: "Task updated successfully",
+        });
+      } else {
+        await addTask(taskData);
+        toast({
+          title: "Success",
+          description: "Task created successfully",
+        });
+      }
+      setCreateTaskOpen(false);
+      setEditTask(null);
+    } catch (error) {
+      console.error("Error handling task:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: editTask ? "Failed to update task" : "Failed to create task",
+      });
+    }
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditTask(task);
+    setCreateTaskOpen(true);
+  };
 
   const handleDeleteTask = async () => {
     if (!taskToDelete) return;
 
     try {
       await deleteTask(taskToDelete);
-      await fetchData();
       toast({
         title: "Success",
         description: "Task deleted successfully",
       });
     } catch (error) {
+      console.error("Error deleting task:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to delete task",
       });
-      console.error("Error deleting task:", error);
     }
     setTaskToDelete(null);
     setDeleteTaskOpen(false);
-  };
-
-  const handleCreateTask = () => {
-    setEditTask(null);
-    setCreateTaskOpen(true);
-  };
-
-  const handleEditTask = (task: Task) => {
-    setEditTask(task);
-    setCreateTaskOpen(true);
   };
 
   const completedTasks = tasks.filter(
@@ -234,9 +293,9 @@ export function Dashboard() {
 
   //   input.value = "";
   // };
-
+  
   // Filter priority items
-  const overdueTasks = deadlines.filter(
+  const overdueTasks = allDeadlines.filter(
     (deadline) =>
       deadline.dueDate &&
       isValid(new Date(deadline.dueDate)) &&
@@ -245,7 +304,7 @@ export function Dashboard() {
       deadline.status !== "Completed"
   );
 
-  const todayTasks = deadlines.filter(
+  const todayTasks = allDeadlines.filter(
     (deadline) =>
       deadline.dueDate &&
       isValid(new Date(deadline.dueDate)) &&
@@ -254,7 +313,7 @@ export function Dashboard() {
   );
 
   const highPriorityItems = [
-    ...allTasks.filter(
+    ...hookTasks.filter(
       (task) =>
         task.deadline &&
         isValid(new Date(task.deadline)) &&
@@ -295,8 +354,7 @@ export function Dashboard() {
 
   const handleStartSession = async (sessionId: string) => {
     try {
-      await startStudySession(sessionId);
-      await fetchData();
+      await startSession(sessionId);
       toast({
         title: "Success",
         description: "Study session started",
@@ -320,7 +378,6 @@ export function Dashboard() {
 
     try {
       await postponeStudySession(sessionToPostpone, data);
-      await fetchData();
       toast({
         title: "Success",
         description: "Study session postponed",
@@ -341,8 +398,7 @@ export function Dashboard() {
     if (!sessionToDelete) return;
 
     try {
-      await deleteStudySession(sessionToDelete);
-      await fetchData();
+      await deleteSession(sessionToDelete);
       toast({
         title: "Success",
         description: "Study session deleted",
@@ -361,22 +417,107 @@ export function Dashboard() {
   };
 
   // Filter deadlines and reminders
-  const filteredDeadlines = deadlines.filter((deadline) => {
-    const dueDate = new Date(deadline.dueDate);
-    return (
-      (isToday(dueDate) || isTomorrow(dueDate)) &&
-      deadline.status !== "Completed"
-    );
-  });
+  const filteredDeadlines = allDeadlines.filter(
+    (deadline) =>
+      !isPast(new Date(deadline.dueDate)) &&
+      (isToday(new Date(deadline.dueDate)) ||
+        isTomorrow(new Date(deadline.dueDate)))
+  );
 
-  const filteredReminders = reminders.filter((reminder) => {
-    const reminderDate = new Date(reminder.reminderTime);
-    const threeDaysFromNow = addDays(new Date(), 3);
-    return isWithinInterval(reminderDate, {
-      start: new Date(),
-      end: threeDaysFromNow,
-    });
-  });
+  const filteredReminders = allReminders.filter(
+    (reminder) =>
+      !isPast(new Date(reminder.reminderTime)) &&
+      (isToday(new Date(reminder.reminderTime)) ||
+        isTomorrow(new Date(reminder.reminderTime)))
+  );
+
+  const handleCreateEvent = async (eventData: Event) => {
+    try {
+      if (eventToEdit) {
+        await updateEvent(eventToEdit.id, eventData);
+        toast({
+          title: "Success",
+          description: "Event updated successfully",
+        });
+      } else {
+        await addEvent(eventData);
+        toast({
+          title: "Success",
+          description: "Event created successfully",
+        });
+      }
+      setCreateEventOpen(false);
+      setEventToEdit(null);
+    } catch (error) {
+      console.error("Error handling event:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: eventToEdit ? "Failed to update event" : "Failed to create event",
+      });
+    }
+  };
+
+  const handleCreateSession = async (sessionData: StudySession) => {
+    try {
+      if (sessionToEdit) {
+        await updateSession(sessionToEdit.id, sessionData);
+        toast({
+          title: "Success",
+          description: "Study session updated successfully",
+        });
+      } else {
+        await addSession(sessionData);
+        toast({
+          title: "Success",
+          description: "Study session created successfully",
+        });
+      }
+      setCreateSessionOpen(false);
+      setSessionToEdit(null);
+    } catch (error) {
+      console.error("Error handling session:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: sessionToEdit ? "Failed to update session" : "Failed to create session",
+      });
+    }
+  };
+
+  const handleMarkDeadlineComplete = async (deadlineId: string) => {
+    try {
+      await markDeadlineComplete(deadlineId);
+      toast({
+        title: "Success",
+        description: "Deadline marked as complete",
+      });
+    } catch (error) {
+      console.error("Error marking deadline complete:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to mark deadline as complete",
+      });
+    }
+  };
+
+  const handleDismissReminder = async (reminderId: string) => {
+    try {
+      await dismissReminder(reminderId);
+      toast({
+        title: "Success",
+        description: "Reminder dismissed",
+      });
+    } catch (error) {
+      console.error("Error dismissing reminder:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to dismiss reminder",
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -431,15 +572,7 @@ export function Dashboard() {
                       variant="ghost"
                       size="sm"
                       className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
-                      onClick={async () => {
-                        await markDeadlineAsComplete(deadline.id);
-                        await fetchData();
-                        toast({
-                          title: "Deadline completed",
-                          description:
-                            "The deadline has been marked as complete.",
-                        });
-                      }}
+                      onClick={() => handleMarkDeadlineComplete(deadline.id)}
                     >
                       <Check className="h-4 w-4" />
                     </Button>
@@ -490,15 +623,7 @@ export function Dashboard() {
                       variant="ghost"
                       size="sm"
                       className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
-                      onClick={async () => {
-                        await markDeadlineAsComplete(deadline.id);
-                        await fetchData();
-                        toast({
-                          title: "Deadline completed",
-                          description:
-                            "The deadline has been marked as complete.",
-                        });
-                      }}
+                      onClick={() => handleMarkDeadlineComplete(deadline.id)}
                     >
                       <Check className="h-4 w-4" />
                     </Button>
@@ -567,7 +692,10 @@ export function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tasks</CardTitle>
-            <Button variant="outline" size="icon" onClick={handleCreateTask}>
+            <Button variant="outline" size="icon" onClick={() => {
+              setEditTask(null);
+              setCreateTaskOpen(true);
+            }}>
               <Plus className="h-4 w-4" />
             </Button>
           </CardHeader>
@@ -792,11 +920,11 @@ export function Dashboard() {
 
         {/* Events Timeline Card */}
         <EventsTimeline
-          events={events}
           onEventClick={(event) => {
             setEventToEdit(event);
             setCreateEventOpen(true);
           }}
+          events={events}
         />
       </div>
 
@@ -823,16 +951,7 @@ export function Dashboard() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
-                    onClick={async () => {
-                      await markDeadlineAsComplete(deadline.id);
-                      await fetchData();
-                      toast({
-                        title: "Deadline completed",
-                        description:
-                          "The deadline has been marked as complete.",
-                      });
-                    }}
+                    onClick={() => handleMarkDeadlineComplete(deadline.id)}
                   >
                     <Check className="h-4 w-4" />
                   </Button>
@@ -865,10 +984,7 @@ export function Dashboard() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={async () => {
-                    await dismissReminder(reminder.id);
-                    await fetchData();
-                  }}
+                  onClick={() => handleDismissReminder(reminder.id)}
                 >
                   Dismiss
                 </Button>
@@ -901,11 +1017,7 @@ export function Dashboard() {
       <CreateTaskDialog
         open={createTaskOpen}
         onOpenChange={setCreateTaskOpen}
-        onTaskCreated={() => {
-          fetchData();
-          setEditTask(null);
-          setCreateTaskOpen(false);
-        }}
+        onTaskCreated={handleCreateTask}
         initialTask={editTask}
         mode={editTask ? "edit" : "create"}
       />
@@ -913,8 +1025,6 @@ export function Dashboard() {
       <ViewAllTasksDialog
         open={viewAllTasksOpen}
         onOpenChange={setViewAllTasksOpen}
-        tasks={allTasks}
-        onTasksChange={fetchData}
       />
 
       <DeleteTaskDialog
@@ -926,11 +1036,7 @@ export function Dashboard() {
       <CreateEventDialog
         open={createEventOpen}
         onOpenChange={setCreateEventOpen}
-        onEventCreated={() => {
-          fetchData();
-          setCreateEventOpen(false);
-          setEventToEdit(null);
-        }}
+        onEventCreated={handleCreateEvent}
         initialEvent={eventToEdit}
         mode={eventToEdit ? "edit" : "create"}
         tasks={tasks}
@@ -939,11 +1045,7 @@ export function Dashboard() {
       <CreateStudySessionDialog
         open={createSessionOpen}
         onOpenChange={setCreateSessionOpen}
-        onSessionCreated={() => {
-          fetchData();
-          setCreateSessionOpen(false);
-          setSessionToEdit(null);
-        }}
+        onSessionCreated={handleCreateSession}
         initialSession={sessionToEdit}
         mode={sessionToEdit ? "edit" : "create"}
         tasks={tasks}

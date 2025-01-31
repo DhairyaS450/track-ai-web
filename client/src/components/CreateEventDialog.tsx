@@ -13,7 +13,6 @@ import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-import { addEvent, updateEvent } from "@/api/events";
 import { useToast } from "@/hooks/useToast";
 import { Event, Task } from "@/types";
 import { ScrollArea } from "./ui/scroll-area";
@@ -120,25 +119,10 @@ export function CreateEventDialog({
         calendarId: initialEvent?.calendarId,
       };
 
-      if (mode === "edit" && initialEvent?.id) {
-        const { event } = await updateEvent(initialEvent.id, eventData);
-        toast({
-          title: "Success",
-          description: "Event updated successfully",
-        });
-        setNewlyCreatedEvent(event);
-        onEventCreated(event);
-        if (event.source === "google_calendar") {
-          setUpdateDialogOpen(true);
-        }
-      } else {
-        const { event } = await addEvent(eventData);
-        toast({
-          title: "Success",
-          description: "Event created successfully",
-        });
-        setNewlyCreatedEvent(event);
-        onEventCreated(event);
+      onEventCreated(eventData as Event);
+      if (mode === "edit" && initialEvent?.source === "google_calendar") {
+        setNewlyCreatedEvent(eventData as Event);
+        setUpdateDialogOpen(true);
       }
       onOpenChange(false);
     } catch (error) {
@@ -147,6 +131,7 @@ export function CreateEventDialog({
         title: "Error",
         description: "Failed to save event",
       });
+      console.error("Error saving event:", error);
     }
   };
 
@@ -172,6 +157,7 @@ export function CreateEventDialog({
       console.log('Updating event on Google Calendar:', event);
       await updateCalendarEvent(event.calendarId || "", event.id || "", calendarUpdates)
     } catch (error) {
+      console.error("Error updating event on Google Calendar:", error);
       toast({
         variant: "destructive",
         title: "Error",

@@ -1,13 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getTasks, deleteTask } from "@/api/tasks";
-import { getStudySessions, deleteStudySession } from "@/api/sessions";
-import { getEvents, deleteEvent } from "@/api/events";
-import { getDeadlines, markDeadlineAsComplete, dismissReminder } from "@/api/deadlines";
-import { getReminders } from "@/api/deadlines";
 import { Task, StudySession, Event, Deadline, Reminder } from "@/types";
 import { format, isSameDay, addWeeks, startOfWeek } from "date-fns";
+import { useTasks } from "@/hooks/useTasks";
+import { useEvents } from "@/hooks/useEvents";
+import { useSessions } from '@/hooks/useSessions';
 
 import {
   Calendar as CalendarIcon,
@@ -21,7 +19,6 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { CreateEventDialog } from "@/components/CreateEventDialog";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
@@ -36,19 +33,32 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { CreateDeadlineDialog } from "@/components/CreateDeadlineDialog";
 import { CreateReminderDialog } from "@/components/CreateReminderDialog";
+import { useReminders } from "@/hooks/useReminders";
+import { useDeadlines } from "@/hooks/useDeadlines";
 
 export function Calendar() {
   const [date, setDate] = useState<Date>(new Date());
   const [currentWeek, setCurrentWeek] = useState<Date>(
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
+  const { tasks: allTasks, loading: tasksLoading, addTask, updateTask, deleteTask } = useTasks(true);
+  const { events: allEvents, loading: eventsLoading, addEvent, updateEvent, deleteEvent } = useEvents();
+  const { 
+    sessions: allSessions, 
+    loading: sessionsLoading, 
+    addSession, 
+    updateSession, 
+    deleteSession,
+  } = useSessions();
+
+  const { reminders: allReminders, loading: remindersLoading, addReminder, updateReminder, dismissReminder } = useReminders();
+  const { deadlines: allDeadlines, loading: deadlinesLoading, addDeadline, updateDeadline, markAsComplete } = useDeadlines();
+
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [sessions, setSessions] = useState<StudySession[]>([]);
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [sessions, setSessions] = useState<StudySession[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [createEventOpen, setCreateEventOpen] = useState(false);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [createSessionOpen, setCreateSessionOpen] = useState(false);
@@ -70,74 +80,97 @@ export function Calendar() {
   const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  const fetchEvents = async (selectedDate: Date) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const [tasksData, sessionsData, eventsData, deadlinesData, remindersData] = await Promise.all([
-        getTasks(),
-        getStudySessions(),
-        getEvents(),
-        getDeadlines(),
-        getReminders(),
-      ]);
+  // Memoize filtered data
+  const filteredTasks = useMemo(() => {
+    if (tasksLoading) return [];
+    return allTasks.filter((task) =>
+      task.timeSlots?.some((slot) =>
+        isSameDay(new Date(slot.startDate), date)
+      )
+    );
+  }, [date, allTasks, tasksLoading]);
 
-      const filteredTasks = tasksData.tasks.filter((task) =>
-        task.timeSlots?.some((slot) =>
-          isSameDay(new Date(slot.startDate), selectedDate)
-        )
-      );
+  const filteredEvents = useMemo(() => {
+    if (eventsLoading) return [];
+    return allEvents.filter((event) =>
+      isSameDay(new Date(event.startTime), date)
+    );
+  }, [date, allEvents, eventsLoading]);
 
-      const filteredSessions = sessionsData.sessions.filter((session) =>
-        isSameDay(new Date(session.scheduledFor), selectedDate)
-      );
+  const filteredSessions = useMemo(() => {
+    if (sessionsLoading) return [];
+    return allSessions.filter((session) =>
+      isSameDay(new Date(session.scheduledFor), date)
+    );
+  }, [date, allSessions, sessionsLoading]);
 
-      const filteredDeadlines = deadlinesData.deadlines.filter((deadline) =>
-        isSameDay(new Date(deadline.dueDate), selectedDate)
-      );
+  const filteredDeadlines = useMemo(() => {
+    if (deadlinesLoading) return [];
+    return allDeadlines.filter((deadline) =>
+      isSameDay(new Date(deadline.dueDate), date)
+    );
+  }, [date, allDeadlines, deadlinesLoading]);
 
-      const filteredReminders = remindersData.reminders.filter((reminder) =>
-        isSameDay(new Date(reminder.reminderTime), selectedDate) && reminder.status !== "Dismissed"
-      );
+  const filteredReminders = useMemo(() => {
+    if (remindersLoading) return [];
+    return allReminders.filter((reminder) =>
+      isSameDay(new Date(reminder.reminderTime), date) && 
+      reminder.status !== "Dismissed"
+    );
+  }, [date, allReminders, remindersLoading]);
 
-      const filteredEvents = eventsData.events.filter((event) =>
-        isSameDay(new Date(event.startTime), selectedDate)
-      );
-
-      setTasks(filteredTasks);
-      setSessions(filteredSessions);
-      setDeadlines(filteredDeadlines);
-      setReminders(filteredReminders);
-      setEvents(filteredEvents);
-    } catch (err) {
-      setError("Failed to load calendar events. Please try again later.");
-      console.error("Calendar fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Replace useEffects with direct usage of memoized values
+  useEffect(() => {
+    setTasks(filteredTasks);
+  }, [filteredTasks]);
 
   useEffect(() => {
-    fetchEvents(date);
-  }, [date]);
+    setEvents(filteredEvents);
+  }, [filteredEvents]);
+
+  useEffect(() => {
+    setSessions(filteredSessions);
+  }, [filteredSessions]);
+
+  useEffect(() => {
+    setDeadlines(filteredDeadlines);
+  }, [filteredDeadlines]);
+
+  useEffect(() => {
+    setReminders(filteredReminders);
+  }, [filteredReminders]);
+
+  // Memoize loading state
+  const isLoading = useMemo(() => 
+    tasksLoading || eventsLoading || sessionsLoading || remindersLoading || deadlinesLoading,
+    [tasksLoading, eventsLoading, sessionsLoading, remindersLoading, deadlinesLoading]
+  );
+
+  // Memoize chronological view data
+  const chronologicalData = useMemo(() => ({
+    tasks: filteredTasks,
+    events: filteredEvents,
+    sessions: filteredSessions,
+    deadlines: filteredDeadlines,
+    reminders: filteredReminders,
+  }), [filteredTasks, filteredEvents, filteredSessions, filteredDeadlines, filteredReminders]);
 
   const handleDeleteTask = async () => {
     if (!taskToDelete) return;
 
     try {
       await deleteTask(taskToDelete);
-      await fetchEvents(date);
       toast({
         title: "Success",
         description: "Task deleted successfully",
       });
     } catch (error) {
+      console.error("Error deleting task:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to delete task",
       });
-      console.error("Error deleting task:", error);
     }
     setTaskToDelete(null);
     setDeleteTaskOpen(false);
@@ -147,8 +180,7 @@ export function Calendar() {
     if (!sessionToDelete) return;
 
     try {
-      await deleteStudySession(sessionToDelete);
-      await fetchEvents(date);
+      await deleteSession(sessionToDelete);
       toast({
         title: "Success",
         description: "Study session deleted successfully",
@@ -168,7 +200,6 @@ export function Calendar() {
   const handleDeleteEvent = async (eventId: string) => {
     try {
       await deleteEvent(eventId);
-      await fetchEvents(date);
       toast({
         title: "Success",
         description: "Event deleted successfully",
@@ -185,7 +216,7 @@ export function Calendar() {
 
   const handleCompleteDeadline = async (deadlineId: string) => {
     try {
-      await markDeadlineAsComplete(deadlineId);
+      await markAsComplete(deadlineId);
       setDeadlines(deadlines.filter(d => d.id !== deadlineId)); 
       toast({
         title: "Success",
@@ -254,15 +285,137 @@ export function Calendar() {
     }
   };
 
-  // const handleDeadlineClick = (deadline: Deadline) => {
-  //   setSelectedDeadline(deadline);
-  //   setIsDeadlineDialogOpen(true);
-  // };
+  const handleCreateTask = async (taskData: Task) => {
+    try {
+      if (taskToEdit) {
+        await updateTask(taskToEdit.id, taskData);
+        toast({
+          title: "Success",
+          description: "Task updated successfully",
+        });
+      } else {
+        await addTask(taskData);
+        toast({
+          title: "Success",
+          description: "Task created successfully",
+        });
+      }
+      setCreateTaskOpen(false);
+      setTaskToEdit(null);
+    } catch (error) {
+      console.error("Error handling task:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: taskToEdit ? "Failed to update task" : "Failed to create task",
+      });
+    }
+  };
 
-  // const handleReminderClick = (reminder: Reminder) => {
-  //   setSelectedReminder(reminder);
-  //   setIsReminderDialogOpen(true);
-  // };
+  const handleCreateEvent = async (eventData: Event) => {
+    try {
+      if (eventToEdit) {
+        await updateEvent(eventToEdit.id, eventData);
+        toast({
+          title: "Success",
+          description: "Event updated successfully",
+        });
+      } else {
+        await addEvent(eventData);
+        toast({
+          title: "Success",
+          description: "Event created successfully",
+        });
+      }
+      setCreateEventOpen(false);
+      setEventToEdit(null);
+    } catch (error) {
+      console.error("Error handling event:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: eventToEdit ? "Failed to update event" : "Failed to create event",
+      });
+    }
+  };
+
+  const handleCreateSession = async (sessionData: StudySession) => {
+    try {
+      if (sessionToEdit) {
+        await updateSession(sessionToEdit.id, sessionData);
+        console.log("Updated session second time");
+        toast({
+          title: "Success",
+          description: "Study session updated successfully",
+        });
+      } else {
+        await addSession(sessionData);
+        toast({
+          title: "Success",
+          description: "Study session created successfully",
+        });
+      }
+      setCreateSessionOpen(false);
+      setSessionToEdit(null);
+    } catch (error) {
+      console.error("Error handling session:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: sessionToEdit ? "Failed to update session" : "Failed to create session",
+      });
+    }
+  };
+
+  const handleCreateDeadline = async (deadlineData: Deadline) => {
+    try {
+      if (selectedDeadline) {
+        await updateDeadline(selectedDeadline.id, deadlineData);
+        toast({
+          title: "Success",
+          description: "Deadline updated successfully",
+        });
+      } else {
+        await addDeadline(deadlineData);
+        toast({
+          title: "Success",
+          description: "Deadline created successfully",
+        });
+      }
+    } catch (error) {
+      console.error("Error handling deadline:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to create deadline",
+      });
+    }
+  };
+
+  const handleCreateReminder = async (reminderData: Reminder) => {
+    try {
+      if (selectedReminder) {
+        await updateReminder(selectedReminder.id, reminderData);
+        toast({
+          title: "Success",
+          description: "Reminder updated successfully",
+        });
+      } else {
+        await addReminder(reminderData);
+        toast({
+          title: "Success",
+          description: "Reminder created successfully",
+        });
+      }
+    } catch (error) {
+      console.error("Error handling reminder:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to create reminder",
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -344,22 +497,14 @@ export function Calendar() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : error ? (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
             ) : viewType === "chronological" ? (
               <ChronologicalView
                 date={date}
-                tasks={tasks}
-                events={events}
-                sessions={sessions}
-                deadlines={deadlines}
-                reminders={reminders}
+                {...chronologicalData}
                 onItemClick={handleItemClick}
               />
             ) : (
@@ -735,11 +880,7 @@ export function Calendar() {
       <CreateEventDialog
         open={createEventOpen}
         onOpenChange={setCreateEventOpen}
-        onEventCreated={() => {
-          fetchEvents(date);
-          setCreateEventOpen(false);
-          setEventToEdit(null);
-        }}
+        onEventCreated={handleCreateEvent}
         initialEvent={eventToEdit}
         mode={eventToEdit ? "edit" : "create"}
         tasks={tasks}
@@ -748,11 +889,7 @@ export function Calendar() {
       <CreateTaskDialog
         open={createTaskOpen}
         onOpenChange={setCreateTaskOpen}
-        onTaskCreated={() => {
-          fetchEvents(date);
-          setCreateTaskOpen(false);
-          setTaskToEdit(null);
-        }}
+        onTaskCreated={handleCreateTask}
         initialTask={taskToEdit}
         mode={taskToEdit ? "edit" : "create"}
       />
@@ -760,11 +897,7 @@ export function Calendar() {
       <CreateStudySessionDialog
         open={createSessionOpen}
         onOpenChange={setCreateSessionOpen}
-        onSessionCreated={() => {
-          fetchEvents(date);
-          setCreateSessionOpen(false);
-          setSessionToEdit(null);
-        }}
+        onSessionCreated={handleCreateSession}
         initialSession={sessionToEdit}
         mode={sessionToEdit ? "edit" : "create"}
         tasks={tasks}
@@ -776,28 +909,14 @@ export function Calendar() {
         onOpenChange={setIsDeadlineDialogOpen}
         initialDeadline={selectedDeadline}
         mode={selectedDeadline ? "edit" : "create"}
-        onDeadlineCreated={(newDeadline: Deadline) => {
-          if (selectedDeadline) {
-            setDeadlines(deadlines.map(d => d.id === selectedDeadline.id ? newDeadline : d));
-          } else {
-            setDeadlines([...deadlines, newDeadline]);
-          }
-          setSelectedDeadline(null);
-        }}
+        onDeadlineCreated={handleCreateDeadline}
       />
       <CreateReminderDialog
         open={isReminderDialogOpen}
         onOpenChange={setIsReminderDialogOpen}
         initialReminder={selectedReminder}
         mode={selectedReminder ? "edit" : "create"}
-        onReminderCreated={(newReminder) => {
-          if (selectedReminder) {
-            setReminders(reminders.map(r => r.id === selectedReminder.id ? newReminder : r));
-          } else {
-            setReminders([...reminders, newReminder]);
-          }
-          setSelectedReminder(null);
-        }}
+        onReminderCreated={handleCreateReminder}
       />
 
       <DeleteTaskDialog
