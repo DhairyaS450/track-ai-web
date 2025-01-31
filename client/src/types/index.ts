@@ -87,3 +87,4 @@ export interface Event {
 }
 
 export * from './deadlines';
+export * from './data';

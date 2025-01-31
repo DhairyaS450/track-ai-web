@@ -1,9 +1,9 @@
 import { Outlet } from "react-router-dom"
 import { Header } from "./Header"
 import { Sidebar } from "./Sidebar"
-import { useState } from "react"
+import { useState, memo } from "react"
 
-export function Layout() {
+const LayoutComponent = memo(() => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -19,4 +19,6 @@ export function Layout() {
       </div>
     </div>
   )
-}
+});
+
+export const Layout = memo(LayoutComponent);

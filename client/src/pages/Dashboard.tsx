@@ -49,33 +49,29 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DeleteStudySessionDialog } from "@/components/DeleteStudySessionDialog";
 import { CreateStudySessionDialog } from "@/components/CreateStudySessionDialog";
-import { useTasks } from '@/hooks/useTasks';
-import { useEvents } from '@/hooks/useEvents';
-import { useSessions } from '@/hooks/useSessions';
-import { useDeadlines } from '@/hooks/useDeadlines';
-import { useReminders } from '@/hooks/useReminders';
+import { useData } from "@/contexts/DataProvider";
 
 export function Dashboard() {
-  const { tasks: hookTasks, loading: tasksLoading, addTask, updateTask, deleteTask } = useTasks(true);
-  const { events: allEvents, loading: eventsLoading, addEvent, updateEvent } = useEvents();
-  const { 
-    sessions: allSessions, 
-    loading: sessionsLoading, 
-    addSession, 
-    updateSession, 
+  console.log('Dashboard');
+  const {
+    tasks: allTasks,
+    events: allEvents,
+    sessions: allSessions,
+    deadlines: allDeadlines,
+    reminders: allReminders,
+    loading: loading,
+    addTask,
+    updateTask,
+    deleteTask,
+    addEvent,
+    updateEvent,
+    addSession,
+    updateSession,
     deleteSession,
     startSession,
-  } = useSessions();
-  const {
-    deadlines: allDeadlines,
-    loading: deadlinesLoading,
-    markAsComplete: markDeadlineComplete
-  } = useDeadlines();
-  const {
-    reminders: allReminders,
-    loading: remindersLoading,
-    dismissReminder
-  } = useReminders();
+    markAsComplete,
+    dismissReminder,
+  } = useData();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -104,51 +100,50 @@ export function Dashboard() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!tasksLoading) {
-      const todayTasks = hookTasks.filter(task => 
+    if (!loading) {
+      const todayTasks = allTasks.filter(task => 
         task.timeSlots?.some(slot => isToday(new Date(slot.startDate)))
       );
       setTasks(todayTasks);
     }
-  }, [hookTasks, tasksLoading]);
+  }, [allTasks, loading]);
 
   useEffect(() => {
-    if (!eventsLoading) {
+    if (!loading) {
       const todayEvents = allEvents.filter(event => 
         isToday(new Date(event.startTime)) || isTomorrow(new Date(event.startTime))
       );
       setEvents(todayEvents);
     }
-  }, [allEvents, eventsLoading]);
+  }, [allEvents, loading]);
 
   useEffect(() => {
-    if (!sessionsLoading) {
+    if (!loading) {
+      console.log(allSessions);
       const todaySessions = allSessions.filter(session => 
         isToday(new Date(session.scheduledFor))
       );
       setSessions(todaySessions);
     }
-  }, [allSessions, sessionsLoading]);
+  }, [allSessions, loading]);
 
   useEffect(() => {
-    if (!deadlinesLoading) {
-      console.log(allDeadlines);
+    if (!loading) {
       const todayDeadlines = allDeadlines.filter(deadline => 
         isToday(new Date(deadline.dueDate)) || isTomorrow(new Date(deadline.dueDate))
       );
       setDeadlines(todayDeadlines);
     }
-  }, [allDeadlines, deadlinesLoading]);
+  }, [allDeadlines, loading]);
 
   useEffect(() => {
-    if (!remindersLoading) {
-      console.log(allReminders);
+    if (!loading) {
       const todayReminders = allReminders.filter(reminder => 
         isToday(new Date(reminder.reminderTime)) || isTomorrow(new Date(reminder.reminderTime))
       );
       setReminders(todayReminders);
     }
-  }, [allReminders, remindersLoading]);
+  }, [allReminders, loading]);
 
 
   const handleCreateTask = async (taskData: Task) => {
@@ -313,7 +308,7 @@ export function Dashboard() {
   );
 
   const highPriorityItems = [
-    ...hookTasks.filter(
+    ...tasks.filter(
       (task) =>
         task.deadline &&
         isValid(new Date(task.deadline)) &&
@@ -487,7 +482,7 @@ export function Dashboard() {
 
   const handleMarkDeadlineComplete = async (deadlineId: string) => {
     try {
-      await markDeadlineComplete(deadlineId);
+      await markAsComplete(deadlineId);
       toast({
         title: "Success",
         description: "Deadline marked as complete",

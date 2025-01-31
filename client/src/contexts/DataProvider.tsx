@@ -1,0 +1,562 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect, ReactNode, useRef, useContext } from 'react';
+import { db, auth } from '@/config/firebase';
+import { collection, query, where, onSnapshot, doc, deleteDoc, addDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { Task, Event, StudySession, Deadline, Reminder } from '@/types';
+import { format } from 'date-fns';
+import { createContext } from 'react';
+import { DataContextType } from '@/types';
+
+// Define the context with an initial value of null
+const DataContext = createContext<DataContextType | null>(null);
+
+export function DataProvider({ children }: { children: ReactNode }) {
+  const providerRef = useRef<boolean>(false);
+
+  console.log('DataProvider', providerRef.current);
+  
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [sessions, setSessions] = useState<StudySession[]>([]);
+  const [deadlines, setDeadlines] = useState<Deadline[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (providerRef.current) return;
+    providerRef.current = true;
+
+    console.log('Made it here');
+
+    if (!auth.currentUser) {
+      setTasks([]);
+      setEvents([]);
+      setSessions([]);
+      setDeadlines([]);
+      setReminders([]);
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribers: (() => void)[] = [];
+
+    try {
+      // Tasks subscription
+      const tasksQuery = query(
+        collection(db, 'tasks'),
+        where('userId', '==', auth.currentUser.uid)
+      );
+      unsubscribers.push(
+        onSnapshot(tasksQuery, (snapshot) => {
+          const tasksData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Task[];
+          setTasks(tasksData);
+        })
+      );
+
+      // Events subscription
+      const eventsQuery = query(
+        collection(db, 'events'),
+        where('userId', '==', auth.currentUser.uid)
+      );
+      unsubscribers.push(
+        onSnapshot(eventsQuery, (snapshot) => {
+          const eventsData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Event[];
+          setEvents(eventsData);
+        })
+      );
+
+      // Sessions subscription
+      const sessionsQuery = query(
+        collection(db, 'studySessions'),
+        where('userId', '==', auth.currentUser.uid)
+      );
+      unsubscribers.push(
+        onSnapshot(sessionsQuery, (snapshot) => {
+          const sessionsData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as StudySession[];
+          setSessions(sessionsData);
+        })
+      );
+
+      // Deadlines subscription
+      const deadlinesQuery = query(
+        collection(db, 'deadlines'),
+        where('userId', '==', auth.currentUser.uid)
+      );
+      unsubscribers.push(
+        onSnapshot(deadlinesQuery, (snapshot) => {
+          const deadlinesData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Deadline[];
+          setDeadlines(deadlinesData);
+        })
+      );
+
+      // Reminders subscription
+      const remindersQuery = query(
+        collection(db, 'reminders'),
+        where('userId', '==', auth.currentUser.uid)
+      );
+      unsubscribers.push(
+        onSnapshot(remindersQuery, (snapshot) => {
+          const remindersData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Reminder[];
+          setReminders(remindersData);
+        })
+      );
+
+      setLoading(false);
+    } catch (err) {
+      console.error('Error setting up subscriptions:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      setLoading(false);
+    }
+
+    return () => {
+      unsubscribers.forEach(unsubscribe => unsubscribe());
+    };
+  }, []);
+
+  // Task functions
+  const addTask = async (taskData: Omit<Task, 'id' | 'userId' | 'createdAt'>) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const taskWithMeta = {
+        ...taskData,
+        recurrence: taskData.recurrence || 'none',
+        userId: auth.currentUser.uid,
+        createdAt: serverTimestamp(),
+      };
+
+      const docRef = await addDoc(collection(db, 'tasks'), taskWithMeta);
+
+      // If task has a deadline, create a deadline record
+      if (taskData.deadline) {
+        await addDeadline({
+            title: taskData.title,
+            dueDate: taskData.deadline,
+            priority: taskData.priority,
+            category: taskData.subject || 'General',
+            associatedTaskId: docRef.id,
+            status: 'Pending',
+            source: 'manual'
+          });
+      }
+
+      return { task: { id: docRef.id, ...taskWithMeta } as Task };
+    } catch (error: any) {
+      console.error('Error adding task:', error);
+      throw new Error(`Failed to add task: ${error.message}`);
+    }
+  };
+
+  const updateTask = async (id: string, updates: Partial<Task>) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const taskRef = doc(db, 'tasks', id);
+      await updateDoc(taskRef, updates);
+
+      return { task: { id, ...updates } as Task };
+    } catch (error: any) {
+      console.error('Error updating task:', error);
+      throw new Error(`Failed to update task: ${error.message}`);
+    }
+  };
+
+  const deleteTask = async (id: string) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const taskRef = doc(db, 'tasks', id);
+      await deleteDoc(taskRef);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error deleting task:', error);
+      throw new Error(`Failed to delete task: ${error.message}`);
+    }
+  };
+
+  // Event functions
+  const addEvent = async (eventData: Omit<Event, 'id' | 'userId' | 'createdAt'>) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const eventWithMeta = {
+        ...eventData,
+        recurrence: eventData.recurrence || '',
+        createdAt: serverTimestamp(),
+        userId: auth.currentUser?.uid,
+        calendarId: eventData.calendarId || '',
+        isAllDay: eventData.isAllDay || false,
+        isFlexible: eventData.isFlexible || false,
+        priority: eventData.priority || 'Low'
+      };
+
+      const docRef = await addDoc(collection(db, 'events'), eventWithMeta);
+
+      // Create reminders if specified
+      if (eventData.reminders?.length) {
+        for (const reminder of eventData.reminders) {
+          const reminderTime = new Date(new Date(eventData.startTime).getTime() - 
+            (reminder.amount * (reminder.type === 'days' ? 86400000 : 
+                              reminder.type === 'hours' ? 3600000 : 60000)));
+          
+          await addReminder({
+            title: `Reminder: ${eventData.name}`,
+            reminderTime: format(reminderTime, 'yyyy-MM-dd HH:mm:ss'),
+            notificationMessage: `Upcoming event: ${eventData.name}`,
+            status: 'Active',
+            type: 'Quick Reminder',
+            linkedEventId: docRef.id
+          });
+        }
+      }
+
+      return { event: { id: docRef.id, ...eventWithMeta } as Event };
+    } catch (error: any) {
+      console.error('Error adding event:', error);
+      throw new Error(`Failed to add event: ${error.message}`);
+    }
+  };
+
+  const updateEvent = async (id: string, updates: Partial<Event>) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const updatedData = {
+        ...updates,
+        isAllDay: updates.isAllDay || false,
+        isFlexible: updates.isFlexible || false,
+        priority: updates.priority || 'Low',
+        recurrence: updates.recurrence || '',
+      };
+      const eventRef = doc(db, 'events', id);
+      await updateDoc(eventRef, updatedData);
+
+      return { event: { id, ...updates } as Event };
+    } catch (error: any) {
+      console.error('Error updating event:', error);
+      throw new Error(`Failed to update event: ${error.message}`);
+    }
+  };
+
+  const deleteEvent = async (id: string) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const eventRef = doc(db, 'events', id);
+      await deleteDoc(eventRef);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error deleting event:', error);
+      throw new Error(`Failed to delete event: ${error.message}`);
+    }
+  };
+
+  // Session functions
+  const addSession = async (sessionData: Omit<StudySession, 'id' | 'userId' | 'createdAt'>) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const sessionWithMeta = {
+        ...sessionData,
+        userId: auth.currentUser.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        priority: sessionData.priority || 'Low',
+      };
+
+      const docRef = await addDoc(collection(db, 'studySessions'), sessionWithMeta);
+      return { session: { id: docRef.id, ...sessionWithMeta } as StudySession };
+    } catch (error: any) {
+      console.error('Error adding session:', error);
+      throw new Error(`Failed to add session: ${error.message}`);
+    }
+  };
+
+  const updateSession = async (id: string, updates: Partial<StudySession>) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const sessionRef = doc(db, 'studySessions', id);
+      const updatedData = {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      };
+
+      await updateDoc(sessionRef, updatedData);
+      return { session: { id, ...updates } as StudySession };
+    } catch (error: any) {
+      console.error('Error updating session:', error);
+      throw new Error(`Failed to update session: ${error.message}`);
+    }
+  };
+
+  const deleteSession = async (id: string) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const sessionRef = doc(db, 'studySessions', id);
+      await deleteDoc(sessionRef);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error deleting session:', error);
+      throw new Error(`Failed to delete session: ${error.message}`);
+    }
+  };
+
+  const startSession = async (id: string) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const sessionRef = doc(db, 'studySessions', id);
+      const startTime = new Date();
+      await updateDoc(sessionRef, {
+        status: 'in-progress',
+        startTime: startTime.toISOString(),
+        updatedAt: serverTimestamp()
+      });
+
+      const sessionSnapshot = await getDoc(sessionRef);
+      return {
+        session: {
+          id: sessionSnapshot.id,
+          ...sessionSnapshot.data()
+        } as StudySession
+      };
+    } catch (error: any) {
+      console.error('Error starting session:', error);
+      throw new Error(`Failed to start session: ${error.message}`);
+    }
+  };
+
+  const endSession = async (id: string, notes?: string) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const sessionRef = doc(db, 'studySessions', id);
+      const endTime = new Date();
+      await updateDoc(sessionRef, {
+        status: 'completed',
+        endTime: endTime.toISOString(),
+        completion: 100,
+        notes: notes || '',
+        updatedAt: serverTimestamp()
+      });
+
+      const sessionSnapshot = await getDoc(sessionRef);
+      return {
+        session: {
+          id: sessionSnapshot.id,
+          ...sessionSnapshot.data()
+        } as StudySession
+      };
+    } catch (error: any) {
+      console.error('Error ending session:', error);
+      throw new Error(`Failed to end session: ${error.message}`);
+    }
+  };
+
+  // Deadline functions
+  const addDeadline = async (deadlineData: Omit<Deadline, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const now = new Date().toISOString();
+      const deadlineWithMeta = {
+        ...deadlineData,
+        userId: auth.currentUser.uid,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      const docRef = await addDoc(collection(db, 'deadlines'), deadlineWithMeta);
+      return { deadline: { id: docRef.id, ...deadlineWithMeta } as Deadline };
+    } catch (error: any) {
+      console.error('Error adding deadline:', error);
+      throw new Error(`Failed to add deadline: ${error.message}`);
+    }
+  };
+
+  const updateDeadline = async (id: string, updates: Partial<Deadline>) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const now = new Date().toISOString();
+      const deadlineRef = doc(db, 'deadlines', id);
+      await updateDoc(deadlineRef, {
+        ...updates,
+        updatedAt: now
+      });
+
+      return { deadline: { id, ...updates } as Deadline };
+    } catch (error: any) {
+      console.error('Error updating deadline:', error);
+      throw new Error(`Failed to update deadline: ${error.message}`);
+    }
+  };
+
+  const deleteDeadline = async (id: string) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const deadlineRef = doc(db, 'deadlines', id);
+      await deleteDoc(deadlineRef);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error deleting deadline:', error);
+      throw new Error(`Failed to delete deadline: ${error.message}`);
+    }
+  };
+
+  const markAsComplete = async (id: string) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const deadlineRef = doc(db, 'deadlines', id);
+    //   await updateDoc(deadlineRef, {
+    //     status: 'completed',
+    //     completedAt: now,
+    //     updatedAt: now
+    //   });
+
+    await deleteDoc(deadlineRef);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error marking deadline as complete:', error);
+      throw new Error(`Failed to mark deadline as complete: ${error.message}`);
+    }
+  };
+
+  // Reminder functions
+  const addReminder = async (reminderData: Omit<Reminder, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const now = new Date().toISOString();
+      const reminderWithMeta = {
+        ...reminderData,
+        userId: auth.currentUser.uid,
+        createdAt: now,
+        updatedAt: now,
+        status: 'pending'
+      };
+
+      const docRef = await addDoc(collection(db, 'reminders'), reminderWithMeta);
+      return { reminder: { id: docRef.id, ...reminderWithMeta } as Reminder };
+    } catch (error: any) {
+      console.error('Error adding reminder:', error);
+      throw new Error(`Failed to add reminder: ${error.message}`);
+    }
+  };
+
+  const updateReminder = async (id: string, updates: Partial<Reminder>) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+      const now = new Date().toISOString();
+      const reminderRef = doc(db, 'reminders', id);
+      await updateDoc(reminderRef, {
+        ...updates,
+        updatedAt: now
+      });
+
+      return { reminder: { id, ...updates } as Reminder };
+    } catch (error: any) {
+      console.error('Error updating reminder:', error);
+      throw new Error(`Failed to update reminder: ${error.message}`);
+    }
+  };
+
+  const deleteReminder = async (id: string) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+
+      const reminderRef = doc(db, 'reminders', id);
+      await deleteDoc(reminderRef);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error deleting reminder:', error);
+      throw new Error(`Failed to delete reminder: ${error.message}`);
+    }
+  };
+
+  const dismissReminder = async (id: string) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+      const reminderRef = doc(db, 'reminders', id);
+    //   await updateDoc(reminderRef, {
+    //     status: 'dismissed',
+    //     dismissedAt: now,
+    //     updatedAt: now
+    //   });
+    await deleteDoc(reminderRef);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error dismissing reminder:', error);
+      throw new Error(`Failed to dismiss reminder: ${error.message}`);
+    }
+  };
+
+  return (
+    <DataContext.Provider value={{
+      tasks,
+      events,
+      sessions,
+      deadlines,
+      reminders,
+      loading,
+      error,
+
+      addTask,
+      updateTask,
+      deleteTask,
+      addEvent,
+      updateEvent,
+      deleteEvent,
+      addSession,
+      updateSession,
+      deleteSession,
+      startSession,
+      endSession,
+      addDeadline,
+      updateDeadline,
+      deleteDeadline,
+      markAsComplete,
+      addReminder,
+      updateReminder,
+      deleteReminder,
+      dismissReminder,
+    }}>
+      {children}
+    </DataContext.Provider>
+  );
+}
+
+export function useData() {
+  const context = useContext(DataContext);
+  if (!context) {
+    throw new Error("useData must be used within a DataProvider");
+  }
+  return context;
+}

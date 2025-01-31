@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getStudySessions, endStudySession } from "@/api/sessions";
 import { StudySession } from "@/types";
 import { format } from "date-fns";
 import {
@@ -40,7 +39,6 @@ import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { RescheduleSessionDialog } from "@/components/RescheduleSessionDialog";
-import { addStudySession } from "@/api/sessions";
 import { StudySessionTimer } from "@/components/StudySessionTimer";
 import {
   DropdownMenu,
@@ -49,11 +47,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useData } from "@/contexts/DataProvider";
 
 type SessionFilter = "all" | "ongoing" | "upcoming" | "completed";
 
 export function StudySessions() {
-  const [sessions, setSessions] = useState<StudySession[]>([]);
+  const {
+    sessions: allSessions,
+    addSession,
+    updateSession,
+    deleteSession,
+    startSession,
+    endSession
+  } = useData();
+
   const [activeSession, setActiveSession] = useState<StudySession | null>(null);
   const [createSessionOpen, setCreateSessionOpen] = useState(false);
   const [deleteSessionOpen, setDeleteSessionOpen] = useState(false);
@@ -72,25 +79,17 @@ export function StudySessions() {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchSessions();
-  }, []);
-
-  const fetchSessions = async () => {
-    const { sessions } = await getStudySessions();
-    setSessions(sessions);
-
     // Set active session if there's one in progress
-    const activeSession = sessions.find(s => s.status === 'in-progress');
+    const activeSession = allSessions.find(s => s.status === 'in-progress');
     if (activeSession) {
       console.log('There is an active session', activeSession)
       setActiveSession(activeSession);
     }
-  };
+  }, [allSessions]);
 
   const handleEndSession = async (sessionId: string) => {
     try {
-      await endStudySession(sessionId, sessionNotes[sessionId]);
-      await fetchSessions();
+      await endSession(sessionId, sessionNotes[sessionId]);
       setActiveSession(null);
       toast({
         title: "Success",
@@ -120,8 +119,7 @@ export function StudySessions() {
         endTime: undefined
       };
 
-      await addStudySession(newSession);
-      await fetchSessions();
+      await addSession(newSession);
       toast({
         title: "Success",
         description: "Study session rescheduled",
@@ -147,7 +145,24 @@ export function StudySessions() {
     });
   };
 
-  const filteredSessions = sessions.filter(session => {
+  const handleStartSession = async (sessionId: string) => {
+    try {
+      await startSession(sessionId);
+      toast({
+        title: "Success",
+        description: "Session started successfully",
+      });
+    } catch (error) {
+      console.error("Error starting session:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to start session",
+      });
+    }
+  };
+
+  const filteredSessions = allSessions.filter(session => {
     switch (filter) {
       case "ongoing":
         return session.status === "in-progress";
@@ -352,44 +367,54 @@ export function StudySessions() {
                             >
                               {session.priority}
                             </Badge>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSessionToEdit(session);
-                                    setCreateSessionOpen(true);
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSessionToPostpone(session.id);
-                                    setPostponeSessionOpen(true);
-                                  }}
-                                >
-                                  <CalendarDays className="h-4 w-4 mr-2" />
-                                  Postpone
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-red-600 dark:text-red-400"
-                                  onClick={() => {
-                                    setSessionToDelete(session.id);
-                                    setDeleteSessionOpen(true);
-                                  }}
-                                >
-                                  <X className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                onClick={() => handleStartSession(session.id)}
+                                variant="default"
+                                size="sm"
+                              >
+                                <Timer className="h-4 w-4 mr-2" />
+                                Start Session
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setSessionToEdit(session);
+                                      setCreateSessionOpen(true);
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setSessionToPostpone(session.id);
+                                      setPostponeSessionOpen(true);
+                                    }}
+                                  >
+                                    <CalendarDays className="h-4 w-4 mr-2" />
+                                    Postpone
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-red-600 dark:text-red-400"
+                                    onClick={() => {
+                                      setSessionToDelete(session.id);
+                                      setDeleteSessionOpen(true);
+                                    }}
+                                  >
+                                    <X className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -493,15 +518,21 @@ export function StudySessions() {
       <CreateStudySessionDialog
         open={createSessionOpen}
         onOpenChange={setCreateSessionOpen}
-        onSessionCreated={() => {
-          fetchSessions();
+        onSessionCreated={async (session: StudySession) => {
+          try {
+            if (sessionToEdit) {
+              await updateSession(sessionToEdit.id, session);
+            } else {
+              await addSession(session);
+            }
+          } catch (error) {
+            console.error("Error creating session:", error);
+          }
           setCreateSessionOpen(false);
           setSessionToEdit(null);
         }}
         initialSession={sessionToEdit}
         mode={sessionToEdit ? "edit" : "create"}
-        tasks={[]}
-        events={[]}
       />
 
       <DeleteStudySessionDialog
@@ -510,8 +541,7 @@ export function StudySessions() {
         onConfirm={async () => {
           if (!sessionToDelete) return;
           try {
-            await endStudySession(sessionToDelete);
-            await fetchSessions();
+            await deleteSession(sessionToDelete);
             toast({
               title: "Success",
               description: "Study session deleted successfully",

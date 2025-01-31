@@ -46,9 +46,9 @@ const formSchema = z.object({
     required_error: "Reminder time is required",
   }),
   notificationMessage: z.string().optional(),
-  frequency: z.enum(["Once", "Daily", "Weekly", "Monthly", "Yearly"]).optional(),
-  interval: z.number().min(1).optional(),
-  endDate: z.date().optional(),
+  frequency: z.enum(["Once", "Daily", "Weekly", "Monthly", "Yearly"]).optional().nullable(),
+  interval: z.number().min(1).optional().nullable(),
+  endDate: z.date().optional().nullable(),
 });
 
 interface CreateReminderDialogProps {
@@ -68,7 +68,7 @@ export function CreateReminderDialog({
 }: CreateReminderDialogProps) {
   const { toast } = useToast();
   const [isRecurring, setIsRecurring] = useState(false);
-  const [selectedTime, setSelectedTime] = useState<string>("00:00");
+  const [selectedTime, setSelectedTime] = useState("12:00");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -76,54 +76,27 @@ export function CreateReminderDialog({
       title: "",
       reminderTime: new Date(),
       notificationMessage: "",
-      frequency: "Once",
-      interval: 1,
+      frequency: null,
+      interval: null,
+      endDate: null,
     },
   });
 
   useEffect(() => {
-    if (initialReminder && mode === "edit") {
-      try {
-        const reminderTime = initialReminder.reminderTime ? new Date(initialReminder.reminderTime) : new Date();
-        if (!isNaN(reminderTime.getTime())) {
-          setSelectedTime(format(reminderTime, "HH:mm"));
-          setIsRecurring(!!initialReminder.recurring);
-          form.reset({
-            title: initialReminder.title,
-            reminderTime: reminderTime,
-            notificationMessage: initialReminder.notificationMessage || "",
-            frequency: initialReminder.recurring?.frequency || "Once",
-            interval: initialReminder.recurring?.interval || 1,
-            endDate: new Date(initialReminder.recurring?.endDate || ''),
-          });
-        } else {
-          console.error("Invalid date from initialReminder:", initialReminder.reminderTime);
-          const now = new Date();
-          setSelectedTime(format(now, "HH:mm"));
-          setIsRecurring(false);
-          form.reset({
-            title: initialReminder.title,
-            reminderTime: now,
-            notificationMessage: initialReminder.notificationMessage || "",
-            frequency: "Once",
-            interval: 1,
-          });
-        }
-      } catch (error) {
-        console.error("Error processing initialReminder date:", error);
-        const now = new Date();
-        setSelectedTime(format(now, "HH:mm"));
-        setIsRecurring(false);
-        form.reset({
-          title: initialReminder.title,
-          reminderTime: now,
-          notificationMessage: initialReminder.notificationMessage || "",
-          frequency: "Once",
-          interval: 1,
-        });
-      }
+    if (initialReminder) {
+      const reminderDate = new Date(initialReminder.reminderTime || new Date());
+      form.reset({
+        title: initialReminder.title,
+        reminderTime: reminderDate,
+        notificationMessage: initialReminder.notificationMessage || "",
+        frequency: initialReminder.recurring?.frequency || null,
+        interval: initialReminder.recurring?.interval || null,
+        endDate: initialReminder.recurring?.endDate ? new Date(initialReminder.recurring.endDate) : null,
+      });
+      setSelectedTime(format(reminderDate, "HH:mm"));
+      setIsRecurring(!!initialReminder.recurring);
     }
-  }, [initialReminder, mode]);
+  }, [initialReminder, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -134,35 +107,21 @@ export function CreateReminderDialog({
       const baseReminderData = {
         title: values.title,
         reminderTime: reminderTime.toISOString(),
-        notificationMessage: values.notificationMessage,
+        notificationMessage: values.notificationMessage || "",
         status: "Active" as const,
         type: "Quick Reminder" as const,
       };
 
-      const reminderData = isRecurring
+      const reminderData = isRecurring && values.frequency
         ? {
             ...baseReminderData,
             recurring: {
-              frequency: values.frequency!,
-              interval: values.interval!,
+              frequency: values.frequency,
+              interval: values.interval || 1,
               endDate: values.endDate?.toISOString(),
             },
           }
         : baseReminderData;
-
-      // if (
-      //   reminderData.recurring?.endDate &&
-      //   new Date(reminderData.recurring?.endDate).getTime() < new Date(reminderData.reminderTime).getTime()
-      // ) {
-      //   toast({
-      //     variant: "destructive",
-      //     title: "Error",
-      //     description: "End date must be greater than or equal to the reminder time",
-      //   });
-      //   throw new Error("End date must be greater than or equal to the reminder time");
-      // }
-
-      console.log(reminderData);
 
       if (mode === "edit" && initialReminder) {
         onReminderCreated({
@@ -171,17 +130,10 @@ export function CreateReminderDialog({
           createdAt: initialReminder.createdAt,
           updatedAt: new Date().toISOString(),
         });
-        toast({
-          title: "Success",
-          description: "Reminder updated successfully",
-        });
       } else {
         onReminderCreated(reminderData as Reminder);
-        toast({
-          title: "Success",
-          description: "Reminder created successfully",
-        });
       }
+      
       onOpenChange(false);
     } catch (error) {
       console.error("Error creating/updating reminder:", error);
@@ -340,7 +292,7 @@ export function CreateReminderDialog({
                       <FormLabel>Frequency</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        defaultValue={field.value || undefined}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -370,8 +322,8 @@ export function CreateReminderDialog({
                           type="number"
                           min={1}
                           placeholder="Enter interval"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          value={field.value || ''}
+                          onChange={(e) => field.onChange(e.target.valueAsNumber)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -407,7 +359,7 @@ export function CreateReminderDialog({
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={field.value}
+                            selected={field.value || undefined}
                             onSelect={field.onChange}
                             disabled={(date) =>
                               date < new Date(new Date().setHours(0, 0, 0, 0))

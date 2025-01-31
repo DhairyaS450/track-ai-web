@@ -3,9 +3,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Task, StudySession, Event, Deadline, Reminder } from "@/types";
 import { format, isSameDay, addWeeks, startOfWeek } from "date-fns";
-import { useTasks } from "@/hooks/useTasks";
-import { useEvents } from "@/hooks/useEvents";
-import { useSessions } from '@/hooks/useSessions';
+import { useData } from '@/contexts/DataProvider';
 
 import {
   Calendar as CalendarIcon,
@@ -33,32 +31,37 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { CreateDeadlineDialog } from "@/components/CreateDeadlineDialog";
 import { CreateReminderDialog } from "@/components/CreateReminderDialog";
-import { useReminders } from "@/hooks/useReminders";
-import { useDeadlines } from "@/hooks/useDeadlines";
 
 export function Calendar() {
   const [date, setDate] = useState<Date>(new Date());
   const [currentWeek, setCurrentWeek] = useState<Date>(
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
-  const { tasks: allTasks, loading: tasksLoading, addTask, updateTask, deleteTask } = useTasks(true);
-  const { events: allEvents, loading: eventsLoading, addEvent, updateEvent, deleteEvent } = useEvents();
+  
   const { 
-    sessions: allSessions, 
-    loading: sessionsLoading, 
-    addSession, 
-    updateSession, 
+    tasks: allTasks,
+    events: allEvents,
+    sessions: allSessions,
+    deadlines: allDeadlines,
+    reminders: allReminders,
+    loading,
+    deleteTask,
+    deleteEvent,
     deleteSession,
-  } = useSessions();
+    markAsComplete,
+    dismissReminder,
+    addDeadline,
+    updateDeadline,
+    addReminder,
+    updateReminder,
+    addTask,
+    updateTask,
+    addEvent,
+    updateEvent,
+    addSession,
+    updateSession,
+  } = useData();
 
-  const { reminders: allReminders, loading: remindersLoading, addReminder, updateReminder, dismissReminder } = useReminders();
-  const { deadlines: allDeadlines, loading: deadlinesLoading, addDeadline, updateDeadline, markAsComplete } = useDeadlines();
-
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [sessions, setSessions] = useState<StudySession[]>([]);
-  const [deadlines, setDeadlines] = useState<Deadline[]>([]);
-  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [createEventOpen, setCreateEventOpen] = useState(false);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [createSessionOpen, setCreateSessionOpen] = useState(false);
@@ -80,44 +83,45 @@ export function Calendar() {
   const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  // Memoize filtered data
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [sessions, setSessions] = useState<StudySession[]>([]);
+  const [deadlines, setDeadlines] = useState<Deadline[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+
+  // Memoize filtered data using context data
   const filteredTasks = useMemo(() => {
-    if (tasksLoading) return [];
     return allTasks.filter((task) =>
       task.timeSlots?.some((slot) =>
         isSameDay(new Date(slot.startDate), date)
       )
     );
-  }, [date, allTasks, tasksLoading]);
+  }, [date, allTasks]);
 
   const filteredEvents = useMemo(() => {
-    if (eventsLoading) return [];
     return allEvents.filter((event) =>
       isSameDay(new Date(event.startTime), date)
     );
-  }, [date, allEvents, eventsLoading]);
+  }, [date, allEvents]);
 
   const filteredSessions = useMemo(() => {
-    if (sessionsLoading) return [];
     return allSessions.filter((session) =>
       isSameDay(new Date(session.scheduledFor), date)
     );
-  }, [date, allSessions, sessionsLoading]);
+  }, [date, allSessions]);
 
   const filteredDeadlines = useMemo(() => {
-    if (deadlinesLoading) return [];
     return allDeadlines.filter((deadline) =>
       isSameDay(new Date(deadline.dueDate), date)
     );
-  }, [date, allDeadlines, deadlinesLoading]);
+  }, [date, allDeadlines]);
 
   const filteredReminders = useMemo(() => {
-    if (remindersLoading) return [];
     return allReminders.filter((reminder) =>
       isSameDay(new Date(reminder.reminderTime), date) && 
       reminder.status !== "Dismissed"
     );
-  }, [date, allReminders, remindersLoading]);
+  }, [date, allReminders]);
 
   // Replace useEffects with direct usage of memoized values
   useEffect(() => {
@@ -142,8 +146,8 @@ export function Calendar() {
 
   // Memoize loading state
   const isLoading = useMemo(() => 
-    tasksLoading || eventsLoading || sessionsLoading || remindersLoading || deadlinesLoading,
-    [tasksLoading, eventsLoading, sessionsLoading, remindersLoading, deadlinesLoading]
+    loading,
+    [loading]
   );
 
   // Memoize chronological view data
@@ -463,11 +467,7 @@ export function Calendar() {
             <CalendarComponent
               mode="single"
               selected={date}
-              onSelect={(newDate) => {
-                if (newDate) {
-                  setDate(newDate);
-                }
-              }}
+              onSelect={(newDate) => newDate && setDate(newDate)}
               className="rounded-md border"
             />
           </CardContent>

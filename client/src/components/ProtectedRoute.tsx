@@ -1,8 +1,14 @@
 
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { ReactNode, memo } from "react";
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+interface ProtectedRouteProps {
+  children: ReactNode;
+}
+
+const ProtectedRouteComponent = memo(({ children }: ProtectedRouteProps) => {
+  console.log('ProtectedRoute');
   const auth = useAuth();
 
   const currentPath = window.location.pathname;
@@ -15,4 +21,6 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   return <>{children}</>;
-}
+});
+
+export const ProtectedRoute = memo(ProtectedRouteComponent);

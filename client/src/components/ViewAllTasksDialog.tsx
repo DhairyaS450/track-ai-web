@@ -9,7 +9,7 @@ import { Button } from "./ui/button";
 import { Edit, Trash2 } from "lucide-react";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { DeleteTaskDialog } from "./DeleteTaskDialog";
-import { useTasks } from "@/hooks/useTasks";
+import { useData } from "@/contexts/DataProvider";
 import { useToast } from "@/hooks/useToast";
 
 interface ViewAllTasksDialogProps {
@@ -28,7 +28,7 @@ export function ViewAllTasksDialog({
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const { toast } = useToast();
   
-  const { tasks, addTask, deleteTask } = useTasks(true);
+  const { tasks, addTask, deleteTask } = useData();
 
   const filterTasks = (tasksToFilter: Task[]) => {
     return tasksToFilter.filter((task) => {

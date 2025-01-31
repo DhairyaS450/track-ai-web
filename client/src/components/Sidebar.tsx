@@ -25,14 +25,10 @@ import { CreateDeadlineDialog } from "./CreateDeadlineDialog";
 import { CreateReminderDialog } from "./CreateReminderDialog";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { SyncDialog } from "./SyncDialog";
-import { useReminders } from "@/hooks/useReminders";
-import { useDeadlines } from "@/hooks/useDeadlines";
-import { useSessions } from "@/hooks/useSessions";
-import { useEvents } from "@/hooks/useEvents";
-import { useTasks } from "@/hooks/useTasks";
 import { Task, Event, StudySession } from "@/types";
 import { Deadline, Reminder } from "@/types/deadlines";
 import { toast } from "@/hooks/useToast";
+import { useData } from "@/contexts/DataProvider";
 
 interface SidebarProps {
   open: boolean;
@@ -62,11 +58,7 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
   const [isDialogOpen, setDialogOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  const { addDeadline } = useDeadlines();
-  const { addReminder } = useReminders();
-  const { addTask } = useTasks();
-  const { addEvent } = useEvents();
-  const { addSession } = useSessions();
+  const { addDeadline, addReminder, addTask, addEvent, addSession } = useData();
   
   const handleQuickMessage = () => {
     if (quickMessage.trim()) {
