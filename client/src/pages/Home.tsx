@@ -154,12 +154,71 @@ export function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <img
-                src="/dashboard-preview.png"
-                alt="TaskTide Dashboard Preview"
-                className="rounded-lg shadow-2xl border"
-                loading="lazy"
-              />
+              <div className="relative mx-auto max-w-6xl">
+                {/* Main Dashboard Preview */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="relative z-10 transition-all duration-500 ease-out cursor-pointer group"
+                >
+                  <img
+                    src="/dashboard-preview.png"
+                    alt="TaskTide Dashboard Preview"
+                    className="rounded-xl shadow-2xl border border-border/40 w-full transition-all duration-500 ease-out group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.15)] group-hover:-translate-y-2 group-hover:scale-[1.02] group-hover:z-30"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-primary/5 rounded-xl opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100" />
+                </motion.div>
+                
+                {/* Floating Elements */}
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className="absolute -left-8 top-1/4 w-64 hidden lg:block cursor-pointer group"
+                >
+                  <img
+                    src="/mobile-preview.png"
+                    alt="TaskTide Mobile View"
+                    className="rounded-lg shadow-xl border border-border/40 transform -rotate-6 transition-all duration-500 ease-out group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.15)] group-hover:-translate-y-2 group-hover:scale-110 group-hover:z-30"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-primary/5 rounded-lg opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100 transform -rotate-6" />
+                </motion.div>
+                
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.8 }}
+                  className="absolute -right-8 top-1/3 w-72 hidden lg:block cursor-pointer group"
+                >
+                  <img
+                    src="/calendar-preview.png"
+                    alt="TaskTide Calendar View"
+                    className="rounded-lg shadow-xl border border-border/40 transform rotate-6 transition-all duration-500 ease-out group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.15)] group-hover:-translate-y-2 group-hover:scale-110 group-hover:z-30"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-primary/5 rounded-lg opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100 transform rotate-6" />
+                </motion.div>
+                
+                {/* Decorative Elements */}
+                <div className="absolute -z-10 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 blur-3xl rounded-full" />
+                <div className="absolute inset-0 -z-20 bg-gradient-to-tr from-primary/5 to-secondary/5 rounded-3xl transition-opacity duration-300 group-hover:opacity-70" />
+              </div>
+              
+              {/* Browser Frame Mockup - Optional */}
+              <div className="mt-8 flex items-center justify-center gap-4 text-sm text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" /> Real-time Updates
+                </span>
+                <span className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" /> Smart Calendar
+                </span>
+                <span className="flex items-center gap-2">
+                  <Bot className="w-4 h-4" /> AI Assistant
+                </span>
+              </div>
             </motion.div>
           </motion.div>
         </section>

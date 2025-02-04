@@ -21,18 +21,20 @@ import { getReminder, dismissReminder } from "@/api/reminders";
 import { useToast } from "@/hooks/useToast";
 import { CreateDeadlineDialog } from "./CreateDeadlineDialog";
 import { CreateReminderDialog } from "./CreateReminderDialog";
-
+import { useNavigate } from "react-router-dom";
 interface HeaderProps {
   onMenuClick: () => void;
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [date, setDate] = useState(new Date());
   const [search, setSearch] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -160,7 +162,12 @@ export function Header({ onMenuClick }: HeaderProps) {
         </Button>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <img src="/logo.png" alt="TaskTide AI" className="h-8 w-auto" />
+          <img 
+            src="/logo.png" 
+            alt="TaskTide AI" 
+            className="h-8 w-auto cursor-pointer" 
+            onClick={() => navigate("/")}
+          />
         </div>
 
         <div className="flex-1 flex items-center justify-center">
