@@ -32,7 +32,7 @@ export function Login() {
   // If already logged in, direct them to home page
   useEffect(() => {
     if (auth.currentUser != null) {
-      navigate('/')
+      navigate('/dashboard')
     }
   }, [auth, navigate])
 
@@ -48,7 +48,7 @@ export function Login() {
         title: "Success",
         description: "Logged in successfully",
       })
-      navigate("/")
+      navigate("/dashboard")
     } catch (error) {
       console.error('Login error details:', error);
       toast({

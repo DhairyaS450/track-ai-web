@@ -22,7 +22,7 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
   const navigate = useNavigate();
   useEffect(() => {
     if (user?.emailVerified) {
-      navigate("/");
+      navigate("/dashboard");
     }
   });
 

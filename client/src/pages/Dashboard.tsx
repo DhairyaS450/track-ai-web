@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -95,8 +94,8 @@ export function Dashboard() {
   const [sessionToPostpone, setSessionToPostpone] = useState<string | null>(
     null
   );
-  const [deadlines, setDeadlines] = useState<Deadline[]>([]);
-  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const setDeadlines = useState<Deadline[]>([])[1];
+  const setReminders = useState<Reminder[]>([])[1];
   const { toast } = useToast();
 
   useEffect(() => {
@@ -134,7 +133,7 @@ export function Dashboard() {
       );
       setDeadlines(todayDeadlines);
     }
-  }, [allDeadlines, loading]);
+  }, [allDeadlines, loading, setDeadlines]);
 
   useEffect(() => {
     if (!loading) {
@@ -143,7 +142,7 @@ export function Dashboard() {
       );
       setReminders(todayReminders);
     }
-  }, [allReminders, loading]);
+  }, [allReminders, loading, setReminders]);
 
 
   const handleCreateTask = async (taskData: Task) => {

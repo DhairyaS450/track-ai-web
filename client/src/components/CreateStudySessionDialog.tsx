@@ -13,7 +13,14 @@ import { useToast } from "@/hooks/useToast";
 import { StudySession, Task, Event } from "@/types";
 import { Textarea } from "./ui/textarea";
 import { Slider } from "./ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { ScrollArea } from "./ui/scroll-area";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "./ui/select";
 
 interface CreateStudySessionDialogProps {
   open: boolean;
@@ -120,156 +127,164 @@ export function CreateStudySessionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] p-0">
+        <DialogHeader className="px-6 pt-6">
           <DialogTitle>
-            {mode === "edit" ? "Edit Study Session" : "Create Study Session"}
+            {mode === "create" ? "Create Study Session" : "Edit Study Session"}
           </DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="subject">Subject</Label>
-              <Input
-                id="subject"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder="Enter subject"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="priority">Priority</Label>
-              <Select
-                value={priority}
-                onValueChange={(value: "High" | "Medium" | "Low") =>
-                  setPriority(value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="High">High</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="Low">Low</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="goal">Goal</Label>
-            <Textarea
-              id="goal"
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-              placeholder="What do you want to achieve?"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="startTime">Start Time</Label>
-              <Input
-                id="startTime"
-                type="datetime-local"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="duration">Duration (minutes)</Label>
-              <Input
-                id="duration"
-                type="number"
-                min="1"
-                value={duration}
-                onChange={(e) => setDuration(parseInt(e.target.value))}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="technique">Study Technique</Label>
-              <Select value={technique} onValueChange={setTechnique}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select technique" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pomodoro">Pomodoro</SelectItem>
-                  <SelectItem value="deepwork">Deep Work</SelectItem>
-                  <SelectItem value="spaced">Spaced Repetition</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="materials">Study Materials</Label>
-              <Input
-                id="materials"
-                value={materials}
-                onChange={(e) => setMaterials(e.target.value)}
-                placeholder="Enter study materials"
-              />
-            </div>
-          </div>
-
-          {technique === "pomodoro" && (
-            <div className="grid grid-cols-2 gap-4">
+        
+        <ScrollArea className="px-6 py-4 max-h-[calc(90vh-180px)]">
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="breakInterval">Break Interval (minutes)</Label>
+                <Label htmlFor="subject">Subject</Label>
                 <Input
-                  id="breakInterval"
-                  type="number"
-                  min="1"
-                  value={breakInterval}
-                  onChange={(e) => setBreakInterval(parseInt(e.target.value))}
+                  id="subject"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="Enter subject"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="breakDuration">Break Duration (minutes)</Label>
+                <Label htmlFor="priority">Priority</Label>
+                <Select
+                  value={priority}
+                  onValueChange={(value) => setPriority(value as "High" | "Medium" | "Low")}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="Low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="goal">Goal</Label>
+              <Textarea
+                id="goal"
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                placeholder="What do you want to achieve?"
+                className="min-h-[80px]"
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="startTime">Start Time</Label>
                 <Input
-                  id="breakDuration"
+                  id="startTime"
+                  type="datetime-local"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="duration">Duration (minutes)</Label>
+                <Input
+                  id="duration"
                   type="number"
                   min="1"
-                  value={breakDuration}
-                  onChange={(e) => setBreakDuration(parseInt(e.target.value))}
+                  value={duration}
+                  onChange={(e) => setDuration(parseInt(e.target.value))}
+                  className="w-full"
                 />
               </div>
             </div>
-          )}
 
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <Label>Completion</Label>
-              <span className="text-sm text-muted-foreground">{completion}%</span>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="technique">Study Technique</Label>
+                <Select value={technique} onValueChange={setTechnique}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select technique" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pomodoro">Pomodoro</SelectItem>
+                    <SelectItem value="deepwork">Deep Work</SelectItem>
+                    <SelectItem value="spaced">Spaced Repetition</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="materials">Study Materials</Label>
+                <Input
+                  id="materials"
+                  value={materials}
+                  onChange={(e) => setMaterials(e.target.value)}
+                  placeholder="Enter study materials"
+                />
+              </div>
             </div>
-            <Slider
-              value={[completion]}
-              onValueChange={(values) => setCompletion(values[0])}
-              max={100}
-              step={1}
-            />
-          </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add any notes about this session"
-              className="min-h-[100px]"
-            />
+            {technique === "pomodoro" && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="breakInterval">Break Interval (minutes)</Label>
+                  <Input
+                    id="breakInterval"
+                    type="number"
+                    min="1"
+                    value={breakInterval}
+                    onChange={(e) => setBreakInterval(parseInt(e.target.value))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="breakDuration">Break Duration (minutes)</Label>
+                  <Input
+                    id="breakDuration"
+                    type="number"
+                    min="1"
+                    value={breakDuration}
+                    onChange={(e) => setBreakDuration(parseInt(e.target.value))}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <Label>Completion</Label>
+                <span className="text-sm text-muted-foreground">{completion}%</span>
+              </div>
+              <Slider
+                value={[completion]}
+                onValueChange={(values) => setCompletion(values[0])}
+                max={100}
+                step={1}
+                className="w-full"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any notes about this session"
+                className="min-h-[100px]"
+              />
+            </div>
           </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit}>
-            {mode === "edit" ? "Save Changes" : "Create Session"}
-          </Button>
+        </ScrollArea>
+
+        <DialogFooter className="px-6 py-4 border-t">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-between w-full gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit}>
+              {mode === "edit" ? "Save Changes" : "Create Session"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

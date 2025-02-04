@@ -17,6 +17,7 @@ import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import api from "./api/Api";
 import { EmailVerification } from "./pages/EmailVerification";
 import { DataProvider } from "@/contexts/DataProvider";
+import { Home } from "./pages/Home";
 
 function App() {
   console.log("App");
@@ -63,6 +64,10 @@ function App() {
         <ThemeProvider defaultTheme="system" storageKey="ui-theme">
           <Router>
             <Routes>
+              {/* Public Marketing Homepage */}
+              <Route path="/" element={<Home />} />
+
+              {/* Public routes for auth */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route
@@ -77,7 +82,7 @@ function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="calendar" element={<Calendar />} />
                 <Route path="study" element={<StudySessions />} />
                 <Route path="analytics" element={<Analytics />} />

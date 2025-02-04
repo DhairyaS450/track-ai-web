@@ -30,6 +30,7 @@ export function RescheduleSessionDialog({
 
   const calculateEndTime = () => {
     if (!startTime) return "";
+    if (!duration) return "";
     const start = new Date(startTime);
     const end = addMinutes(start, duration);
     return format(end, "yyyy-MM-dd'T'HH:mm");
@@ -79,7 +80,7 @@ export function RescheduleSessionDialog({
               id="duration"
               type="number"
               value={duration}
-              onChange={(e) => setDuration(parseInt(e.target.value))}
+              onChange={(e) => setDuration(e.target.value == '' ? 0 : parseInt(e.target.value))}
               min="1"
               className="col-span-4"
             />
