@@ -141,7 +141,8 @@ You agree to defend, indemnify, and hold harmless TaskTide AI, its partners, emp
    Any dispute arising under these Terms shall be resolved in the courts located in Toronto, Ontario, Canada, and you consent to the personal jurisdiction of these courts.
 
 3. **Alternative Dispute Resolution**  
-   We encourage amicable resolution of any disputes. You may contact us at [support@tasktide.ai](mailto:support@tasktide.ai) to discuss any issues before initiating formal legal proceedings.
+   We encourage amicable resolution of any disputes. You may contact us at [dhairyashah2513@gmail.com](mailto:dhairyashah2513@gmail.com) to discuss any issues before initiating formal legal proceedings.
+
 
 ---
 
