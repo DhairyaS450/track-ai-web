@@ -19,6 +19,7 @@ import { EmailVerification } from "./pages/EmailVerification";
 import { DataProvider } from "@/contexts/DataProvider";
 import { Home } from "./pages/Home";
 import { Privacy } from "./pages/Privacy";
+import { TOS } from "./pages/TOS";
 
 function App() {
   console.log("App");
@@ -68,6 +69,7 @@ function App() {
               {/* Public Marketing Homepage */}
               <Route path="/" element={<Home />} />
               <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms-of-service" element={<TOS />}></Route>
 
               {/* Public routes for auth */}
               <Route path="/login" element={<Login />} />

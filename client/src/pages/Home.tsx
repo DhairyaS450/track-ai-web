@@ -368,6 +368,11 @@ export function Home() {
                     Privacy Policy
                   </Link>
                 </li>
+                <li>
+                  <Link to="/terms-of-service" className="hover:text-primary transition-colors">
+                    Terms of Service
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>
