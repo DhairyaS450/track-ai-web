@@ -46,7 +46,8 @@ Welcome to TaskTide AI (“we,” “us,” or “our”). By accessing or using
 
 4. **Termination**  
    - We may suspend or terminate your account if we believe you have violated these Terms or engaged in any unlawful conduct.  
-   - You may stop using our Services at any time. If you wish to delete your account, please contact us at [support@tasktide.ai](mailto:support@tasktide.ai).
+   - You may stop using our Services at any time. If you wish to delete your account, please contact us at [dhairyashah2513@gmail.com](mailto:dhairyashah2513@gmail.com).
+
 
 ---
 
@@ -170,4 +171,4 @@ We may modify, suspend, or discontinue any aspect of the Services at any time wi
 
 For any questions or concerns about these Terms of Service, please contact us at:
 
-**Email:** [support@tasktide.ai](mailto:support@tasktide.ai)
+**Email:** [dhairyashah2513@gmail.com](mailto:dhairyashah2513@gmail.com)
