@@ -18,6 +18,7 @@ import api from "./api/Api";
 import { EmailVerification } from "./pages/EmailVerification";
 import { DataProvider } from "@/contexts/DataProvider";
 import { Home } from "./pages/Home";
+import { Privacy } from "./pages/Privacy";
 
 function App() {
   console.log("App");
@@ -66,6 +67,7 @@ function App() {
             <Routes>
               {/* Public Marketing Homepage */}
               <Route path="/" element={<Home />} />
+              <Route path="/privacy" element={<Privacy />} />
 
               {/* Public routes for auth */}
               <Route path="/login" element={<Login />} />

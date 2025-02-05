@@ -12,7 +12,7 @@ import {
   Mail,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export function Home() {
   const navigate = useNavigate();
@@ -363,6 +363,11 @@ export function Home() {
                 <li>About</li>
                 <li>Blog</li>
                 <li>Careers</li>
+                <li>
+                  <Link to="/privacy" className="hover:text-primary transition-colors">
+                    Privacy Policy
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>
