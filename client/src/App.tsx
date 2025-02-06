@@ -70,8 +70,6 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms-of-service" element={<TOS />} />
-              <Route path="privacy" element={<Privacy />} />
-              <Route path="terms-of-service" element={<TOS />} />
 
               {/* Public routes for auth */}
               <Route path="/login" element={<Login />} />
@@ -88,7 +86,7 @@ function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="dashboard" element={<Dashboard />} />
                 <Route path="calendar" element={<Calendar />} />
                 <Route path="study" element={<StudySessions />} />
                 <Route path="analytics" element={<Analytics />} />
