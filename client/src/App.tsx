@@ -69,7 +69,9 @@ function App() {
               {/* Public Marketing Homepage */}
               <Route path="/" element={<Home />} />
               <Route path="/privacy" element={<Privacy />} />
-              <Route path="/terms-of-service" element={<TOS />}></Route>
+              <Route path="/terms-of-service" element={<TOS />} />
+              <Route path="privacy" element={<Privacy />} />
+              <Route path="terms-of-service" element={<TOS />} />
 
               {/* Public routes for auth */}
               <Route path="/login" element={<Login />} />
