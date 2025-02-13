@@ -13,21 +13,19 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { CreateEventDialog } from "./CreateEventDialog";
 import { CreateStudySessionDialog } from "./CreateStudySessionDialog";
-import { deleteTask, getTaskById } from "@/api/tasks";
-import { getEventById } from "@/api/events";
-import { getStudySessionById } from "@/api/sessions";
-import { deleteDeadline, getDeadlineById } from "@/api/deadlines";
-import { getReminder, dismissReminder } from "@/api/reminders";
 import { useToast } from "@/hooks/useToast";
 import { CreateDeadlineDialog } from "./CreateDeadlineDialog";
 import { CreateReminderDialog } from "./CreateReminderDialog";
 import { useNavigate } from "react-router-dom";
+import { useData } from "@/contexts/DataProvider";
 interface HeaderProps {
   onMenuClick: () => void;
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { toast } = useToast();
+  const data = useData();
+  const { tasks, events, sessions, deadlines, reminders, deleteTask, deleteDeadline, dismissReminder } = data;
   const navigate = useNavigate();
   const [date, setDate] = useState(new Date());
   const [search, setSearch] = useState("");
@@ -59,7 +57,8 @@ export function Header({ onMenuClick }: HeaderProps) {
 
       setIsLoading(true);
       try {
-        const results = await searchItems(debouncedSearch);
+        console.log("Searching for:", debouncedSearch, "with data:", data);
+        const results = await searchItems(debouncedSearch, data);
         console.log("Search results:", results);
         setSearchResults(results);
         setIsSearchOpen(true);
@@ -72,7 +71,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     };
 
     performSearch();
-  }, [debouncedSearch]);
+  }, [debouncedSearch, data, isSearchOpen]);
 
   const handleEdit = async (id: string, type: string) => {
     setIsSearchOpen(false);
@@ -82,28 +81,28 @@ export function Header({ onMenuClick }: HeaderProps) {
     try {
       switch (type) {
         case "task":
-          { const task = await getTaskById(id);
-          setSelectedItem(task.task);
+          { const task = tasks.find(task => task.id === id);
+          setSelectedItem(task);
           setIsTaskDialogOpen(true);
           break; }
         case "event":
-          { const event = await getEventById(id);
-          setSelectedItem(event.event);
+          { const event = events.find(event => event.id === id);
+          setSelectedItem(event);
           setIsEventDialogOpen(true);
           break; }
         case "study":
-          { const study = await getStudySessionById(id);
-          setSelectedItem(study.session);
+          { const study = sessions.find(session => session.id === id);
+          setSelectedItem(study);
           setIsStudyDialogOpen(true);
           break; }
         case "deadline":
-          { const deadline = await getDeadlineById(id);
-          setSelectedItem(deadline.deadline);
+          { const deadline = deadlines.find(deadline => deadline.id === id);
+          setSelectedItem(deadline);
           setIsDeadlineDialogOpen(true);
           break; }
         case "reminder":
-          { const reminder = await getReminder(id);
-          setSelectedItem(reminder.reminder);
+          { const reminder = reminders.find(reminder => reminder.id === id);
+          setSelectedItem(reminder);
           setIsReminderDialogOpen(true);
           break; }
       }
@@ -132,7 +131,7 @@ export function Header({ onMenuClick }: HeaderProps) {
       }
       
       // Refresh search results
-      const results = await searchItems(search);
+      const results = await searchItems(search, data);
       setSearchResults(results);
 
       toast({

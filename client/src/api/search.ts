@@ -1,5 +1,5 @@
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db, auth } from "@/config/firebase";
+import { auth } from "@/config/firebase";
+import { useData } from "@/contexts/DataProvider";
 
 export interface SearchResult {
   id: string;
@@ -10,118 +10,78 @@ export interface SearchResult {
   status?: string;
 }
 
-export async function searchItems(searchQuery: string): Promise<SearchResult[]> {
+export async function searchItems(
+  searchQuery: string,
+  data: ReturnType<typeof useData>
+): Promise<SearchResult[]> {
   if (!searchQuery.trim() || !auth.currentUser) return [];
 
-  const userId = auth.currentUser.uid;
+  const { tasks, events, sessions, deadlines, reminders } = data;
   const results: SearchResult[] = [];
+  const query = searchQuery.toLowerCase();
 
+  console.log('--------------------------------')
   // Search tasks
-  const tasksQuery = query(
-    collection(db, "tasks"),
-    where("userId", "==", userId),
-    where("title", ">=", searchQuery),
-    where("title", "<=", searchQuery + "\uf8ff"),
-    orderBy("title"),
-    orderBy("deadline", "asc")
-  );
-
-  const taskDocs = await getDocs(tasksQuery);
-  taskDocs.forEach((doc) => {
-    const data = doc.data();
-    results.push({
-      id: doc.id,
-      title: data.title,
-      type: "task",
-      dueDate: data.deadline ? new Date(data.deadline) : undefined,
-      completed: data.completed,
-    });
+  tasks.forEach((task) => {
+    if (task.title?.toLowerCase().includes(query)) {
+      results.push({
+        id: task.id,
+        title: task.title,
+        type: "task",
+        dueDate: task.deadline ? new Date(task.deadline) : undefined,
+        completed: task.status === "completed",
+      });
+    }
   });
 
   // Search events
-  const eventsQuery = query(
-    collection(db, "events"),
-    where("userId", "==", userId),
-    where("name", ">=", searchQuery),
-    where("name", "<=", searchQuery + "\uf8ff"),
-    orderBy("name"),
-    orderBy("startTime", "asc")
-  );
-
-  const eventDocs = await getDocs(eventsQuery);
-  eventDocs.forEach((doc) => {
-    const data = doc.data();
-    results.push({
-      id: doc.id,
-      title: data.name,
-      type: "event",
-      dueDate: data.startTime ? new Date(data.startTime) : undefined,
-    });
+  events.forEach((event) => {
+    if (event.name?.toLowerCase().includes(query)) {
+      results.push({
+        id: event.id,
+        title: event.name,
+        type: "event",
+        dueDate: event.startTime ? new Date(event.startTime) : undefined,
+      });
+    }
   });
 
   // Search study sessions
-  const studyQuery = query(
-    collection(db, "studySessions"),
-    where("userId", "==", userId),
-    where("subject", ">=", searchQuery),
-    where("subject", "<=", searchQuery + "\uf8ff"),
-    orderBy("subject"),
-    orderBy("scheduledFor", "asc")
-  );
-
-  const studyDocs = await getDocs(studyQuery);
-  studyDocs.forEach((doc) => {
-    const data = doc.data();
-    results.push({
-      id: doc.id,
-      title: data.subject,
-      type: "study",
-      dueDate: data.scheduledFor ? new Date(data.scheduledFor) : undefined,
-    });
+  sessions.forEach((session) => {
+    if (session.subject?.toLowerCase().includes(query)) {
+      results.push({
+        id: session.id,
+        title: session.subject,
+        type: "study",
+        dueDate: session.scheduledFor ? new Date(session.scheduledFor) : undefined,
+      });
+    }
   });
 
   // Search deadlines
-  const deadlinesQuery = query(
-    collection(db, "deadlines"),
-    where("userId", "==", userId),
-    where("title", ">=", searchQuery),
-    where("title", "<=", searchQuery + "\uf8ff"),
-    orderBy("title"),
-    orderBy("dueDate", "asc")
-  );
-
-  const deadlineDocs = await getDocs(deadlinesQuery);
-  deadlineDocs.forEach((doc) => {
-    const data = doc.data();
-    results.push({
-      id: doc.id,
-      title: data.title,
-      type: "deadline",
-      dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
-      status: data.status,
-    });
+  deadlines.forEach((deadline) => {
+    if (deadline.title?.toLowerCase().includes(query)) {
+      results.push({
+        id: deadline.id,
+        title: deadline.title,
+        type: "deadline",
+        dueDate: deadline.dueDate ? new Date(deadline.dueDate) : undefined,
+        status: deadline.status,
+      });
+    }
   });
 
   // Search reminders
-  const remindersQuery = query(
-    collection(db, "reminders"),
-    where("userId", "==", userId),
-    where("title", ">=", searchQuery),
-    where("title", "<=", searchQuery + "\uf8ff"),
-    orderBy("title"),
-    orderBy("reminderTime", "asc")
-  );
-
-  const reminderDocs = await getDocs(remindersQuery);
-  reminderDocs.forEach((doc) => {
-    const data = doc.data();
-    results.push({
-      id: doc.id,
-      title: data.title,
-      type: "reminder",
-      dueDate: data.reminderTime ? new Date(data.reminderTime) : undefined,
-      status: data.status,
-    });
+  reminders.forEach((reminder) => {
+    if (reminder.title?.toLowerCase().includes(query)) {
+      results.push({
+        id: reminder.id,
+        title: reminder.title,
+        type: "reminder",
+        dueDate: reminder.reminderTime ? new Date(reminder.reminderTime) : undefined,
+        status: reminder.status,
+      });
+    }
   });
 
   return results;
