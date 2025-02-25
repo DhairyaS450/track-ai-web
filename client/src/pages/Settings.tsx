@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -6,12 +7,15 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Bell, Calendar, Moon, User } from "lucide-react";
+import { Bell, Calendar, Moon, User, Clock, Edit, Trash2 } from "lucide-react";
 import { connectGoogleCalendar, getGoogleCalendarStatus } from "@/api/calendar";
 import { useToast } from "@/hooks/useToast";
 import api from "@/api/Api";
 import { listenToSettings, saveSettings } from "@/api/settings";
 import { useTheme } from "@/components/ui/theme-provider";
+import { TimeConstraintDialog } from "@/components/TimeConstraintDialog";
+import { TimeConstraint } from "@/types";
+import { Badge } from "@/components/ui/badge";
 
 export function Settings() {
   const [notifications, setNotifications] = useState({
@@ -38,6 +42,10 @@ export function Settings() {
     preferredStudyTimes: "",
   });
   const [tempProfile, setTempProfile] = useState(profile);
+
+  const [timeConstraints, setTimeConstraints] = useState<TimeConstraint[]>([]);
+  const [isTimeConstraintDialogOpen, setIsTimeConstraintDialogOpen] = useState(false);
+  const [editingConstraint, setEditingConstraint] = useState<TimeConstraint | undefined>();
 
   const handleTempProfileChange = (field: string, value: string) => {
     setTempProfile((prev) => ({ ...prev, [field]: value }));
@@ -83,6 +91,9 @@ export function Settings() {
         }
         if (settings.preferences?.theme) {
           setTheme(settings.preferences.theme);
+        }
+        if (settings.timeConstraints) {
+          setTimeConstraints(settings.timeConstraints);
         }
         setLoading(false);
       }
@@ -152,6 +163,42 @@ export function Settings() {
       checkCalendarStatus()
     }
   }, []);
+
+  const handleSaveTimeConstraint = async (constraint: Omit<TimeConstraint, 'id'>) => {
+    try {
+      if (editingConstraint) {
+        // Update existing constraint
+        const updatedConstraints = timeConstraints.map(c => 
+          c.id === editingConstraint.id ? { ...constraint, id: c.id } : c
+        );
+        setTimeConstraints(updatedConstraints);
+        await saveSettings({ timeConstraints: updatedConstraints });
+      } else {
+        // Add new constraint
+        const newConstraint = {
+          ...constraint,
+          id: crypto.randomUUID()
+        };
+        const updatedConstraints = [...timeConstraints, newConstraint];
+        setTimeConstraints(updatedConstraints);
+        await saveSettings({ timeConstraints: updatedConstraints });
+      }
+      toast({ title: "Success", description: "Time constraint saved successfully" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteTimeConstraint = async (id: string) => {
+    try {
+      const updatedConstraints = timeConstraints.filter(c => c.id !== id);
+      setTimeConstraints(updatedConstraints);
+      await saveSettings({ timeConstraints: updatedConstraints });
+      toast({ title: "Success", description: "Time constraint deleted successfully" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -348,6 +395,75 @@ export function Settings() {
         </Card>
 
         <Card>
+          <CardHeader className="flex justify-between p-4 border-b">
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Time Constraints
+            </CardTitle>
+            <Button 
+              onClick={() => {
+                setEditingConstraint(undefined);
+                setIsTimeConstraintDialogOpen(true);
+              }}
+            >
+              Add Time Block
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {timeConstraints.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">
+                No time constraints set. Add some to block out your regular commitments.
+              </p>
+            ) : (
+              timeConstraints.map((constraint) => (
+                <div
+                  key={constraint.id}
+                  className="flex items-center justify-between p-4 rounded-lg border"
+                >
+                  <div className="space-y-1">
+                    <h4 className="font-medium">{constraint.title}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {constraint.daysOfWeek.map(day => 
+                        ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]
+                      ).join(', ')}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {constraint.startTime} - {constraint.endTime}
+                    </p>
+                    <Badge variant={
+                      constraint.priority === 'High' ? 'destructive' :
+                      constraint.priority === 'Medium' ? 'default' :
+                      'secondary'
+                    }>
+                      {constraint.priority}
+                    </Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingConstraint(constraint);
+                        setIsTimeConstraintDialogOpen(true);
+                      }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteTimeConstraint(constraint.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
@@ -383,6 +499,13 @@ export function Settings() {
           </CardContent>
         </Card>
       </div>
+
+      <TimeConstraintDialog
+        open={isTimeConstraintDialogOpen}
+        onOpenChange={setIsTimeConstraintDialogOpen}
+        onSave={handleSaveTimeConstraint}
+        initialConstraint={editingConstraint}
+      />
     </div>
   );
 }

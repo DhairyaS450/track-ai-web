@@ -127,7 +127,8 @@ export const processChatMessage = async (message: string, chatHistory: { type: '
       events: filterRecentData(eventsResponse.events, 'startTime').map(filterEventData),
       sessions: filterRecentData(sessionsResponse.sessions, 'scheduledFor').map(filterSessionData),
       deadlines: filterRecentData(deadlinesResponse.deadlines, 'dueDate').map(filterDeadlineData),
-      profile: profileResponse,
+      profile: profileResponse.userProfile,
+      timeConstraints: profileResponse.timeConstraints,
       chatHistory: chatHistory.slice(-5) // Only keep last 5 messages for context
     };
 

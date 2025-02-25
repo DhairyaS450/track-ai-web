@@ -10,7 +10,6 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { useToast } from "@/hooks/useToast";
 import { Task, TimeSlot } from "@/types";
 import { Plus, Trash } from "lucide-react";
@@ -20,7 +19,6 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 
 type Priority = "High" | "Medium" | "Low";
-type Recurrence = "daily" | "weekly" | "monthly";
 
 interface CreateTaskDialogProps {
   open: boolean;
@@ -50,7 +48,6 @@ export function CreateTaskDialog({
     subject: "",
     resources: "",
     timeSlots: [{ startDate: "", endDate: "" }] as TimeSlot[],
-    recurrence: undefined as Recurrence | undefined,
     completion: 0,
   });
 
@@ -66,7 +63,6 @@ export function CreateTaskDialog({
         subject: initialTask.subject || "",
         resources: initialTask.resources || "",
         timeSlots: initialTask.timeSlots || [{ startDate: "", endDate: "" }],
-        recurrence: initialTask.recurrence,
         completion: initialTask.completion || 0,
       });
     } else {
@@ -78,7 +74,6 @@ export function CreateTaskDialog({
         subject: "",
         resources: "",
         timeSlots: [{ startDate: "", endDate: "" }],
-        recurrence: undefined,
         completion: 0,
       });
     }
@@ -268,23 +263,6 @@ export function CreateTaskDialog({
                   ))}
                 </>
               )}
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Recurrence</Label>
-              <Select 
-                value={formData.recurrence} 
-                onValueChange={(value: Recurrence) => updateFormData({ recurrence: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select recurrence" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="grid gap-2">

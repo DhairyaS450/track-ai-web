@@ -23,29 +23,33 @@ export const listenToSettings = (onUpdate: (data: any) => void) => {
 }
 
 export const saveSettings = async (
-  userProfile: any,
-  preferences: any
+  updates: {
+    userProfile?: any;
+    timeConstraints?: any;
+  },
+  preferences: any = {}
 ) => {
-  userProfile = userProfile.userProfile || {};
   const userId = auth.currentUser?.uid;
   if (!userId) {
     throw Error("Cannot get userId for settings update");
   }
 
   const userDocRef = doc(db, "users", userId);
-  console.log(`${JSON.stringify(userProfile)}`)
+  console.log("Saving settings:", updates, preferences);
 
   try {
     // Retrieve existing settings
     const snapshot = await getDoc(userDocRef);
     const existingData = snapshot.exists() ? snapshot.data() : {};
 
-    // Create the update object, being careful not to nest userProfile
+    // Create the update object
     const updatedData = {
       ...existingData,
-      // If userProfile is provided, replace the entire userProfile object
-      ...(Object.keys(userProfile).length > 0 ? { userProfile } : {}),
-      // If preferences is provided, merge with existing preferences
+      // Update userProfile if provided
+      ...(updates.userProfile ? { userProfile: updates.userProfile } : {}),
+      // Update timeConstraints if provided
+      ...(updates.timeConstraints ? { timeConstraints: updates.timeConstraints } : {}),
+      // Update preferences if provided
       ...(Object.keys(preferences).length > 0 ? {
         preferences: {
           ...existingData.preferences,
@@ -56,7 +60,7 @@ export const saveSettings = async (
 
     // Save the updated settings
     await setDoc(userDocRef, updatedData);
-    console.log("Settings updated successfully");
+    console.log("Settings updated successfully:", updatedData);
   } catch (error) {
     console.error("Error updating settings:", error);
     throw error;
@@ -71,6 +75,7 @@ export const getUserProfile = async () => {
   const userDocRef = doc(db, "users", userId);
   const snapshot = await getDoc(userDocRef);
   const userProfile = snapshot.exists() ? snapshot.data().userProfile : {};
-  return userProfile;
+  const timeConstraints = snapshot.exists() ? snapshot.data().timeConstraints : [];
+  return { userProfile, timeConstraints };
 };
 

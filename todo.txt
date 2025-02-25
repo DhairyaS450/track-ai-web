@@ -4,6 +4,7 @@ Convert to PWA
 Release on App Store and Play Store
 
 Frontend:
+Priority: Study sessions are broken completely
 Chatbot:
 - Enable adding attachments to messages
 - Allow it to display visuals such as calendars, charts, etc
@@ -39,3 +40,5 @@ Working interactive chatbot that can add, edit, delete -> tasks, events, study s
 time blocks, etc, and give good recommendations considering user profile
 Efficiency with firebase firestore: Using snapshots
 AI Notifications for any recommendations (ie recommended study session at 4:00PM tommorow for upcoming test event)
+
+

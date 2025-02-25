@@ -86,5 +86,17 @@ export interface Event {
   calendarId?: string;
 }
 
+export interface TimeConstraint {
+  id: string;
+  title: string;
+  priority: 'High' | 'Medium' | 'Low';
+  daysOfWeek: number[]; // 0-6 for Sunday-Saturday
+  startTime: string;    // HH:mm format
+  endTime: string;      // HH:mm format
+  isRecurring: boolean; // if false, it's a one-time constraint
+  startDate?: string;   // ISO date string, for non-recurring constraints
+  endDate?: string;     // ISO date string, for non-recurring constraints
+}
+
 export * from './deadlines';
 export * from './data';
