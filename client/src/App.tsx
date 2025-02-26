@@ -20,6 +20,7 @@ import { DataProvider } from "@/contexts/DataProvider";
 import { Home } from "./pages/Home";
 import { Privacy } from "./pages/Privacy";
 import { TOS } from "./pages/TOS";
+import DemoPage from './pages/DemoPage';
 
 function App() {
   console.log("App");
@@ -78,6 +79,8 @@ function App() {
                 path="/verify-email"
                 element={<EmailVerification user={user} />}
               />
+              {/* abviously this is a demo page so it should be public */}
+              <Route path="demo" element={<DemoPage />} />
               <Route
                 path="/"
                 element={
