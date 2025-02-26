@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   browserLocalPersistence,
   createUserWithEmailAndPassword,
@@ -6,6 +7,8 @@ import {
   signOut,
   sendEmailVerification,
   User,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from "firebase/auth";
 import { db, auth } from "@/config/firebase";
 import { doc, setDoc} from "@firebase/firestore";
@@ -86,3 +89,23 @@ export const verifyEmail = async (user: User | null) => {
     throw new Error(error.message);
   }
 }
+
+// Add Google Sign In
+export const signInWithGoogle = async () => {
+  try {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    
+    // Add user to database if they don't exist
+    await setDoc(doc(db, "users", result.user.uid), {
+      email: result.user.email,
+      name: result.user.displayName,
+      photoURL: result.user.photoURL,
+    }, { merge: true }); // merge: true will only update specified fields
+
+    return { success: true, user: result };
+  } catch (error: any) {
+    console.error("Error signing in with Google:", error);
+    throw new Error(error.message);
+  }
+};
