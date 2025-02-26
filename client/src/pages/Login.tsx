@@ -15,7 +15,7 @@ import {
 import { useToast } from "@/hooks/useToast"
 import { LogIn } from "lucide-react"
 import { login } from "@/api/auth"
-import { getAuth } from "@firebase/auth"
+import { getAuth } from "firebase/auth"
 
 type LoginForm = {
   email: string
