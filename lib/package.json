@@ -13,6 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.3",
+    "@google/generative-ai": "^0.22.0",
     "@googleapis/calendar": "^9.7.9",
     "axios": "^1.7.7",
     "bcrypt": "^5.1.1",
