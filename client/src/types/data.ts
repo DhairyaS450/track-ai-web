@@ -1,11 +1,10 @@
-import { Deadline, Reminder } from "./deadlines";
+import { Reminder } from "./deadlines";
 import { Event, StudySession, Task } from ".";
 
 export interface DataContextType {
     tasks: Task[];
     events: Event[];
     sessions: StudySession[];
-    deadlines: Deadline[];
     reminders: Reminder[];
     loading: boolean;
     error: string | null;
@@ -13,6 +12,7 @@ export interface DataContextType {
     addTask: (task: Omit<Task, 'id' | 'userId' | 'createdAt'>) => Promise<{ task: Task }>;
     updateTask: (id: string, updates: Partial<Task>) => Promise<{ task: Task }>;
     deleteTask: (id: string) => Promise<{ success: boolean }>;
+    markTaskComplete: (id: string) => Promise<{ success: boolean }>;
   
     addEvent: (event: Omit<Event, 'id' | 'userId' | 'createdAt'>) => Promise<{ event: Event }>;
     updateEvent: (id: string, updates: Partial<Event>) => Promise<{ event: Event }>;
@@ -23,11 +23,6 @@ export interface DataContextType {
     deleteSession: (id: string) => Promise<{ success: boolean }>;
     startSession: (id: string) => Promise<{ session: StudySession }>;
     endSession: (id: string, notes?: string) => Promise<{ session: StudySession }>;
-  
-    addDeadline: (deadline: Omit<Deadline, 'id' | 'userId' | 'createdAt'>) => Promise<{ deadline: Deadline }>;
-    updateDeadline: (id: string, updates: Partial<Deadline>) => Promise<{ deadline: Deadline }>;
-    deleteDeadline: (id: string) => Promise<{ success: boolean }>;
-    markAsComplete: (id: string) => Promise<{ success: boolean }>;
   
     addReminder: (reminder: Omit<Reminder, 'id' | 'userId' | 'createdAt'>) => Promise<{ reminder: Reminder }>;
     updateReminder: (id: string, updates: Partial<Reminder>) => Promise<{ reminder: Reminder }>;

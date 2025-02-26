@@ -109,14 +109,17 @@ export function StudySessions() {
     if (!sessionToReschedule) return;
 
     try {
-      const newSession: Omit<StudySession, "id"> = {
-        ...sessionToReschedule,
+      // Create a clean copy of the session without undefined fields
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id, startTime: oldStartTime, endTime, status, completion, ...sessionData } = sessionToReschedule;
+      
+      const newSession = {
+        ...sessionData,
         scheduledFor: startTime,
         duration: duration,
-        status: 'scheduled',
+        status: 'scheduled' as const,
         completion: 0,
-        startTime: undefined,
-        endTime: undefined
+        notes: ''  // Initialize with empty notes
       };
 
       await addSession(newSession);
@@ -176,7 +179,7 @@ export function StudySessions() {
   });
 
   const upcomingSessions = filteredSessions.filter(s => s.status === "scheduled");
-  const completedSessions = filteredSessions.filter(s => s.status === "completed").reverse();
+  const completedSessions = filteredSessions.filter(s => s.status === "completed");
 
   return (
     <div className="space-y-6 p-4 md:p-6">

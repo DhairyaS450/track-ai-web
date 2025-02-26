@@ -1,4 +1,4 @@
-import { Check, CheckSquare, Bell, BookOpen, Calendar, Clock, Edit2, FileText, X } from "lucide-react";
+import { CheckSquare, Bell, BookOpen, Calendar, Edit2, FileText, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { format } from "date-fns";
@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 interface SearchResult {
   id: string;
   title: string;
-  type: "task" | "event" | "study" | "deadline" | "reminder";
+  type: "task" | "event" | "study" | "reminder";
   dueDate?: Date;
   completed?: boolean;
   status?: string;
@@ -28,7 +28,6 @@ export function SearchResults({ results, isOpen, onClose, onEdit, onToggleComple
     const category = result.type === "task" ? "Tasks" : 
                     result.type === "event" ? "Events" : 
                     result.type === "study" ? "Study Sessions" :
-                    result.type === "deadline" ? "Deadlines" :
                     "Reminders";
     if (!acc[category]) {
       acc[category] = [];
@@ -53,8 +52,6 @@ export function SearchResults({ results, isOpen, onClose, onEdit, onToggleComple
         return <Calendar className="h-4 w-4" />;
       case "Study Sessions":
         return <BookOpen className="h-4 w-4" />;
-      case "Deadlines":
-        return <Clock className="h-4 w-4" />;
       case "Reminders":
         return <Bell className="h-4 w-4" />;
       default:
@@ -65,8 +62,6 @@ export function SearchResults({ results, isOpen, onClose, onEdit, onToggleComple
   const getActionIcon = (type: string) => {
     switch (type) {
       case "task":
-      case "deadline":
-        return <Check className="h-4 w-4" />;
       case "reminder":
         return <X className="h-4 w-4" />;
       default:
@@ -118,7 +113,7 @@ export function SearchResults({ results, isOpen, onClose, onEdit, onToggleComple
                     >
                       <Edit2 className="h-4 w-4" />
                     </Button>
-                    {(item.type === "task" || item.type === "deadline" || item.type === "reminder") && (
+                    {(item.type === "task" || item.type === "reminder") && (
                       <Button
                         variant="ghost"
                         size="sm"

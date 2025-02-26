@@ -3,7 +3,6 @@ import api from './Api';
 import { getTasks } from './tasks';
 import { getEvents } from './events';
 import { getStudySessions } from './sessions';
-import { getDeadlines } from './deadlines';
 import { getUserProfile } from './settings';
 
 interface FilteredTask {
@@ -40,15 +39,6 @@ interface FilteredSession {
   completion: number;
   priority: string;
 }
-
-interface FilteredDeadline {
-  id: string;
-  title: string;
-  description: string;
-  dueDate: string;
-  priority: string;
-}
-
 
 const filterRecentData = <T>(
   data: T[],
@@ -100,24 +90,14 @@ const filterSessionData = (session: any): FilteredSession => ({
   priority: session.priority
 });
 
-const filterDeadlineData = (deadline: any): FilteredDeadline => ({
-  id: deadline.id,
-  title: deadline.title?.substring(0, 50),
-  description: deadline.description?.substring(0, 100),
-  dueDate: deadline.dueDate,
-  priority: deadline.priority
-});
-
-
 export const processChatMessage = async (message: string, chatHistory: { type: 'user' | 'bot', content: string }[]) => {
   try {
     // Gather context data
 
-    const [tasksResponse, eventsResponse, sessionsResponse, deadlinesResponse, profileResponse] = await Promise.all([
+    const [tasksResponse, eventsResponse, sessionsResponse, profileResponse] = await Promise.all([
       getTasks(),
       getEvents(),
       getStudySessions(),
-      getDeadlines(),
       getUserProfile()
     ]);
 
@@ -126,7 +106,6 @@ export const processChatMessage = async (message: string, chatHistory: { type: '
       tasks: filterRecentData(tasksResponse.tasks, 'deadline').map(filterTaskData),
       events: filterRecentData(eventsResponse.events, 'startTime').map(filterEventData),
       sessions: filterRecentData(sessionsResponse.sessions, 'scheduledFor').map(filterSessionData),
-      deadlines: filterRecentData(deadlinesResponse.deadlines, 'dueDate').map(filterDeadlineData),
       profile: profileResponse.userProfile,
       timeConstraints: profileResponse.timeConstraints,
       chatHistory: chatHistory.slice(-5) // Only keep last 5 messages for context

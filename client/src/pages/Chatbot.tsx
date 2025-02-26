@@ -26,7 +26,6 @@ import { addTask, updateTask } from "@/api/tasks";
 import { addEvent, updateEvent } from "@/api/events";
 import { addStudySession, updateStudySession } from "@/api/sessions";
 import ReactMarkdown from 'react-markdown';
-import { updateDeadline } from "@/api/deadlines";
 import { updateReminder } from "@/api/deadlines";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { KaiQuickInfo } from "@/components/KaiQuickInfo";
@@ -198,10 +197,6 @@ export function Chatbot() {
           case 'UPDATE_REMINDER':
             await updateReminder(result.action.data.id, result.action.data);
             break;
-          case 'UPDATE_DEADLINE':
-            await updateDeadline(result.action.data.id, result.action.data);
-            break;
-            
           // ... handle other action types
         }
       }

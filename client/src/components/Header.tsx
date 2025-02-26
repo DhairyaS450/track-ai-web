@@ -14,7 +14,6 @@ import { CreateTaskDialog } from "./CreateTaskDialog";
 import { CreateEventDialog } from "./CreateEventDialog";
 import { CreateStudySessionDialog } from "./CreateStudySessionDialog";
 import { useToast } from "@/hooks/useToast";
-import { CreateDeadlineDialog } from "./CreateDeadlineDialog";
 import { CreateReminderDialog } from "./CreateReminderDialog";
 import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/DataProvider";
@@ -25,7 +24,7 @@ interface HeaderProps {
 export function Header({ onMenuClick }: HeaderProps) {
   const { toast } = useToast();
   const data = useData();
-  const { tasks, events, sessions, deadlines, reminders, deleteTask, deleteDeadline, dismissReminder } = data;
+  const { tasks, events, sessions, reminders, deleteTask, dismissReminder } = data;
   const navigate = useNavigate();
   const [date, setDate] = useState(new Date());
   const [search, setSearch] = useState("");
@@ -38,7 +37,6 @@ export function Header({ onMenuClick }: HeaderProps) {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [isStudyDialogOpen, setIsStudyDialogOpen] = useState(false);
-  const [isDeadlineDialogOpen, setIsDeadlineDialogOpen] = useState(false);
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
@@ -95,11 +93,6 @@ export function Header({ onMenuClick }: HeaderProps) {
           setSelectedItem(study);
           setIsStudyDialogOpen(true);
           break; }
-        case "deadline":
-          { const deadline = deadlines.find(deadline => deadline.id === id);
-          setSelectedItem(deadline);
-          setIsDeadlineDialogOpen(true);
-          break; }
         case "reminder":
           { const reminder = reminders.find(reminder => reminder.id === id);
           setSelectedItem(reminder);
@@ -121,9 +114,6 @@ export function Header({ onMenuClick }: HeaderProps) {
       switch (type) {
         case "task":
           await deleteTask(id);
-          break;
-        case "deadline":
-          await deleteDeadline(id);
           break;
         case "reminder":
           await dismissReminder(id);
@@ -249,16 +239,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         mode="edit"
         initialSession={{id: selectedItemId, ...selectedItem}}
       />
-      <CreateDeadlineDialog
-        open={isDeadlineDialogOpen}
-        onOpenChange={setIsDeadlineDialogOpen}
-        onDeadlineCreated={() => {
-          setIsDeadlineDialogOpen(false); 
-          setSelectedItem(null)
-        }}
-        mode="edit"
-        initialDeadline={{id: selectedItemId, ...selectedItem}}
-      />
+      
       <CreateReminderDialog
         open={isReminderDialogOpen}
         onOpenChange={setIsReminderDialogOpen}

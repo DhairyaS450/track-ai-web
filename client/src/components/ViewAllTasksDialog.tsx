@@ -11,6 +11,7 @@ import { CreateTaskDialog } from "./CreateTaskDialog";
 import { DeleteTaskDialog } from "./DeleteTaskDialog";
 import { useData } from "@/contexts/DataProvider";
 import { useToast } from "@/hooks/useToast";
+import { convertToUnified } from "@/types/unified";
 
 interface ViewAllTasksDialogProps {
   open: boolean;
@@ -75,7 +76,9 @@ export function ViewAllTasksDialog({
   };
 
   const handleEditTask = (task: Task) => {
-    setEditTask(task);
+    // Convert the task to unified format
+    const unifiedTask = convertToUnified(task, 'task');
+    setEditTask(unifiedTask as unknown as Task);
     setCreateTaskOpen(true);
   };
 

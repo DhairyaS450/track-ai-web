@@ -16,19 +16,19 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useState } from "react";
-import { AddItemDialog } from "./AddItemDialog";
 import { FeedbackDialog } from "./FeedbackDialog";
-import { CreateTaskDialog } from "./CreateTaskDialog";
-import { CreateEventDialog } from "./CreateEventDialog";
-import { CreateStudySessionDialog } from "./CreateStudySessionDialog";
-import { CreateDeadlineDialog } from "./CreateDeadlineDialog";
-import { CreateReminderDialog } from "./CreateReminderDialog";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { SyncDialog } from "./SyncDialog";
-import { Task, Event, StudySession } from "@/types";
-import { Deadline, Reminder } from "@/types/deadlines";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { toast } from "@/hooks/useToast";
 import { useData } from "@/contexts/DataProvider";
+
+// Import unified item components
+import { 
+  SchedulableItem, 
+  ItemType, 
+  convertFromUnified 
+} from "@/types/unified";
+import { UnifiedItemDialog } from "./UnifiedItemDialog";
 
 interface SidebarProps {
   open: boolean;
@@ -47,18 +47,21 @@ const navigation = [
 export function Sidebar({ open, onOpenChange }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [addItemOpen, setAddItemOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [quickMessage, setQuickMessage] = useState("");
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [createEventOpen, setCreateEventOpen] = useState(false);
-  const [createSessionOpen, setCreateSessionOpen] = useState(false);
-  const [createDeadlineOpen, setCreateDeadlineOpen] = useState(false);
-  const [createReminderOpen, setCreateReminderOpen] = useState(false);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  const { addDeadline, addReminder, addTask, addEvent, addSession } = useData();
+  // Unified dialog states
+  const [unifiedItemDialogOpen, setUnifiedItemDialogOpen] = useState(false);
+  const selectedItemType = useState<ItemType>('task')[0];
+
+  const { 
+    addTask, 
+    addEvent, 
+    addSession, 
+    addReminder,
+  } = useData();
   
   const handleQuickMessage = () => {
     if (quickMessage.trim()) {
@@ -70,24 +73,42 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
     }
   };
 
-  const handleAddItemSelect = (option: 'task' | 'event' | 'session' | 'deadline' | 'reminder') => {
-    setAddItemOpen(false);
-    switch (option) {
-      case 'task':
-        setCreateTaskOpen(true);
-        break;
-      case 'event':
-        setCreateEventOpen(true);
-        break;
-      case 'session':
-        setCreateSessionOpen(true);
-        break;
-      case 'deadline':
-        setCreateDeadlineOpen(true);
-        break;
-      case 'reminder':
-        setCreateReminderOpen(true);
-        break;
+  // Handler for when a new item is saved
+  const handleSaveItem = async (item: SchedulableItem) => {
+    try {
+      const convertedItem = convertFromUnified(item);
+      
+      switch (item.itemType) {
+        case 'task':
+          await addTask(convertedItem);
+          break;
+        case 'event':
+          await addEvent(convertedItem);
+          break;
+        case 'session':
+          await addSession(convertedItem);
+          break;
+        case 'reminder':
+          await addReminder(convertedItem);
+          break;
+      }
+      
+      setUnifiedItemDialogOpen(false);
+      toast({
+        title: "Success",
+        description: `${item.itemType.charAt(0).toUpperCase() + item.itemType.slice(1)} created successfully`,
+      });
+      
+      if (isMobile) {
+        onOpenChange(false);
+      }
+    } catch (error) {
+      console.error(`Error creating ${item.itemType}:`, error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to create ${item.itemType}`,
+      });
     }
   };
 
@@ -111,204 +132,103 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden dark:text-[#e0e0e0]"
             onClick={() => onOpenChange(false)}
+            className="md:hidden"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
-        <nav className="flex-1 space-y-1 px-4 py-4">
+        <div className="px-4 py-2">
+          <Button 
+            className="w-full justify-start mb-2" 
+            onClick={() => setUnifiedItemDialogOpen(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Item
+          </Button>
+          <form 
+            className="flex items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleQuickMessage();
+            }}
+          >
+            <Input 
+              placeholder="Quick message..."
+              className="h-8"
+              value={quickMessage}
+              onChange={(e) => setQuickMessage(e.target.value)}
+            />
+            <Button
+              type="submit"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
+        </div>
+        <nav className="space-y-1 px-2 py-5">
           {navigation.map((item) => {
-            const Icon = item.icon;
+            const isActive = location.pathname === item.href;
             return (
               <Link
                 key={item.name}
                 to={item.href}
-                onClick={() => isMobile && onOpenChange(false)}
                 className={cn(
-                  "flex items-center gap-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  location.pathname === item.href
-                    ? "bg-secondary text-secondary-foreground dark:text-[#e0e0e0]"
-                    : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground dark:text-[#e0e0e0]/70 dark:hover:text-[#e0e0e0]"
+                  "flex items-center px-4 py-2 text-sm font-medium rounded-md",
+                  isActive
+                    ? "bg-brand-primary text-white"
+                    : "text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
                 )}
+                onClick={() => {
+                  if (isMobile) {
+                    onOpenChange(false);
+                  }
+                }}
               >
-                <Icon className="h-5 w-5" />
+                <item.icon className="mr-3 h-5 w-5" />
                 {item.name}
               </Link>
             );
           })}
         </nav>
-        <div className="border-t p-4 space-y-4">
-          <Button
-            className="w-full justify-start dark:text-[#e0e0e0]"
-            onClick={() => setAddItemOpen(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add New
-          </Button>
-          <Button
-            className="w-full justify-start dark:text-[#e0e0e0]"
-            onClick={() => {
-              setDialogOpen(true);
-            }}
-          >
-            <Sync className="h-4 w-4 mr-2" />
-            Sync Calendar
-          </Button>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Ask Kai anything..."
-              value={quickMessage}
-              onChange={(e) => setQuickMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleQuickMessage();
-                }
-              }}
-              className="dark:text-[#e0e0e0] dark:placeholder-[#e0e0e0]/50"
-            />
-            <Button size="icon" onClick={handleQuickMessage} className="dark:text-[#e0e0e0]">
-              <Send className="h-4 w-4" />
+        <div className="absolute bottom-0 w-full border-t p-4">
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => setFeedbackOpen(true)}
+            >
+              <MessageCircle className="mr-2 h-4 w-4" />
+              Feedback
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => setDialogOpen(true)}
+            >
+              <Sync className="mr-2 h-4 w-4" />
+              Sync Calendar
             </Button>
           </div>
-          <Button
-            variant="outline"
-            className="w-full justify-start dark:text-[#e0e0e0] dark:hover:text-[#e0e0e0]"
-            onClick={() => setFeedbackOpen(true)}
-          >
-            <MessageCircle className="h-4 w-4 mr-2" />
-            Send Feedback
-          </Button>
         </div>
       </div>
 
-      <AddItemDialog
-        open={addItemOpen}
-        onOpenChange={setAddItemOpen}
-        onSelectOption={handleAddItemSelect}
+      {/* Unified Item Dialog */}
+      <UnifiedItemDialog
+        open={unifiedItemDialogOpen}
+        onOpenChange={setUnifiedItemDialogOpen}
+        initialItem={null}
+        initialType={selectedItemType}
+        onSave={handleSaveItem}
+        mode="create"
       />
 
       <FeedbackDialog
         open={feedbackOpen}
         onOpenChange={setFeedbackOpen}
-      />
-
-      <CreateTaskDialog
-        open={createTaskOpen}
-        onOpenChange={setCreateTaskOpen}
-        onTaskCreated={(task: Task) => {
-          try {
-            addTask(task);
-            setCreateTaskOpen(false);
-            toast({
-              title: "Success",
-              description: "Task created successfully",
-            });
-          } catch (error) {
-            console.error("Error creating task:", error);
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to create task",
-            });
-          }
-        }}
-        mode="create"
-      />
-
-      <CreateEventDialog
-        open={createEventOpen}
-        onOpenChange={setCreateEventOpen}
-        onEventCreated={(event: Event) => {
-          try {
-            addEvent(event);
-            setCreateEventOpen(false);
-            toast({
-              title: "Success",
-              description: "Event created successfully",
-            });
-          } catch (error) {
-            console.error("Error creating event:", error);
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to create event",
-            });
-          }
-        }}
-        mode="create"
-        tasks={[]}
-      />
-
-      <CreateStudySessionDialog
-        open={createSessionOpen}
-        onOpenChange={setCreateSessionOpen}
-        onSessionCreated={(session: StudySession) => {
-          try {
-            addSession(session);
-            setCreateSessionOpen(false);
-            toast({
-              title: "Success",
-              description: "Session created successfully",
-            });
-          } catch (error) {
-            console.error("Error creating session:", error);
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to create session",
-            });
-          }
-        }}
-        mode="create"
-        tasks={[]}
-        events={[]}
-      />
-
-      <CreateDeadlineDialog
-        open={createDeadlineOpen}
-        onOpenChange={setCreateDeadlineOpen}
-        onDeadlineCreated={(deadline: Deadline) => {
-          try {
-            addDeadline(deadline);
-            setCreateDeadlineOpen(false);
-            toast({
-              title: "Success",
-              description: "Deadline created successfully",
-            });
-          } catch (error) {
-            console.error("Error creating deadline:", error);
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to create deadline",
-            });
-          }
-        }}
-        mode="create"
-      />
-
-      <CreateReminderDialog
-        open={createReminderOpen}
-        onOpenChange={setCreateReminderOpen}
-        onReminderCreated={(reminder: Reminder) => {
-          try {
-            addReminder(reminder);
-            setCreateReminderOpen(false);
-            toast({
-              title: "Success",
-              description: "Reminder created successfully",
-            });
-          } catch (error) {
-            console.error("Error creating reminder:", error);
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to create reminder",
-            });
-          }
-        }}
-        mode="create"
       />
 
       <SyncDialog

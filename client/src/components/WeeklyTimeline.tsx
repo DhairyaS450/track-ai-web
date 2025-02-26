@@ -3,7 +3,7 @@ import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
-import { Task, Event, StudySession, Deadline, Reminder } from "@/types";
+import { Task, Event, StudySession, Reminder } from "@/types";
 
 interface WeeklyTimelineProps {
   currentDate: Date;
@@ -12,7 +12,7 @@ interface WeeklyTimelineProps {
   tasks: Task[];
   events: Event[];
   sessions: StudySession[];
-  deadlines: Deadline[];
+  deadlines: Task[];
   reminders: Reminder[];
 }
 
@@ -45,7 +45,7 @@ export function WeeklyTimeline({
         isSameDay(new Date(session.scheduledFor), date)
       ),
       deadlines: deadlines.filter((deadline) =>
-        isSameDay(new Date(deadline.dueDate), date)
+        isSameDay(new Date(deadline.deadline), date)
       ),
       reminders: reminders.filter((reminder) =>
         isSameDay(new Date(reminder.reminderTime), date)

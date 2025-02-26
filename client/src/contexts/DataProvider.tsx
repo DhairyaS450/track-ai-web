@@ -2,7 +2,7 @@
 import { useState, useEffect, ReactNode, useRef, useContext } from 'react';
 import { db, auth } from '@/config/firebase';
 import { collection, query, where, onSnapshot, doc, deleteDoc, addDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
-import { Task, Event, StudySession, Deadline, Reminder } from '@/types';
+import { Task, Event, StudySession, Reminder } from '@/types';
 import { format } from 'date-fns';
 import { createContext } from 'react';
 import { DataContextType } from '@/types';
@@ -18,7 +18,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
-  const [deadlines, setDeadlines] = useState<Deadline[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +32,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setTasks([]);
       setEvents([]);
       setSessions([]);
-      setDeadlines([]);
       setReminders([]);
       setLoading(false);
       return;
@@ -87,21 +85,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         })
       );
 
-      // Deadlines subscription
-      const deadlinesQuery = query(
-        collection(db, 'deadlines'),
-        where('userId', '==', auth.currentUser.uid)
-      );
-      unsubscribers.push(
-        onSnapshot(deadlinesQuery, (snapshot) => {
-          const deadlinesData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          })) as Deadline[];
-          setDeadlines(deadlinesData);
-        })
-      );
-
       // Reminders subscription
       const remindersQuery = query(
         collection(db, 'reminders'),
@@ -142,19 +125,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       };
 
       const docRef = await addDoc(collection(db, 'tasks'), taskWithMeta);
-
-      // If task has a deadline, create a deadline record
-      if (taskData.deadline) {
-        await addDeadline({
-            title: taskData.title,
-            dueDate: taskData.deadline,
-            priority: taskData.priority,
-            category: taskData.subject || 'General',
-            associatedTaskId: docRef.id,
-            status: 'Pending',
-            source: 'manual'
-          });
-      }
 
       return { task: { id: docRef.id, ...taskWithMeta } as Task };
     } catch (error: any) {
@@ -374,79 +344,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Deadline functions
-  const addDeadline = async (deadlineData: Omit<Deadline, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
-    try {
-      if (!auth.currentUser) throw new Error('User not authenticated');
-
-      const now = new Date().toISOString();
-      const deadlineWithMeta = {
-        ...deadlineData,
-        userId: auth.currentUser.uid,
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      const docRef = await addDoc(collection(db, 'deadlines'), deadlineWithMeta);
-      return { deadline: { id: docRef.id, ...deadlineWithMeta } as Deadline };
-    } catch (error: any) {
-      console.error('Error adding deadline:', error);
-      throw new Error(`Failed to add deadline: ${error.message}`);
-    }
-  };
-
-  const updateDeadline = async (id: string, updates: Partial<Deadline>) => {
-    try {
-      if (!auth.currentUser) throw new Error('User not authenticated');
-
-      const now = new Date().toISOString();
-      const deadlineRef = doc(db, 'deadlines', id);
-      await updateDoc(deadlineRef, {
-        ...updates,
-        updatedAt: now
-      });
-
-      return { deadline: { id, ...updates } as Deadline };
-    } catch (error: any) {
-      console.error('Error updating deadline:', error);
-      throw new Error(`Failed to update deadline: ${error.message}`);
-    }
-  };
-
-  const deleteDeadline = async (id: string) => {
-    try {
-      if (!auth.currentUser) throw new Error('User not authenticated');
-
-      const deadlineRef = doc(db, 'deadlines', id);
-      await deleteDoc(deadlineRef);
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error deleting deadline:', error);
-      throw new Error(`Failed to delete deadline: ${error.message}`);
-    }
-  };
-
-  const markAsComplete = async (id: string) => {
-    try {
-      if (!auth.currentUser) throw new Error('User not authenticated');
-
-      const deadlineRef = doc(db, 'deadlines', id);
-    //   await updateDoc(deadlineRef, {
-    //     status: 'completed',
-    //     completedAt: now,
-    //     updatedAt: now
-    //   });
-
-    await deleteDoc(deadlineRef);
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error marking deadline as complete:', error);
-      throw new Error(`Failed to mark deadline as complete: ${error.message}`);
-    }
-  };
-
   // Reminder functions
   const addReminder = async (reminderData: Omit<Reminder, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
     try {
@@ -460,6 +357,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         updatedAt: now,
         status: 'pending'
       };
+
+      if (!reminderWithMeta.recurring) {
+        delete reminderWithMeta.recurring;
+      }
 
       const docRef = await addDoc(collection(db, 'reminders'), reminderWithMeta);
       return { reminder: { id: docRef.id, ...reminderWithMeta } as Reminder };
@@ -504,11 +405,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       if (!auth.currentUser) throw new Error('User not authenticated');
       const reminderRef = doc(db, 'reminders', id);
-    //   await updateDoc(reminderRef, {
-    //     status: 'dismissed',
-    //     dismissedAt: now,
-    //     updatedAt: now
-    //   });
     await deleteDoc(reminderRef);
 
       return { success: true };
@@ -518,12 +414,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Add a function to handle completing a task with a deadline
+  const markTaskComplete = async (taskId: string) => {
+    try {
+      await updateTask(taskId, { 
+        status: 'completed',
+        completion: 100
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error("Error completing task:", error);
+      throw error;
+    }
+  };
+
   return (
     <DataContext.Provider value={{
       tasks,
       events,
       sessions,
-      deadlines,
       reminders,
       loading,
       error,
@@ -539,14 +449,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       deleteSession,
       startSession,
       endSession,
-      addDeadline,
-      updateDeadline,
-      deleteDeadline,
-      markAsComplete,
       addReminder,
       updateReminder,
       deleteReminder,
       dismissReminder,
+      markTaskComplete,
     }}>
       {children}
     </DataContext.Provider>

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { postponeStudySession } from "@/api/sessions";
-import { Task, StudySession, Event, Deadline, Reminder } from "@/types";
+import { Task, StudySession, Event, Reminder } from "@/types";
 import {
   format,
   isPast,
@@ -56,7 +56,6 @@ export function Dashboard() {
     tasks: allTasks,
     events: allEvents,
     sessions: allSessions,
-    deadlines: allDeadlines,
     reminders: allReminders,
     loading: loading,
     addTask,
@@ -68,7 +67,7 @@ export function Dashboard() {
     updateSession,
     deleteSession,
     startSession,
-    markAsComplete,
+    markTaskComplete: markAsComplete,
     dismissReminder,
   } = useData();
 
@@ -94,7 +93,7 @@ export function Dashboard() {
   const [sessionToPostpone, setSessionToPostpone] = useState<string | null>(
     null
   );
-  const setDeadlines = useState<Deadline[]>([])[1];
+  const setDeadlines = useState<Task[]>([])[1];
   const setReminders = useState<Reminder[]>([])[1];
   const { toast } = useToast();
 
@@ -128,12 +127,13 @@ export function Dashboard() {
 
   useEffect(() => {
     if (!loading) {
-      const todayDeadlines = allDeadlines.filter(deadline => 
-        isToday(new Date(deadline.dueDate)) || isTomorrow(new Date(deadline.dueDate))
+      const todayDeadlines = allTasks.filter(task => 
+        task.deadline && task.status !== "completed" &&
+        (isToday(new Date(task.deadline)) || isTomorrow(new Date(task.deadline)))
       );
       setDeadlines(todayDeadlines);
     }
-  }, [allDeadlines, loading, setDeadlines]);
+  }, [allTasks, loading, setDeadlines]);
 
   useEffect(() => {
     if (!loading) {
@@ -289,21 +289,21 @@ export function Dashboard() {
   // };
   
   // Filter priority items
-  const overdueTasks = allDeadlines.filter(
-    (deadline) =>
-      deadline.dueDate &&
-      isValid(new Date(deadline.dueDate)) &&
-      isPast(new Date(deadline.dueDate)) &&
-      !isToday(new Date(deadline.dueDate)) &&
-      deadline.status !== "Completed"
+  const overdueTasks = allTasks.filter(
+    (task) =>
+      task.deadline &&
+      isValid(new Date(task.deadline)) &&
+      isPast(new Date(task.deadline)) &&
+      !isToday(new Date(task.deadline)) &&
+      task.status !== "completed"
   );
 
-  const todayTasks = allDeadlines.filter(
-    (deadline) =>
-      deadline.dueDate &&
-      isValid(new Date(deadline.dueDate)) &&
-      isToday(new Date(deadline.dueDate)) &&
-      deadline.status !== "Completed"
+  const todayTasks = allTasks.filter(
+    (task) =>
+      task.deadline &&
+      isValid(new Date(task.deadline)) &&
+      isToday(new Date(task.deadline)) &&
+      task.status !== "completed"
   );
 
   const highPriorityItems = [
@@ -411,11 +411,13 @@ export function Dashboard() {
   };
 
   // Filter deadlines and reminders
-  const filteredDeadlines = allDeadlines.filter(
-    (deadline) =>
-      !isPast(new Date(deadline.dueDate)) &&
-      (isToday(new Date(deadline.dueDate)) ||
-        isTomorrow(new Date(deadline.dueDate)))
+  const filteredDeadlines = allTasks.filter(
+    (task) =>
+      task.deadline &&
+      !isPast(new Date(task.deadline)) &&
+      task.status !== "completed" &&
+      (isToday(new Date(task.deadline)) ||
+        isTomorrow(new Date(task.deadline)))
   );
 
   const filteredReminders = allReminders.filter(
@@ -558,7 +560,7 @@ export function Dashboard() {
                   <div>
                     <p className="font-medium">{deadline.title}</p>
                     <p className="text-sm text-muted-foreground">
-                      Due: {formatDate(deadline.dueDate)}
+                      Due: {formatDate(deadline.deadline)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -608,7 +610,7 @@ export function Dashboard() {
                   <div>
                     <p className="font-medium">{deadline.title}</p>
                     <p className="text-sm text-muted-foreground">
-                      Due: {formatDate(deadline.dueDate)}
+                      Due: {formatDate(deadline.deadline)}
                     </p>
                   </div>
 
@@ -938,7 +940,7 @@ export function Dashboard() {
                 <div>
                   <h3 className="font-medium">{deadline.title}</h3>
                   <p className="text-sm text-muted-foreground">
-                    Due: {format(new Date(deadline.dueDate), "PPp")}
+                    Due: {format(new Date(deadline.deadline), "PPp")}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

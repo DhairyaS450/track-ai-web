@@ -22,7 +22,7 @@ interface ChronologicalViewProps {
   tasks: Task[];
   events: Event[];
   sessions: StudySession[];
-  deadlines: Deadline[];
+  deadlines: Task[];
   reminders: Reminder[];
   onItemClick: (item: Task | Event | StudySession | Deadline | Reminder) => void;
 }
@@ -82,7 +82,7 @@ export function ChronologicalView({
       id: `deadline-${deadline.id}`,
       type: "deadline" as const,
       title: deadline.title,
-      startTime: deadline.dueDate,
+      startTime: deadline.deadline,
       isDeadline: true,
       priority: deadline.priority,
       item: deadline,

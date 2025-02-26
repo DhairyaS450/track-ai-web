@@ -29,7 +29,6 @@ import { useToast } from "@/hooks/useToast";
 import { ChronologicalView } from "@/components/ChronologicalView";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { CreateDeadlineDialog } from "@/components/CreateDeadlineDialog";
 import { CreateReminderDialog } from "@/components/CreateReminderDialog";
 
 export function Calendar() {
@@ -42,16 +41,13 @@ export function Calendar() {
     tasks: allTasks,
     events: allEvents,
     sessions: allSessions,
-    deadlines: allDeadlines,
     reminders: allReminders,
     loading,
     deleteTask,
     deleteEvent,
     deleteSession,
-    markAsComplete,
+    markTaskComplete: markAsComplete,
     dismissReminder,
-    addDeadline,
-    updateDeadline,
     addReminder,
     updateReminder,
     addTask,
@@ -76,9 +72,7 @@ export function Calendar() {
   const [viewType, setViewType] = useState<"categorized" | "chronological">(
     "categorized"
   );
-  const [selectedDeadline, setSelectedDeadline] = useState<Deadline | null>(null);
   const [selectedReminder, setSelectedReminder] = useState<Reminder | null>(null);
-  const [isDeadlineDialogOpen, setIsDeadlineDialogOpen] = useState(false);
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -86,7 +80,7 @@ export function Calendar() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
-  const [deadlines, setDeadlines] = useState<Deadline[]>([]);
+  const [deadlines, setDeadlines] = useState<Task[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
 
   // Memoize filtered data using context data
@@ -111,10 +105,10 @@ export function Calendar() {
   }, [date, allSessions]);
 
   const filteredDeadlines = useMemo(() => {
-    return allDeadlines.filter((deadline) =>
-      isSameDay(new Date(deadline.dueDate), date)
+    return allTasks.filter((task) =>
+      isSameDay(new Date(task.deadline), date)
     );
-  }, [date, allDeadlines]);
+  }, [date, allTasks]);
 
   const filteredReminders = useMemo(() => {
     return allReminders.filter((reminder) =>
@@ -271,10 +265,7 @@ export function Calendar() {
   };
 
   const handleItemClick = (item: Task | Event | StudySession | Deadline | Reminder) => {
-    if ('dueDate' in item) {
-      setSelectedDeadline(item);
-      setIsDeadlineDialogOpen(true);
-    } else if ('reminderTime' in item) {
+    if ('reminderTime' in item) {
       setSelectedReminder(item);
       setIsReminderDialogOpen(true);
     } else if ('timeSlots' in item) {
@@ -367,31 +358,6 @@ export function Calendar() {
         variant: "destructive",
         title: "Error",
         description: sessionToEdit ? "Failed to update session" : "Failed to create session",
-      });
-    }
-  };
-
-  const handleCreateDeadline = async (deadlineData: Deadline) => {
-    try {
-      if (selectedDeadline) {
-        await updateDeadline(selectedDeadline.id, deadlineData);
-        toast({
-          title: "Success",
-          description: "Deadline updated successfully",
-        });
-      } else {
-        await addDeadline(deadlineData);
-        toast({
-          title: "Success",
-          description: "Deadline created successfully",
-        });
-      }
-    } catch (error) {
-      console.error("Error handling deadline:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to create deadline",
       });
     }
   };
@@ -531,7 +497,7 @@ export function Calendar() {
                           <div>
                             <p className="font-medium">{deadline.title}</p>
                             <p className="text-sm text-muted-foreground">
-                              Due: {format(new Date(deadline.dueDate), "p")}
+                              Due: {format(new Date(deadline.deadline), "p")}
                             </p>
                             {deadline.title && (
                               <p className="text-sm text-muted-foreground mt-1">
@@ -904,13 +870,6 @@ export function Calendar() {
         events={events}
       />
 
-      <CreateDeadlineDialog
-        open={isDeadlineDialogOpen}
-        onOpenChange={setIsDeadlineDialogOpen}
-        initialDeadline={selectedDeadline}
-        mode={selectedDeadline ? "edit" : "create"}
-        onDeadlineCreated={handleCreateDeadline}
-      />
       <CreateReminderDialog
         open={isReminderDialogOpen}
         onOpenChange={setIsReminderDialogOpen}
