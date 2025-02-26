@@ -1,7 +1,8 @@
-import React from 'react';
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const DemoPage = () => {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen">
       {/*
@@ -14,7 +15,7 @@ const DemoPage = () => {
           <div className="container mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <img src="/logo.png" alt="TaskTide Logo" className="h-8" loading="lazy" />
+                <img src="/logo.png" alt="TaskTide Logo" onClick={() => navigate("/")} className="h-8 cursor-pointer" loading="lazy" />
                 <span className="text-xl font-bold">TaskTide AI</span>
               </div>
               <div className="flex items-center space-x-4">
