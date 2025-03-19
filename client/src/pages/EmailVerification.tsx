@@ -1,4 +1,4 @@
-import { verifyEmail } from "@/api/auth";
+import { verifyEmail, logout } from "@/api/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,6 +41,14 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({
             Resend Verification Email
           </Button>
         </CardContent>
+        <CardFooter className="flex justify-center">
+          <Button className="w-full" onClick={() => {
+            logout();
+            navigate("/login");
+          }}>
+            Logout
+          </Button>
+        </CardFooter>
         <CardFooter className="flex justify-center">
           <Button className="w-full" onClick={() => window.location.reload()}>
             Reload

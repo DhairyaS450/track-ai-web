@@ -44,11 +44,19 @@ export function Login() {
       console.log('Login API response:', response);
       // The user is already authenticated through Firebase at this point
       // No need to store token as Firebase handles the session
-      toast({
-        title: "Success",
-        description: "Logged in successfully",
-      })
-      navigate("/dashboard")
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Logged in successfully",
+        })
+        navigate("/dashboard")
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Login failed",
+        })
+      }
     } catch (error) {
       console.error('Login error details:', error);
       toast({

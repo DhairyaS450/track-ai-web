@@ -11,7 +11,7 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { db, auth } from "@/config/firebase";
-import { doc, setDoc, collection, query, where, getDocs, updateDoc } from "@firebase/firestore";
+import { doc, setDoc, collection, query, where, getDocs, updateDoc, getDoc } from "@firebase/firestore";
 
 // Login
 // POST /auth/login
@@ -23,7 +23,7 @@ export const login = async (email: string, password: string) => {
       return signInWithEmailAndPassword(auth, email, password);
     })
     .then((userCredential) => {
-      return { success: true, user: userCredential };
+      return { success: true, user: userCredential, error: null };
     })
     .catch((error) => {
       console.error("Error during login:", error);
@@ -117,41 +117,51 @@ export const verifyEmail = async (user: User | null) =>  {
 }
 
 // Add Google Sign In
-export const signInWithGoogle = async (inviteCode: string) => {
+export const signInWithGoogle = async (inviteCode?: string) => {
   try {
-    // First validate the invite code
-    const inviteCodesRef = collection(db, "inviteCodes");
-    const q = query(inviteCodesRef, where("code", "==", inviteCode));
-    const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-      throw new Error("Invalid invite code");
-    }
-
-    const inviteCodeDoc = querySnapshot.docs[0];
-    const inviteCodeData = inviteCodeDoc.data();
-
-    if (inviteCodeData.used) {
-      throw new Error("This invite code has already been used");
-    }
-
     // Proceed with Google sign in
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
     
-    // Add user to database if they don't exist
+    // Check if this is a new user by checking if they exist in our database
+    const userDoc = await getDoc(doc(db, "users", result.user.uid));
+    
+    if (!userDoc.exists()) {
+      // This is a new user, validate invite code
+      if (!inviteCode) {
+        throw new Error("Invite code is required for new users");
+      }
+
+      // Validate the invite code
+      const inviteCodesRef = collection(db, "inviteCodes");
+      const q = query(inviteCodesRef, where("code", "==", inviteCode));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        throw new Error("Invalid invite code");
+      }
+
+      const inviteCodeDoc = querySnapshot.docs[0];
+      const inviteCodeData = inviteCodeDoc.data();
+
+      if (inviteCodeData.used) {
+        throw new Error("This invite code has already been used");
+      }
+
+      // Mark invite code as used
+      await updateDoc(doc(db, "inviteCodes", inviteCodeDoc.id), {
+        used: true,
+        usedBy: result.user.uid,
+        usedAt: new Date()
+      });
+    }
+    
+    // Add/update user in database
     await setDoc(doc(db, "users", result.user.uid), {
       email: result.user.email,
       name: result.user.displayName,
       photoURL: result.user.photoURL,
     }, { merge: true }); // merge: true will only update specified fields
-
-    // Mark invite code as used
-    await updateDoc(doc(db, "inviteCodes", inviteCodeDoc.id), {
-      used: true,
-      usedBy: result.user.uid,
-      usedAt: new Date()
-    });
 
     return { success: true, user: result };
   } catch (error: any) {
