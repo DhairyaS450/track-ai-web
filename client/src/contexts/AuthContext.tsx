@@ -7,7 +7,7 @@ type AuthContextType = {
   isAuthenticated: boolean;
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, inviteCode: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -34,34 +34,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    try {
-      const response = await apiLogin(email, password);
-      if (!response.success) {
-        throw new Error('Login failed');
-      }
-    } catch (error: any) {
-      console.error('AuthContext: Login error:', error);
-      throw error;
+    const response = await apiLogin(email, password);
+    if (!response.success) {
+      throw new Error('Login failed');
     }
   };
 
-  const register = async (email: string, password: string) => {
-    try {
-      const response = await apiRegister({ email, password });
-      if (!response.success) {
-        throw new Error('Registration failed');
-      }
-    } catch (error: any) {
-      throw error;
+  const register = async (email: string, password: string, inviteCode: string) => {
+    const response = await apiRegister({ email, password, inviteCode });
+    if (!response.success) {
+      throw new Error('Registration failed');
     }
   };
 
   const logout = async () => {
-    try {
-      await apiLogout();
-    } catch (error: any) {
-      throw error;
-    }
+    await apiLogout();
   };
 
   return (

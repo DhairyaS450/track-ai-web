@@ -189,6 +189,65 @@ export const updateEvent = async (id: string, updates: Partial<Event>) => {
   }
 };
 
+// Update Event in Google Calendar
+// PUT /api/calendar/events/:calendarId/:eventId
+export const updateExternalEvent = async (event: Event) => {
+  try {
+    console.log('Updating external event:', event);
+    
+    if (!event.id) {
+      throw new Error('Event ID is required');
+    }
+    
+    // Only handle Google Calendar events
+    if (event.source === 'google_calendar') {
+      if (!event.calendarId) {
+        throw new Error('Calendar ID is required for Google Calendar events');
+      }
+      
+      // Format the event data for Google Calendar
+      const eventUpdates = {
+        updates: {
+          summary: event.name,
+          description: event.description || '',
+          start: {
+            dateTime: new Date(event.startTime).toISOString(),
+          },
+          end: {
+            dateTime: new Date(event.endTime).toISOString(),
+          },
+          location: event.location || ''
+        }
+      };
+      
+      // Call the API to update the Google Calendar event
+      const response = await fetch(`/api/calendar/events/${event.calendarId}/${event.googleEventId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventUpdates),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Failed to update Google Calendar event: ${errorData.error || response.statusText}`);
+      }
+      
+      return await response.json();
+    } 
+    
+    throw new Error('Unsupported external event source');
+  } catch (error: any) {
+    console.error('Error updating external event:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to update external event: ${error.message}`);
+  }
+};
+
 // Delete Event
 // DELETE /events/:id
 // Response: { success: boolean }

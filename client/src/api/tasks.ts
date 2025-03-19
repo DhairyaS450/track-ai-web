@@ -160,6 +160,94 @@ export const updateTask = async (id: string, updates: Partial<Task>) => {
   }
 };
 
+// Update Task in Google Calendar/Tasks
+// PUT /api/calendar/tasks/:taskListId/:taskId
+// or PUT /api/calendar/events/:calendarId/:eventId
+export const updateExternalTask = async (task: Task) => {
+  try {
+    console.log('Updating external task:', task);
+    
+    if (!task.id) {
+      throw new Error('Task ID is required');
+    }
+    
+    // Determine if it's a Google Calendar event or Google Tasks task
+    if (task.source === 'google_calendar') {
+      if (!task.calendarId) {
+        throw new Error('Calendar ID is required for Google Calendar tasks');
+      }
+      
+      // Format the task data for Google Calendar
+      const eventUpdates = {
+        updates: {
+          summary: task.title,
+          description: task.description,
+          start: {
+            dateTime: new Date(task.deadline).toISOString(),
+          },
+          end: {
+            dateTime: new Date(new Date(task.deadline).getTime() + 30 * 60000).toISOString(), // Add 30 minutes
+          }
+        }
+      };
+      
+      // Call the API to update the Google Calendar event
+      const response = await fetch(`/api/calendar/events/${task.calendarId}/${task.googleEventId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventUpdates),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Failed to update Google Calendar event: ${errorData.error || response.statusText}`);
+      }
+      
+      return await response.json();
+    } 
+    else if (task.source === 'google_tasks') {
+      if (!task.taskListId) {
+        throw new Error('Task List ID is required for Google Tasks');
+      }
+      
+      // Format the task data for Google Tasks
+      const taskUpdates = {
+        title: task.title,
+        notes: task.description,
+        status: task.status === 'completed' ? 'completed' : 'needsAction',
+        due: task.deadline ? new Date(task.deadline).toISOString() : undefined
+      };
+      
+      // Call the API to update the Google Tasks task
+      const response = await fetch(`/api/calendar/tasks/${task.taskListId}/${task.googleEventId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(taskUpdates),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Failed to update Google Tasks task: ${errorData.error || response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+    
+    throw new Error('Unsupported external task source');
+  } catch (error: any) {
+    console.error('Error updating external task:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    throw new Error(`Failed to update external task: ${error.message}`);
+  }
+};
+
 // Delete Task
 // DELETE /tasks/:id
 // Response: { success: boolean }

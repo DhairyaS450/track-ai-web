@@ -20,6 +20,7 @@ import { register as registerUser, signInWithGoogle } from "@/api/auth"
 type RegisterForm = {
   email: string
   password: string
+  inviteCode: string
 }
 
 export function Register() {
@@ -42,7 +43,7 @@ export function Register() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.response?.data?.error,
+        description: error.toString() || "Registration failed",
       })
     } finally {
       setLoading(false)
@@ -52,7 +53,16 @@ export function Register() {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      await signInWithGoogle();
+      const inviteCode = (document.getElementById('inviteCode') as HTMLInputElement).value;
+      if (!inviteCode) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please enter an invite code",
+        });
+        return;
+      }
+      await signInWithGoogle(inviteCode);
       toast({
         title: "Success",
         description: "Account created successfully with Google",
@@ -125,6 +135,15 @@ export function Register() {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="inviteCode">Invite Code</Label>
+                <Input
+                  id="inviteCode"
+                  type="text"
+                  placeholder="Enter your invite code"
+                  {...register("inviteCode", { required: true })}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input

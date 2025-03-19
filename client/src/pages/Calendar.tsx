@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Task, StudySession, Event, Deadline, Reminder } from "@/types";
 import { format, isSameDay, addWeeks, startOfWeek } from "date-fns";
 import { useData } from '@/contexts/DataProvider';
+import { updateExternalTask } from "@/api/tasks";
 
 import {
   Calendar as CalendarIcon,
@@ -107,12 +108,13 @@ export function Calendar() {
   const filteredDeadlines = useMemo(() => {
     return allTasks.filter((task) =>
       isSameDay(new Date(task.deadline), date)
+      // && task.status !== "completed"
     );
   }, [date, allTasks]);
 
   const filteredReminders = useMemo(() => {
     return allReminders.filter((reminder) =>
-      isSameDay(new Date(reminder.reminderTime), date) && 
+      isSameDay(new Date(reminder.reminderTime), date) &&
       reminder.status !== "Dismissed"
     );
   }, [date, allReminders]);
@@ -383,6 +385,23 @@ export function Calendar() {
         variant: "destructive",
         title: "Error",
         description: "Failed to create reminder",
+      });
+    }
+  };
+
+  const handleUpdateExternalTask = async (task: Task) => {
+    try {
+      await updateExternalTask(task);
+      toast({
+        title: "Success",
+        description: `Task updated in ${task.source === "google_calendar" ? "Google Calendar" : "Google Tasks"}`,
+      });
+    } catch (error) {
+      console.error("Error updating external task:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to update in ${task.source === "google_calendar" ? "Google Calendar" : "Google Tasks"}`,
       });
     }
   };
@@ -858,6 +877,7 @@ export function Calendar() {
         onTaskCreated={handleCreateTask}
         initialTask={taskToEdit}
         mode={taskToEdit ? "edit" : "create"}
+        onExternalUpdate={handleUpdateExternalTask}
       />
 
       <CreateStudySessionDialog

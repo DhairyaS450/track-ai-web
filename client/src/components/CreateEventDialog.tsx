@@ -142,20 +142,29 @@ export function CreateEventDialog({
       }
       const calendarUpdates = {
         summary: event.name,
+        description: event.description,
+        location: event.location,
         start: {
-          dateTime: event.startTime,
-          timeZone: "UTC"
+          dateTime: event.isAllDay ? undefined : new Date(event.startTime).toISOString(),
+          date: event.isAllDay ? event.startTime.split('T')[0] : undefined,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
         },
         end: {
-          dateTime: event.endTime,
-          timeZone: "UTC"
-        },
-        location: event.location,
-        description: event.description,
-      }
+          dateTime: event.isAllDay ? undefined : new Date(event.endTime).toISOString(),
+          date: event.isAllDay ? event.endTime.split('T')[0] : undefined,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
+      };
       
-      console.log('Updating event on Google Calendar:', event);
-      await updateCalendarEvent(event.calendarId || "", event.id || "", calendarUpdates)
+      if (!event.calendarId || !event.id) {
+        throw new Error("Missing calendar ID or event ID");
+      }
+
+      await updateCalendarEvent(event.calendarId, event.id, calendarUpdates);
+      toast({
+        title: "Success",
+        description: "Event updated in Google Calendar",
+      });
     } catch (error) {
       console.error("Error updating event on Google Calendar:", error);
       toast({
@@ -166,7 +175,7 @@ export function CreateEventDialog({
     } finally {
       setUpdateDialogOpen(false);
     }
-  }
+  };
 
   return (
     <>

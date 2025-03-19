@@ -17,6 +17,8 @@ export interface Task {
   completion: number;
   source?: 'google_calendar' | 'google_tasks' | 'manual';
   taskListId?: string;
+  calendarId?: string;
+  googleEventId?: string;
 }
 
 export interface StudySession {
@@ -84,6 +86,7 @@ export interface Event {
   associatedTaskIds?: string[];
   source?: 'google_calendar' | 'manual';
   calendarId?: string;
+  googleEventId?: string;
 }
 
 export interface TimeConstraint {
