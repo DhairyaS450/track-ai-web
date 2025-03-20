@@ -26,8 +26,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (providerRef.current) return;
     providerRef.current = true;
 
-    console.log('Made it here');
-
     if (!auth.currentUser) {
       setTasks([]);
       setEvents([]);

@@ -1,15 +1,24 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import api from './Api';
-
+import { auth } from '../config/firebase';
 // Connect Google Calendar
 // POST /api/calendar/connect
-// Request: { code: string }
+// Request: { code: string, uid: string }
 // Response: { success: boolean, message: string }
 export const connectGoogleCalendar = async (code: string) => {
   console.log('Starting Google Calendar connection with code length:', code.length);
   console.log('Authorization header:', api.defaults.headers.common['Authorization']);
   try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error("User not authenticated");
+    }
+    
     console.log('Connecting Google Calendar with code:', code);
-    const response = await api.post('/api/calendar/connect', { code });
+    const response = await api.post('/api/calendar/connect', { 
+      code,
+      uid: currentUser.uid
+    });
     console.log('Successfully connected Google Calendar');
     return response.data;
   } catch (error: any) {
@@ -36,7 +45,7 @@ export const getGoogleCalendarStatus = async () => {
 // Sync Google Calendar Events
 // POST /api/calendar/sync  
 // Response: { success: boolean, message: string, events: Array<CalendarEvent> }
-export const syncWithGoogle = async (calendarIds: Array<String>, taskListIds: Array<String>) => {
+export const syncWithGoogle = async (calendarIds: Array<string>, taskListIds: Array<string>) => {
   try {
     console.log('Starting Google Calendar sync');
     const response = await api.post('/api/calendar/sync', { calendarIds, taskListIds });
