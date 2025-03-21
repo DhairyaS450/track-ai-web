@@ -19,7 +19,7 @@ export function NotFound() {
                   className="h-8 cursor-pointer" 
                   loading="lazy" 
                 />
-                <span className="text-xl font-bold">TaskTide AI</span>
+                <span className="text-xl font-bold">TidalTasks AI</span>
               </div>
               <div className="flex items-center space-x-4">
                 <Button variant="ghost" onClick={() => navigate("/login")}>

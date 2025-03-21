@@ -39,7 +39,7 @@ export function KaiFullInfo({ suggestionsEnabled, onToggleSuggestions }: KaiFull
               Meet Your Digital Lighthouse 🏝️
             </h3>
             <p className="text-sm text-muted-foreground">
-              I'm Kai, born from TaskTide AI to bring calmness to chaos. Like the ocean's rhythm,
+              I'm Kai, born from TidalTasks AI to bring calmness to chaos. Like the ocean's rhythm,
               I help you navigate through tasks, deadlines, and study sessions. I adapt to your
               needs, ensuring you stay productive without getting overwhelmed by the waves of work.
             </p>

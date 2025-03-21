@@ -2,16 +2,16 @@
 
 Last Updated: January 27, 2025
 
-Thank you for choosing TaskTide AI. We respect your privacy and are committed to protecting your personal information. This Privacy Policy explains how we collect, use, store, and disclose your information when you use our service. By accessing or using TaskTide AI, you agree to this Privacy Policy.
+Thank you for choosing TidalTasks AI. We respect your privacy and are committed to protecting your personal information. This Privacy Policy explains how we collect, use, store, and disclose your information when you use our service. By accessing or using TidalTasks AI, you agree to this Privacy Policy.
 
 ---
 
 **1. Overview**
-- Service Name: TaskTide AI
+- Service Name: TidalTasks AI
 - Service Description: A scheduling and productivity application tailored for high-school and university students.
 - Platform: Web and Mobile
 - Privacy Policy Version: 1.0
-- Primary Contact: dhairyashah2513@gmail.com
+- Primary Contact: support@tidaltasks.app
 - No Physical Office: Our team is remote, and we do not have a physical office.
 - Governing Law: This Privacy Policy is governed by the laws of Canada.
 
@@ -33,7 +33,7 @@ We follow Canadian privacy laws, including the Personal Information Protection a
 
 **2.2 Automatically Collected Information**
 - Log Data: We may record certain information automatically, such as IP address, browser type, device details, and the pages or features you access.
-- Usage Data: To improve our service, we may collect data about your usage patterns within TaskTide AI (e.g., frequency of creating tasks, completion rates).
+- Usage Data: To improve our service, we may collect data about your usage patterns within TidalTasks AI (e.g., frequency of creating tasks, completion rates).
 
 **2.3 Cookies and Similar Technologies** 
 We use cookies and similar tracking technologies to remember your preferences, maintain session state, and analyze user interactions. You can control your cookie settings through your browser or device settings.
@@ -42,7 +42,7 @@ We use cookies and similar tracking technologies to remember your preferences, m
 
 **3. Google API Scopes and Usage** 
 
-TaskTide AI requests the following OAuth scopes from Google:
+TidalTasks AI requests the following OAuth scopes from Google:
 - https://www.googleapis.com/auth/calendar
 - https://www.googleapis.com/auth/calendar.events
 - https://www.googleapis.com/auth/tasks 
@@ -55,7 +55,7 @@ We access these scopes solely to:
 - **Communicate with You** about important updates, new features, or changes to our services. 
 - **Ensure Compliance and Security** by monitoring for suspicious or fraudulent activity.
 
-We do **not** use the data obtained from these scopes for purposes unrelated to TaskTide AI’s core functionality. We do **not** sell, lease, or share your Google data with unauthorized third parties.
+We do **not** use the data obtained from these scopes for purposes unrelated to TidalTasks AI core functionality. We do **not** sell, lease, or share your Google data with unauthorized third parties.
 
 ---
 
@@ -128,7 +128,7 @@ We primarily process and store your data in Canada or the United States. However
 
 **10.1 General**
 
-TaskTide AI is generally designed for high-school and university students. We do not knowingly collect personal information from children under the age of 13 without parental consent. If you believe we have inadvertently collected such information, please contact us, and we will promptly delete it.
+TidalTasks AI is generally designed for high-school and university students. We do not knowingly collect personal information from children under the age of 13 without parental consent. If you believe we have inadvertently collected such information, please contact us, and we will promptly delete it.
 
 **10.2 Consent** 
 
@@ -150,7 +150,7 @@ We may update this Privacy Policy to reflect changes in our practices or for oth
 
 If you have questions or concerns about this Privacy Policy or our data practices, please contact us at:
 
-**Email**: dhairyashah2513@gmail.com
+**Email**: support@tidaltasks.app
 
 **Web**: tidaltasks.app
 
@@ -159,4 +159,4 @@ If you have questions or concerns about this Privacy Policy or our data practice
 We are a remote team and do not have physical offices, but we are committed to addressing your concerns and will respond as quickly as possible.
 
 ---
-**By using TaskTide AI, you agree to the terms of this Privacy Policy.**
+**By using TidalTasks AI, you agree to the terms of this Privacy Policy.**

@@ -411,7 +411,7 @@ export function CreateEventDialog({
       open={isUpdateDialogOpen}
       title="Update Google Calendar Event"
       dialogContent="Do you want to update the event on Google Calendar?"
-      note="This will update the event on Google Calendar with the changes made in TaskTide AI."
+      note="This will update the event on Google Calendar with the changes made in TidalTasks AI."
       onConfirm={() => {
         handleConfirmUpdate(newlyCreatedEvent);
       }}

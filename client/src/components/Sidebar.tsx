@@ -128,7 +128,7 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
         )}
       >
         <div className="flex h-16 items-center border-b px-6 justify-between">
-          <h1 className="text-xl font-bold dark:text-[#e0e0e0]">TaskTide AI</h1>
+          <h1 className="text-xl font-bold dark:text-[#e0e0e0]">TidalTasks AI</h1>
           <Button
             variant="ghost"
             size="icon"

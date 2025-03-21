@@ -1,6 +1,6 @@
- # TaskTide AI
+ # TidalTasks AI
 
-TaskTide AI is an AI-powered scheduling and productivity app tailored for high-school and university students. It integrates advanced features like Google Calendar sync, AI-driven study session planning, and a chatbot assistant to optimize time management and reduce stress.
+TidalTasks AI is an AI-powered scheduling and productivity app tailored for high-school and university students. It integrates advanced features like Google Calendar sync, AI-driven study session planning, and a chatbot assistant to optimize time management and reduce stress.
 
 ---
 

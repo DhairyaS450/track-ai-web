@@ -35,7 +35,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 
       toast({
         title: "Thank you for your feedback!",
-        description: "We appreciate your input to help improve TaskTide.",
+        description: "We appreciate your input to help improve TidalTasks.",
       });
 
       onOpenChange(false);

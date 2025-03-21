@@ -153,7 +153,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         <div className="flex items-center gap-2 flex-shrink-0">
           <img 
             src="/logo.png" 
-            alt="TaskTide AI" 
+            alt="TidalTasks AI" 
             className="h-8 w-auto cursor-pointer" 
             onClick={() => navigate("/")}
           />

@@ -16,7 +16,7 @@ const DemoPage = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <img src="/logo.png" alt="TaskTide Logo" onClick={() => navigate("/")} className="h-8 cursor-pointer" loading="lazy" />
-                <span className="text-xl font-bold">TaskTide AI</span>
+                <span className="text-xl font-bold">TidalTasks AI</span>
               </div>
               <div className="flex items-center space-x-4">
                 <Button variant="ghost" onClick={() => navigate("/login")}>
@@ -43,7 +43,7 @@ const DemoPage = () => {
 
             {/* Actual content */}
             <h1>Demo Coming Soon</h1>
-            <span>Check back soon for a demo of TaskTide AI</span>
+            <span>Check back soon for a demo of TidalTasks AI</span>
           </div>
         </center>
       </main>

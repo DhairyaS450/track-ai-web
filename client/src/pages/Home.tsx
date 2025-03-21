@@ -7,9 +7,9 @@ import {
   Brain,
   Sparkles,
   ArrowRight,
-  Github,
   Twitter,
   Mail,
+  Instagram,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
@@ -65,7 +65,7 @@ export function Home() {
       role: "Computer Science Major",
       image: "/testimonials/student1.jpg",
       feedback:
-        "TaskTide AI has completely transformed how I manage my studies. The AI recommendations are spot-on, and I love how it adapts to my schedule.",
+        "TidalTasks AI has completely transformed how I manage my studies. The AI recommendations are spot-on, and I love how it adapts to my schedule.",
     },
     {
       name: "Lucas Smith",
@@ -112,7 +112,7 @@ export function Home() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <img src="/logo.png" alt="TaskTide Logo" className="h-8" loading="lazy" />
-                <span className="text-xl font-bold">TaskTide AI</span>
+                <span className="text-xl font-bold">TidalTasks AI</span>
               </div>
               <div className="flex items-center space-x-4">
                 <Button variant="ghost" onClick={() => navigate("/login")}>
@@ -138,7 +138,7 @@ export function Home() {
               Ride the Wave of Productivity
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-              Transform your academic journey with TaskTide AI—where intelligent scheduling meets personalized learning assistance.
+              Transform your academic journey with TidalTasks AI—where intelligent scheduling meets personalized learning assistance.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button size="lg" className="text-lg px-8" onClick={() => navigate("/register")}>
@@ -325,7 +325,7 @@ export function Home() {
           <div className="container mx-auto px-6 text-center">
             <h2 className="text-4xl font-bold mb-6">Ready to Transform Your Academic Journey?</h2>
             <p className="text-xl mb-8 opacity-90">
-              Join thousands of students already using TaskTide AI to excel in their studies.
+              Join thousands of students already using TidalTasks AI to excel in their studies.
             </p>
             <Button
               size="lg"
@@ -344,7 +344,7 @@ export function Home() {
         <div className="container mx-auto px-6">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <h3 className="font-semibold mb-4">TaskTide AI</h3>
+              <h3 className="font-semibold mb-4">TidalTasks AI</h3>
               <p className="text-sm text-muted-foreground">
                 Empowering students with AI-driven productivity tools.
               </p>
@@ -379,29 +379,29 @@ export function Home() {
               <h4 className="font-semibold mb-4">Connect</h4>
               <div className="flex space-x-4">
                 <a
-                  href="https://github.com"
+                  href="https://instagram.com/tidaltasks"
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="GitHub"
+                  aria-label="Instagram"
                 >
-                  <Github className="w-5 h-5" />
+                  <Instagram className="w-5 h-5" />
                 </a>
                 <a
-                  href="https://twitter.com"
+                  href="https://x.com/tidaltasks"
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Twitter"
                 >
                   <Twitter className="w-5 h-5" />
                 </a>
-                <a href="mailto:info@tasktide.ai" aria-label="Email">
+                <a href="mailto:support@tidaltasks.app" aria-label="Email">
                   <Mail className="w-5 h-5" />
                 </a>
               </div>
             </div>
           </div>
           <div className="mt-8 pt-8 border-t text-center text-sm text-muted-foreground">
-            <p>© 2024 TaskTide AI. All rights reserved.</p>
+            <p>© 2025 TidalTasks AI. All rights reserved.</p>
           </div>
         </div>
       </footer>
