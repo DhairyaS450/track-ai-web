@@ -152,7 +152,7 @@ If you have questions or concerns about this Privacy Policy or our data practice
 
 **Email**: dhairyashah2513@gmail.com
 
-**Web**: tasktide-ai.vercel.app 
+**Web**: tidaltasks.app
 
 **Phone**: +1 548-384-7522 
 

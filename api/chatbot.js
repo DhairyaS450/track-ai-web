@@ -6,7 +6,7 @@ import { isAuthenticated } from '../lib/middleware/auth';
 export default async function handler(req, res) {
   // Handle preflight requests for CORS
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', 'https://tasktide-ai.vercel.app');
+    res.setHeader('Access-Control-Allow-Origin', 'https://tidaltasks.app');
     res.setHeader('Access-Control-Allow-Methods', 'POST');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Access-Control-Allow-Credentials', 'true');

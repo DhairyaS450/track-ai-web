@@ -21,6 +21,8 @@ import { Home } from "./pages/Home";
 import { Privacy } from "./pages/Privacy";
 import { TOS } from "./pages/TOS";
 import DemoPage from './pages/DemoPage';
+import { NotFound } from "./pages/NotFound";
+import { Unauthorized } from "./pages/Unauthorized";
 
 function App() {
   console.log("App");
@@ -75,6 +77,7 @@ function App() {
               {/* Public routes for auth */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/unauthorized" element={<Unauthorized />} />
               <Route
                 path="/verify-email"
                 element={<EmailVerification user={user} />}
@@ -96,6 +99,9 @@ function App() {
                 <Route path="settings" element={<Settings />} />
                 <Route path="chatbot" element={<Chatbot />} />
               </Route>
+
+              {/* 404 Not Found - must be last */}
+              <Route path="*" element={<NotFound />} />
             </Routes>
             <Toaster />
           </Router>
