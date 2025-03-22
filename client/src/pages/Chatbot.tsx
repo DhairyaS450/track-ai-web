@@ -286,7 +286,7 @@ export function Chatbot() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] pb-6 chat-container">
+    <Card className="flex flex-col h-full border-0 shadow-none overflow-hidden bg-transparent">
       <div className="relative flex-1 overflow-hidden">
         <ScrollArea className="h-full p-4">
           <div className="space-y-6 pb-4">
@@ -471,6 +471,6 @@ export function Chatbot() {
           )}
         </Card>
       </div>
-    </div>
+    </Card>
   );
 }
