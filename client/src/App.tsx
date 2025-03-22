@@ -23,6 +23,7 @@ import { TOS } from "./pages/TOS";
 import DemoPage from './pages/DemoPage';
 import { NotFound } from "./pages/NotFound";
 import { Unauthorized } from "./pages/Unauthorized";
+import { Spinner } from "./components/ui/spinner";
 
 function App() {
   console.log("App");
@@ -60,7 +61,11 @@ function App() {
   }, []);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="h-screen w-screen flex items-center justify-center">
+        <Spinner size="lg" color="primary" />
+      </div>
+    );
   }
 
   return (

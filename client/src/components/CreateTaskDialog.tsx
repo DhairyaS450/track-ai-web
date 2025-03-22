@@ -39,20 +39,18 @@ export function CreateTaskDialog({
   mode = "create",
   onExternalUpdate,
 }: CreateTaskDialogProps) {
-  const now = new Date();
-  now.setHours(23, 59, 0, 0);
-  const defaultDeadline = new Date().toLocaleString("sv-SE").slice(0, 16); // Format: YYYY-MM-DDThh:mm
   const isMobile = useMediaQuery("(max-width: 640px)");
 
   // Add state for the external update dialog
   const [externalUpdateDialogOpen, setExternalUpdateDialogOpen] = useState(false);
   const [updatedTask, setUpdatedTask] = useState<Task | null>(null);
+  const [isFormDirty, setIsFormDirty] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     priority: "Medium" as Priority,
-    deadline: defaultDeadline,
+    deadline: "",
     subject: "",
     resources: "",
     timeSlots: [{ startDate: "", endDate: "" }] as TimeSlot[],
@@ -62,36 +60,53 @@ export function CreateTaskDialog({
 
   const { toast } = useToast();
 
+  // Initialize form data only when dialog opens or initialTask changes
   useEffect(() => {
-    if (initialTask) {
-      setFormData({
-        title: initialTask.title,
-        description: initialTask.description,
-        priority: initialTask.priority,
-        deadline: initialTask.deadline,
-        subject: initialTask.subject || "",
-        resources: initialTask.resources || "",
-        timeSlots: initialTask.timeSlots || [{ startDate: "", endDate: "" }],
-        completion: initialTask.completion || 0,
-        source: initialTask.source || 'manual',
-      });
-    } else {
-      setFormData({
-        title: "",
-        description: "",
-        priority: "Medium",
-        deadline: defaultDeadline,
-        subject: "",
-        resources: "",
-        timeSlots: [{ startDate: "", endDate: "" }],
-        completion: 0,
-        source: "manual",
-      });
+    if (!open) {
+      // Don't update when dialog is closed
+      return;
     }
-  }, [initialTask, defaultDeadline]);
+
+    // Only reset form data if form isn't dirty or if we're editing a task
+    if (!isFormDirty || initialTask) {
+      const now = new Date();
+      now.setHours(23, 59, 0, 0);
+      const defaultDeadline = new Date().toLocaleString("sv-SE").slice(0, 16); // Format: YYYY-MM-DDThh:mm
+
+      if (initialTask) {
+        setFormData({
+          title: initialTask.title,
+          description: initialTask.description,
+          priority: initialTask.priority,
+          deadline: initialTask.deadline,
+          subject: initialTask.subject || "",
+          resources: initialTask.resources || "",
+          timeSlots: initialTask.timeSlots || [{ startDate: "", endDate: "" }],
+          completion: initialTask.completion || 0,
+          source: initialTask.source || 'manual',
+        });
+      } else {
+        setFormData({
+          title: "",
+          description: "",
+          priority: "Medium",
+          deadline: defaultDeadline,
+          subject: "",
+          resources: "",
+          timeSlots: [{ startDate: "", endDate: "" }],
+          completion: 0,
+          source: "manual",
+        });
+      }
+      
+      // Reset the dirty flag when we initialize the form
+      setIsFormDirty(false);
+    }
+  }, [open, initialTask, isFormDirty]);
 
   const updateFormData = (updates: Partial<typeof formData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
+    setIsFormDirty(true);
   };
 
   const addTimeSlot = () => {
@@ -135,6 +150,9 @@ export function CreateTaskDialog({
         setUpdatedTask(taskData as Task);
         setExternalUpdateDialogOpen(true);
       }
+      
+      // Reset the form dirty state after submission
+      setIsFormDirty(false);
     } catch (error) {
       console.error("Error creating task:", error);
       toast({
@@ -143,6 +161,14 @@ export function CreateTaskDialog({
         description: "Failed to save task",
       });
     }
+  };
+
+  // Handle dialog close - reset dirty state when dialog is closed
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      setIsFormDirty(false);
+    }
+    onOpenChange(open);
   };
 
   // Handle external update confirmation
@@ -208,7 +234,7 @@ export function CreateTaskDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className={cn("sm:max-w-[600px]", isMobile && "p-4")}>
           <DialogHeader>
             <DialogTitle>{mode === "edit" ? "Edit Task" : "Create Task"}</DialogTitle>
@@ -384,7 +410,7 @@ export function CreateTaskDialog({
             </div>
           </ScrollArea>
           <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
             <Button onClick={handleSubmit}>
