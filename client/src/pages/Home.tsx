@@ -7,12 +7,52 @@ import {
   Brain,
   Sparkles,
   ArrowRight,
-  Twitter,
-  Mail,
   Instagram,
+  Youtube,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
+
+// Discord icon component (not available in lucide-react)
+const DiscordIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M9 11.5c-.5 0-1-.2-1.4-.6a2 2 0 0 1-.6-1.4c0-.5.2-1 .6-1.4a2 2 0 0 1 1.4-.6c.5 0 1 .2 1.4.6.4.4.6.9.6 1.4 0 .5-.2 1-.6 1.4a2 2 0 0 1-1.4.6Z" />
+    <path d="M15 11.5c-.5 0-1-.2-1.4-.6a2 2 0 0 1-.6-1.4c0-.5.2-1 .6-1.4a2 2 0 0 1 1.4-.6c.5 0 1 .2 1.4.6.4.4.6.9.6 1.4 0 .5-.2 1-.6 1.4a2 2 0 0 1-1.4.6Z" />
+    <path d="M8.4 17a12.5 12.5 0 0 0 7.2 0" />
+    <path d="M7 16.8c-2 .8-4 1-5.6-2.5-.8-2-1.1-5.2.6-11.8 1.5 0 3.7 1.3 5 2.3" />
+    <path d="M17 16.8c2 .8 4 1 5.6-2.5.8-2 1.1-5.2-.6-11.8-1.5 0-3.7 1.3-5 2.3" />
+    <path d="M8.5 14.5c.7 2.7 2.2 4 3.5 4s2.8-1.3 3.5-4" />
+  </svg>
+);
+
+// TikTok icon component (not available in lucide-react)
+const TikTokIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+  </svg>
+);
 
 export function Home() {
   const navigate = useNavigate();
@@ -108,10 +148,33 @@ export function Home() {
       {/* Navbar */}
       <header>
         <nav className="fixed top-0 w-full bg-background/80 backdrop-blur-sm z-50 border-b">
+          {/* Beta Announcement Banner */}
+          <div className="bg-primary text-primary-foreground py-2">
+            <div className="container mx-auto px-6 text-center">
+              <p className="text-sm font-medium">
+                Beta version coming in mid-April! Interested in becoming a beta tester? 
+                <a 
+                  href="https://discord.gg/CQgJBgADdM" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="underline ml-1 hover:text-white"
+                >
+                  Join our Discord server
+                </a>
+              </p>
+            </div>
+          </div>
+          
           <div className="container mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <img src="/logo.png" alt="TaskTide Logo" className="h-8" loading="lazy" />
+                <img 
+                  src="/logo.png" 
+                  alt="TidalTasks AI Logo" 
+                  className="h-8 cursor-pointer" 
+                  loading="lazy" 
+                  onClick={() => navigate("/")}
+                />
                 <span className="text-xl font-bold">TidalTasks AI</span>
               </div>
               <div className="flex items-center space-x-4">
@@ -125,7 +188,7 @@ export function Home() {
         </nav>
       </header>
 
-      <main id="main-content">
+      <main id="main-content" className="pt-24">
         {/* Hero Section */}
         <section className="pt-32 pb-20 bg-gradient-to-b from-primary/10 via-background to-background">
           <motion.div
@@ -142,7 +205,7 @@ export function Home() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button size="lg" className="text-lg px-8" onClick={() => navigate("/register")}>
-                Start Free Trial <ArrowRight className="ml-2" />
+                Get Started <ArrowRight className="ml-2" />
               </Button>
               <Button size="lg" variant="outline" className="text-lg px-8" onClick={() => navigate("/demo")}>
                 Watch Demo
@@ -333,7 +396,7 @@ export function Home() {
               className="text-lg px-8"
               onClick={() => navigate("/register")}
             >
-              Start Free Trial
+              Get Started
             </Button>
           </div>
         </section>
@@ -377,25 +440,42 @@ export function Home() {
             </div>
             <div>
               <h4 className="font-semibold mb-4">Connect</h4>
-              <div className="flex space-x-4">
+              <div className="flex flex-wrap gap-4">
                 <a
-                  href="https://instagram.com/tidaltasks"
+                  href="https://discord.gg/CQgJBgADdM"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Discord"
+                  className="hover:text-primary transition-colors"
+                >
+                  <DiscordIcon className="w-5 h-5" />
+                </a>
+                <a
+                  href="https://www.instagram.com/tidaltasks_ai/"
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Instagram"
+                  className="hover:text-primary transition-colors"
                 >
                   <Instagram className="w-5 h-5" />
                 </a>
                 <a
-                  href="https://x.com/tidaltasks"
+                  href="https://www.tiktok.com/@tidaltasks.app"
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="Twitter"
+                  aria-label="TikTok"
+                  className="hover:text-primary transition-colors"
                 >
-                  <Twitter className="w-5 h-5" />
+                  <TikTokIcon className="w-5 h-5" />
                 </a>
-                <a href="mailto:support@tidaltasks.app" aria-label="Email">
-                  <Mail className="w-5 h-5" />
+                <a
+                  href="https://www.youtube.com/@TidalTasksAi"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="YouTube"
+                  className="hover:text-primary transition-colors"
+                >
+                  <Youtube className="w-5 h-5" />
                 </a>
               </div>
             </div>

@@ -13,8 +13,14 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/useToast"
-import { UserPlus } from "lucide-react"
+import { UserPlus, Info } from "lucide-react"
 import { register as registerUser, signInWithGoogle } from "@/api/auth"
 
 type RegisterForm = {
@@ -136,7 +142,27 @@ export function Register() {
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="inviteCode">Invite Code</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="inviteCode">Invite Code</Label>
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 p-0" 
+                          type="button" 
+                          aria-label="Get invite code info"
+                        >
+                          <Info className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent sideOffset={5} className="max-w-[250px] text-sm">
+                        <p>Join our Discord server to get an invite code for beta testing</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <Input
                   id="inviteCode"
                   type="text"
