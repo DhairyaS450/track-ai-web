@@ -74,7 +74,6 @@ export function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
-  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [viewAllTasksOpen, setViewAllTasksOpen] = useState(false);
   const [deleteTaskOpen, setDeleteTaskOpen] = useState(false);
@@ -96,11 +95,43 @@ export function Dashboard() {
   const setDeadlines = useState<Task[]>([])[1];
   const setReminders = useState<Reminder[]>([])[1];
   const { toast } = useToast();
+  
+  // Store motivational quote in state so it doesn't change on re-renders
+  const [motivationalQuote, setMotivationalQuote] = useState<string>('');
+
+  // Helper functions for safe date handling
+  const isValidDate = (dateStr: string | null | undefined): boolean => {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    return isValid(date);
+  };
+
+  const isTodaySafe = (dateStr: string | null | undefined): boolean => {
+    if (!isValidDate(dateStr)) return false;
+    return isToday(new Date(dateStr as string));
+  };
+
+  const isTomorrowSafe = (dateStr: string | null | undefined): boolean => {
+    if (!isValidDate(dateStr)) return false;
+    return isTomorrow(new Date(dateStr as string));
+  };
+
+  const isPastSafe = (dateStr: string | null | undefined): boolean => {
+    if (!isValidDate(dateStr)) return false;
+    return isPast(new Date(dateStr as string));
+  };
 
   useEffect(() => {
     if (!loading) {
       const todayTasks = allTasks.filter(task => 
-        task.timeSlots?.some(slot => isToday(new Date(slot.startDate)))
+        // Include tasks with today's time slots
+        (task.timeSlots?.some(slot => slot.startDate && isTodaySafe(slot.startDate)) ||
+        // Also include tasks with no time slots or empty time slots
+        !task.timeSlots || 
+        task.timeSlots.length === 0 ||
+        task.timeSlots.every(slot => !slot.startDate)) &&
+        // And exclude archived tasks
+        task.status !== 'archived'
       );
       setTasks(todayTasks);
     }
@@ -109,7 +140,7 @@ export function Dashboard() {
   useEffect(() => {
     if (!loading) {
       const todayEvents = allEvents.filter(event => 
-        isToday(new Date(event.startTime)) || isTomorrow(new Date(event.startTime))
+        event.startTime && (isTodaySafe(event.startTime) || isTomorrowSafe(event.startTime))
       );
       setEvents(todayEvents);
     }
@@ -119,7 +150,7 @@ export function Dashboard() {
     if (!loading) {
       console.log(allSessions);
       const todaySessions = allSessions.filter(session => 
-        isToday(new Date(session.scheduledFor))
+        session.scheduledFor && isTodaySafe(session.scheduledFor)
       );
       setSessions(todaySessions);
     }
@@ -128,8 +159,9 @@ export function Dashboard() {
   useEffect(() => {
     if (!loading) {
       const todayDeadlines = allTasks.filter(task => 
-        task.deadline && task.status !== "completed" &&
-        (isToday(new Date(task.deadline)) || isTomorrow(new Date(task.deadline)))
+        task.deadline && 
+        task.status !== "completed" &&
+        (isTodaySafe(task.deadline) || isTomorrowSafe(task.deadline))
       );
       setDeadlines(todayDeadlines);
     }
@@ -138,12 +170,18 @@ export function Dashboard() {
   useEffect(() => {
     if (!loading) {
       const todayReminders = allReminders.filter(reminder => 
-        isToday(new Date(reminder.reminderTime)) || isTomorrow(new Date(reminder.reminderTime))
+        reminder.reminderTime && 
+        (isTodaySafe(reminder.reminderTime) || isTomorrowSafe(reminder.reminderTime))
       );
       setReminders(todayReminders);
     }
   }, [allReminders, loading, setReminders]);
 
+  // Initialize the quote only once when component mounts
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * motivationalQuotes.length);
+    setMotivationalQuote(motivationalQuotes[randomIndex]);
+  }, []);
 
   const handleCreateTask = async (taskData: Task) => {
     try {
@@ -154,7 +192,11 @@ export function Dashboard() {
           description: "Task updated successfully",
         });
       } else {
-        await addTask(taskData);
+        const { task: newTask } = await addTask(taskData);
+        // Add the new task to the current tasks list if it's not archived
+        if (newTask && newTask.status !== 'archived') {
+          setTasks(prevTasks => [...prevTasks, newTask]);
+        }
         toast({
           title: "Success",
           description: "Task created successfully",
@@ -181,26 +223,53 @@ export function Dashboard() {
     if (!taskToDelete) return;
 
     try {
-      await deleteTask(taskToDelete);
-      toast({
-        title: "Success",
-        description: "Task deleted successfully",
-      });
+      // Get the task we're "deleting"
+      const taskToArchive = tasks.find(task => task.id === taskToDelete);
+      
+      if (taskToArchive) {
+        // Instead of deleting, update the task to have 'archived' status
+        // This removes it from the dashboard but keeps it in the "View All Tasks" dialog
+        await updateTask(taskToDelete, {
+          ...taskToArchive,
+          status: 'archived',
+          completion: 100
+        });
+        
+        toast({
+          title: "Success",
+          description: "Task removed from dashboard",
+        });
+      } else {
+        // If task not found, fall back to delete
+        await deleteTask(taskToDelete);
+        toast({
+          title: "Success",
+          description: "Task deleted successfully",
+        });
+      }
     } catch (error) {
-      console.error("Error deleting task:", error);
+      console.error("Error handling task:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to delete task",
+        description: "Failed to remove task",
       });
     }
     setTaskToDelete(null);
     setDeleteTaskOpen(false);
   };
 
-  const completedTasks = tasks.filter(
-    (task) => task.status === "completed"
-  ).length;
+  // Calculate completion metrics for all tasks
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((task) => task.status === "completed").length;
+  
+  // Calculate the average completion percentage across all tasks
+  const totalCompletion = tasks.reduce((acc, task) => acc + (task.completion || 0), 0);
+  const averageCompletion = totalTasks > 0 ? Math.round(totalCompletion / totalTasks) : 0;
+
+  // Calculate task groups by completion range
+  const notStartedTasks = tasks.filter((task) => (task.completion || 0) === 0).length;
+  const inProgressTasks = tasks.filter((task) => (task.completion || 0) > 0 && (task.completion || 0) < 100).length;
 
   const motivationalQuotes = [
     "Success is not final, failure is not fatal: it is the courage to continue that counts.",
@@ -272,77 +341,107 @@ export function Dashboard() {
     "The only way to do great work is to love what you do.",
   ];
 
-  const randomQuote =
-    motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
-
-  // const handleChatbotSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-  //   e.preventDefault();
-  //   const form = e.currentTarget;
-  //   const input = form.elements.namedItem("chatbot") as HTMLInputElement;
-
-  //   toast({
-  //     title: "Processing request",
-  //     description: `Processing: "${input.value}"`,
-  //   });
-
-  //   input.value = "";
-  // };
-  
   // Filter priority items
   const overdueTasks = allTasks.filter(
     (task) =>
       task.deadline &&
-      isValid(new Date(task.deadline)) &&
-      isPast(new Date(task.deadline)) &&
-      !isToday(new Date(task.deadline)) &&
+      isValidDate(task.deadline) &&
+      isPastSafe(task.deadline) &&
+      !isTodaySafe(task.deadline) &&
       task.status !== "completed"
   );
 
   const todayTasks = allTasks.filter(
     (task) =>
       task.deadline &&
-      isValid(new Date(task.deadline)) &&
-      isToday(new Date(task.deadline)) &&
+      isValidDate(task.deadline) &&
+      isTodaySafe(task.deadline) &&
       task.status !== "completed"
   );
+
+  const getSessionEndTime = (scheduledFor: string, durationMinutes: number): Date | null => {
+    try {
+      if (!scheduledFor) return null;
+      
+      const startDate = new Date(scheduledFor);
+      if (!isValid(startDate)) return null;
+      
+      // Add the duration in minutes to the start date
+      const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000);
+      return endDate;
+    } catch (error) {
+      console.error("Error calculating session end time:", error);
+      return null;
+    }
+  };
 
   const highPriorityItems = [
     ...tasks.filter(
       (task) =>
         task.deadline &&
-        isValid(new Date(task.deadline)) &&
-        !isPast(new Date(task.deadline)) &&
-        !isToday(new Date(task.deadline)) &&
+        isValidDate(task.deadline) &&
+        !isPastSafe(task.deadline) &&
+        !isTodaySafe(task.deadline) &&
         task.status !== "completed" &&
         task.priority === "High"
     ),
     ...sessions.filter(
-      (session) =>
-        session.scheduledFor &&
-        isValid(new Date(session.scheduledFor)) &&
-        !isPast(new Date(session.scheduledFor + session.duration)) &&
-        session.priority === "High" &&
-        session.status !== "completed"
+      (session) => {
+        // Calculate the end time of the session
+        const endTime = getSessionEndTime(session.scheduledFor, session.duration);
+        
+        return session.scheduledFor &&
+          isValidDate(session.scheduledFor) &&
+          endTime !== null &&
+          !isPast(endTime) &&
+          session.priority === "High" &&
+          session.status !== "completed";
+      }
     ),
     ...events.filter(
       (event) =>
         event.startTime &&
-        isValid(new Date(event.startTime)) &&
-        !isPast(new Date(event.endTime)) &&
+        event.endTime &&
+        isValidDate(event.startTime) &&
+        isValidDate(event.endTime) &&
+        !isPastSafe(event.endTime) &&
         event.priority === "High"
     ),
   ];
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string | null | undefined) => {
     try {
+      if (!dateStr) {
+        return "No date";
+      }
+      
       const date = new Date(dateStr);
       if (!isValid(date)) {
         return "Invalid date";
       }
+      
       return format(date, "PPp");
     } catch (error) {
       console.error("Error formatting date:", error);
       return "Invalid date";
+    }
+  };
+
+  const formatTime = (dateStr: string | null | undefined, formatString: string = "h:mm a") => {
+    try {
+      if (!dateStr) {
+        return "No time";
+      }
+      
+      const date = new Date(dateStr);
+      if (!isValid(date)) {
+        return "Invalid time";
+      }
+      
+      return format(date, formatString);
+    } catch (error) {
+      console.error("Error formatting time:", error);
+      return "Invalid time";
     }
   };
 
@@ -414,17 +513,18 @@ export function Dashboard() {
   const filteredDeadlines = allTasks.filter(
     (task) =>
       task.deadline &&
-      !isPast(new Date(task.deadline)) &&
+      isValidDate(task.deadline) &&
+      !isPastSafe(task.deadline) &&
       task.status !== "completed" &&
-      (isToday(new Date(task.deadline)) ||
-        isTomorrow(new Date(task.deadline)))
+      (isTodaySafe(task.deadline) || isTomorrowSafe(task.deadline))
   );
 
   const filteredReminders = allReminders.filter(
     (reminder) =>
-      !isPast(new Date(reminder.reminderTime)) &&
-      (isToday(new Date(reminder.reminderTime)) ||
-        isTomorrow(new Date(reminder.reminderTime)))
+      reminder.reminderTime &&
+      isValidDate(reminder.reminderTime) &&
+      !isPastSafe(reminder.reminderTime) &&
+      (isTodaySafe(reminder.reminderTime) || isTomorrowSafe(reminder.reminderTime))
   );
 
   const handleCreateEvent = async (eventData: Event) => {
@@ -687,29 +787,56 @@ export function Dashboard() {
         {/* Tasks Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tasks</CardTitle>
-            <Button variant="outline" size="icon" onClick={() => {
-              setEditTask(null);
-              setCreateTaskOpen(true);
-            }}>
+            <CardTitle className="text-sm font-medium">
+              Pending Tasks
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                setEditTask(null);
+                setCreateTaskOpen(true);
+              }}
+            >
               <Plus className="h-4 w-4" />
             </Button>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between mb-4">
-              <CircularProgress
-                value={completedTasks}
-                max={tasks.length || 1}
-              />
-              <span className="text-sm text-muted-foreground">
-                {completedTasks} out of {tasks.length} tasks completed
-              </span>
+            <div className="flex flex-col items-center justify-center space-y-2 pb-4">
+              <div className="w-full flex items-center space-x-2">
+                <div className="flex-1 space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-medium">Task Progress</span>
+                    <span>{averageCompletion}% Complete</span>
+                  </div>
+                  <div className="w-full bg-secondary rounded-full h-2.5">
+                    <div 
+                      className="bg-primary h-2.5 rounded-full transition-all duration-500" 
+                      style={{ width: `${averageCompletion}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between w-full text-xs text-muted-foreground mt-1">
+                <div className="flex flex-col items-center">
+                  <span className="font-bold text-base">{notStartedTasks}</span>
+                  <span>Not Started</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="font-bold text-base">{inProgressTasks}</span>
+                  <span>In Progress</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="font-bold text-base">{completedTasks}</span>
+                  <span>Completed</span>
+                </div>
+              </div>
             </div>
             <div className="space-y-4">
               {tasks.map((task) => (
                 <div
                   key={task.id}
-                  className={`flex items-center justify-between rounded-lg border p-4 transition-colors
+                  className={`rounded-lg border p-4 transition-colors
                     ${
                       task.status === "completed"
                         ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900"
@@ -722,21 +849,7 @@ export function Dashboard() {
                     }
                     `}
                 >
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedTasks.has(task.id)}
-                      onChange={(e) => {
-                        const newSelected = new Set(selectedTasks);
-                        if (e.target.checked) {
-                          newSelected.add(task.id);
-                        } else {
-                          newSelected.delete(task.id);
-                        }
-                        setSelectedTasks(newSelected);
-                      }}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
+                  <div className="flex items-center justify-between mb-2">
                     <div>
                       <h3
                         className={`font-medium ${
@@ -748,35 +861,31 @@ export function Dashboard() {
                         {task.title}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        {task.timeSlots[0] &&
-                          format(
-                            new Date(task.timeSlots[0].startDate),
-                            "h:mm a"
-                          )}
+                        {task.timeSlots && task.timeSlots[0] && task.timeSlots[0].startDate
+                          ? formatTime(task.timeSlots[0].startDate)
+                          : "No time scheduled"}
                       </p>
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge
-                      variant={
-                        task.priority === "High"
-                          ? "destructive"
-                          : task.priority === "Medium"
-                          ? "default"
-                          : "secondary"
-                      }
-                    >
-                      {task.priority}
-                    </Badge>
-                    {selectedTasks.has(task.id) && (
-                      <div className="flex items-center space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditTask(task)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                    <div className="flex items-center space-x-2">
+                      <Badge
+                        variant={
+                          task.priority === "High"
+                            ? "destructive"
+                            : task.priority === "Medium"
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
+                        {task.priority}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditTask(task)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      {(task.completion === 100 || task.status === "completed") && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -787,8 +896,42 @@ export function Dashboard() {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Completion Slider */}
+                  <div className="mt-3 space-y-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Completion</span>
+                      <span>{task.completion || 0}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={task.completion || 0}
+                      onChange={async (e) => {
+                        const newCompletion = parseInt(e.target.value);
+                        const updatedTask = {
+                          ...task,
+                          completion: newCompletion,
+                          status: newCompletion === 100 ? 'completed' : newCompletion > 0 ? 'in-progress' : 'todo'
+                        };
+                        await updateTask(task.id, updatedTask);
+                        // If completion is 100%, toast showing task is completed
+                        if (newCompletion === 100) {
+                          toast({
+                            title: "Task completed",
+                            description: `"${task.title}" has been marked as complete!`,
+                          });
+                        }
+                      }}
+                      className="w-full cursor-pointer"
+                      style={{
+                        background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${task.completion || 0}%, #e5e7eb ${task.completion || 0}%, #e5e7eb 100%)`
+                      }}
+                    />
                   </div>
                 </div>
               ))}
@@ -849,7 +992,7 @@ export function Dashboard() {
                       </p>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-4 w-4" />
-                        {format(new Date(session.scheduledFor), "h:mm a")} (
+                        {session.scheduledFor ? formatTime(session.scheduledFor) : "No time"} (
                         {session.duration} min)
                       </div>
                       {session.isAIRecommended && (
@@ -940,7 +1083,7 @@ export function Dashboard() {
                 <div>
                   <h3 className="font-medium">{deadline.title}</h3>
                   <p className="text-sm text-muted-foreground">
-                    Due: {format(new Date(deadline.deadline), "PPp")}
+                    Due: {formatDate(deadline.deadline)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -974,7 +1117,7 @@ export function Dashboard() {
                 <div>
                   <h3 className="font-medium">{reminder.title}</h3>
                   <p className="text-sm text-muted-foreground">
-                    At: {format(new Date(reminder.reminderTime), "PPp")}
+                    At: {formatDate(reminder.reminderTime)}
                   </p>
                 </div>
                 <Button
@@ -997,18 +1140,12 @@ export function Dashboard() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">
-            Daily Motivation
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-lg font-medium italic text-muted-foreground">
-            "{randomQuote}"
-          </p>
-        </CardContent>
-      </Card>
+      {/* Motivational Quote */}
+      <div className="pt-6 text-center italic">
+        <p className="text-xs leading-normal text-foreground dark:text-white">
+          "{motivationalQuote}"
+        </p>
+      </div>
 
       <CreateTaskDialog
         open={createTaskOpen}

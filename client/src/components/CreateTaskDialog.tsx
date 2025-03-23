@@ -392,21 +392,24 @@ export function CreateTaskDialog({
                 />
               </div>
 
-              <div className="grid gap-2">
-                <div className="flex items-center justify-between">
-                  <Label>Completion</Label>
-                  <span className="text-sm text-muted-foreground">{formData.completion}%</span>
+              {/* Only show completion slider in create mode, not in edit mode */}
+              {mode !== "edit" && (
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Completion</Label>
+                    <span className="text-sm text-muted-foreground">{formData.completion}%</span>
+                  </div>
+                  <div className="px-1">
+                    <Slider
+                      value={[formData.completion]}
+                      onValueChange={(values) => updateFormData({ completion: values[0] })}
+                      max={100}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
-                <div className="px-1">
-                  <Slider
-                    value={[formData.completion]}
-                    onValueChange={(values) => updateFormData({ completion: values[0] })}
-                    max={100}
-                    step={1}
-                    className="w-full"
-                  />
-                </div>
-              </div>
+              )}
             </div>
           </ScrollArea>
           <DialogFooter className="mt-4">
