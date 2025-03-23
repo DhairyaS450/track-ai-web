@@ -614,6 +614,34 @@ export function Dashboard() {
     }
   };
 
+  const [sliderValues, setSliderValues] = useState<Record<string, number>>({});
+  
+  // Function to update task completion in Firestore
+  const updateTaskCompletion = async (taskId: string, newCompletion: number) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const newStatus: 'todo' | 'in-progress' | 'completed' = 
+      newCompletion === 100 ? 'completed' : 
+      newCompletion > 0 ? 'in-progress' : 'todo';
+    
+    const updatedTask = {
+      ...task,
+      completion: newCompletion,
+      status: newStatus
+    };
+    
+    await updateTask(taskId, updatedTask);
+    
+    // If completion is 100%, toast showing task is completed
+    if (newCompletion === 100) {
+      toast({
+        title: "Task completed",
+        description: `"${task.title}" has been marked as complete!`,
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="pb-2 border-b border-brand-primary">
@@ -903,36 +931,33 @@ export function Dashboard() {
                   <div className="mt-3 space-y-1">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>Completion</span>
-                      <span>{task.completion || 0}%</span>
+                      <span>{(sliderValues[task.id] !== undefined ? sliderValues[task.id] : task.completion) || 0}%</span>
                     </div>
                     <input
                       type="range"
                       min="0"
                       max="100"
-                      value={task.completion || 0}
-                      onChange={async (e) => {
+                      value={sliderValues[task.id] !== undefined ? sliderValues[task.id] : task.completion || 0}
+                      onChange={(e) => {
                         const newCompletion = parseInt(e.target.value);
-                        const newStatus: 'todo' | 'in-progress' | 'completed' = 
-                          newCompletion === 100 ? 'completed' : 
-                          newCompletion > 0 ? 'in-progress' : 'todo';
-                          
-                        const updatedTask = {
-                          ...task,
-                          completion: newCompletion,
-                          status: newStatus
-                        };
-                        await updateTask(task.id, updatedTask);
-                        // If completion is 100%, toast showing task is completed
-                        if (newCompletion === 100) {
-                          toast({
-                            title: "Task completed",
-                            description: `"${task.title}" has been marked as complete!`,
-                          });
+                        setSliderValues(prev => ({
+                          ...prev,
+                          [task.id]: newCompletion
+                        }));
+                      }}
+                      onMouseUp={() => {
+                        if (sliderValues[task.id] !== undefined) {
+                          updateTaskCompletion(task.id, sliderValues[task.id]);
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        if (sliderValues[task.id] !== undefined) {
+                          updateTaskCompletion(task.id, sliderValues[task.id]);
                         }
                       }}
                       className="w-full cursor-pointer"
                       style={{
-                        background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${task.completion || 0}%, #e5e7eb ${task.completion || 0}%, #e5e7eb 100%)`
+                        background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${(sliderValues[task.id] !== undefined ? sliderValues[task.id] : task.completion) || 0}%, #e5e7eb ${(sliderValues[task.id] !== undefined ? sliderValues[task.id] : task.completion) || 0}%, #e5e7eb 100%)`
                       }}
                     />
                   </div>
