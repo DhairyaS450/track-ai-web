@@ -10,7 +10,7 @@ export interface Task {
   priority: 'High' | 'Medium' | 'Low';
   deadline: string;
   timeSlots: TimeSlot[];
-  status: 'todo' | 'in-progress' | 'completed';
+  status: 'todo' | 'in-progress' | 'completed' | 'archived';
   subject?: string;
   resources?: string;
   recurrence?: 'daily' | 'weekly' | 'monthly';

@@ -25,7 +25,6 @@ import {
   Sparkles,
   Check,
 } from "lucide-react";
-import { CircularProgress } from "@/components/CircularProgress";
 import { useToast } from "@/hooks/useToast";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { ViewAllTasksDialog } from "@/components/ViewAllTasksDialog";
@@ -231,7 +230,7 @@ export function Dashboard() {
         // This removes it from the dashboard but keeps it in the "View All Tasks" dialog
         await updateTask(taskToDelete, {
           ...taskToArchive,
-          status: 'archived',
+          status: 'archived' as 'todo' | 'in-progress' | 'completed' | 'archived',
           completion: 100
         });
         
@@ -913,10 +912,14 @@ export function Dashboard() {
                       value={task.completion || 0}
                       onChange={async (e) => {
                         const newCompletion = parseInt(e.target.value);
+                        const newStatus: 'todo' | 'in-progress' | 'completed' = 
+                          newCompletion === 100 ? 'completed' : 
+                          newCompletion > 0 ? 'in-progress' : 'todo';
+                          
                         const updatedTask = {
                           ...task,
                           completion: newCompletion,
-                          status: newCompletion === 100 ? 'completed' : newCompletion > 0 ? 'in-progress' : 'todo'
+                          status: newStatus
                         };
                         await updateTask(task.id, updatedTask);
                         // If completion is 100%, toast showing task is completed

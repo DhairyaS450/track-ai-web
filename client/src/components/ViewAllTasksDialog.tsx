@@ -123,10 +123,17 @@ export function ViewAllTasksDialog({
   };
 
   const futureTasks = filterTasks(
-    tasks.filter((task) => task.status !== "completed" && task.status !== "archived")
+    tasks.filter((task) => {
+      const status = task.status as string;
+      return status !== "completed" && status !== "archived";
+    })
   );
+  
   const oldTasks = filterTasks(
-    tasks.filter((task) => task.status === "completed" || task.status === "archived")
+    tasks.filter((task) => {
+      const status = task.status as string;
+      return status === "completed" || status === "archived";
+    })
   );
 
   const resetFilters = () => {
@@ -143,7 +150,7 @@ export function ViewAllTasksDialog({
             : ""
         }
         ${
-          task.status === "archived" 
+          (task.status as string) === "archived" 
             ? "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
             : ""
         }
@@ -152,10 +159,10 @@ export function ViewAllTasksDialog({
       <div>
         <h3 className="font-medium">{task.title}</h3>
         <p className="text-sm text-muted-foreground">
-          {task.status === 'completed' || task.status === 'archived' ? 'Completed' : `Due ${format(new Date(task.deadline), "PPp")}`}
+          {(task.status as string) === 'completed' || (task.status as string) === 'archived' ? 'Completed' : `Due ${format(new Date(task.deadline), "PPp")}`}
         </p>
         <p className="text-sm text-muted-foreground">
-          Status: {task.status === 'archived' ? 'completed' : task.status}
+          Status: {(task.status as string) === 'archived' ? 'completed' : task.status}
         </p>
         {task.recurrence && (
           <p className="text-sm text-muted-foreground">
