@@ -101,29 +101,15 @@ export function Home() {
   // Testimonial data
   const testimonials = [
     {
-      name: "Sarah Johnson",
-      role: "Computer Science Major",
-      image: "/testimonials/student1.jpg",
-      feedback:
-        "TidalTasks AI has completely transformed how I manage my studies. The AI recommendations are spot-on, and I love how it adapts to my schedule.",
-    },
-    {
-      name: "Lucas Smith",
+      name: "Mustafa Mustafa",
       role: "High-School Student",
       image: "/testimonials/student2.jpg",
       feedback:
         "I have never been more productive. I used to always procrastinate, but now I can get things done so much faster.",
     },
     {
-      name: "Emily Davis",
-      role: "Business Student",
-      image: "/testimonials/student3.jpg",
-      feedback:
-        "The scheduling feature has saved me countless hours. A must-have for any student!",
-    },
-    {
-      name: "Mustafa Mustafa",
-      role: "University Student",
+      name: "Sai Amartya B.L",
+      role: "High-School Student",
       image: "/testimonials/student4.jpg",
       feedback:
         "I especially love the calendar integration. It's so convenient to have all my deadlines in one place.",
