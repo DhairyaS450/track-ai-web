@@ -46,16 +46,17 @@ export function StudySessionTimer({
   onResume,
   initialProgress = 0,
 }: StudySessionTimerProps) {
+  // Get the starting state from local storage if available
+  const savedPhase = localStorage.getItem("currentPhase");
+  
   const [timeLeft, setTimeLeft] = useState<number>(0);
-  const [isBreak, setIsBreak] = useState(() => {
-    const savedPhase = localStorage.getItem("currentPhase");
-    return savedPhase === "break";
-  });
-  const [isPaused, setIsPaused] = useState(false);
-  const setPhaseStartTime = useState<Date>(new Date())[1];
+  const [isBreak, setIsBreak] = useState(() => savedPhase === "break");
+  const [isPaused, setIsPaused] = useState(localStorage.getItem("isPaused") === "true");
+  const [phaseStartTime, setPhaseStartTime] = useState<Date>(new Date());
   const [phaseEndTime, setPhaseEndTime] = useState<Date>(new Date());
   const [progress, setProgress] = useState(initialProgress);
   const [currentBreakSuggestion, setCurrentBreakSuggestion] = useState("");
+  const [isInitialized, setIsInitialized] = useState(false);
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width: 640px)");
 
@@ -67,118 +68,291 @@ export function StudySessionTimer({
     [breakDuration, breakInterval]
   );
 
-  const loadSavedState = useCallback(() => {
-    const savedTimeLeft = localStorage.getItem("timeLeft");
-    const savedPhaseStartTime = localStorage.getItem("phaseStartTime");
-    const savedPhaseEndTime = localStorage.getItem("phaseEndTime");
-    const savedProgress = localStorage.getItem("progress");
-
-    if (savedTimeLeft && savedPhaseStartTime && savedPhaseEndTime) {
-      setTimeLeft(parseInt(savedTimeLeft));
-      setPhaseStartTime(new Date(savedPhaseStartTime));
-      setPhaseEndTime(new Date(savedPhaseEndTime));
-      if (savedProgress) {
-        setProgress(parseFloat(savedProgress));
-      }
-    } else {
-      initializePhase(isBreak);
-    }
-  }, [isBreak]);
-
-  const initializePhase = useCallback(
-    (isBreakPhase: boolean) => {
-      const now = new Date();
-      setPhaseStartTime(now);
-      const endTime = calculatePhaseEndTime(now, isBreakPhase);
-      setPhaseEndTime(endTime);
-      setTimeLeft(endTime.getTime() - now.getTime());
-
-      localStorage.setItem("currentPhase", isBreakPhase ? "break" : "study");
-      localStorage.setItem("phaseStartTime", now.toISOString());
-      localStorage.setItem("phaseEndTime", endTime.toISOString());
-      localStorage.setItem(
-        "timeLeft",
-        (endTime.getTime() - now.getTime()).toString()
+  // Function to initialize phase
+  function initializePhase(isBreakPhase: boolean) {
+    console.log("Initializing phase:", isBreakPhase ? "break" : "study");
+    const now = new Date();
+    setPhaseStartTime(now);
+    
+    // Calculate how long this phase should be (in milliseconds)
+    const phaseLength = isBreakPhase ? breakDuration : breakInterval;
+    const phaseLengthMs = phaseLength * 60 * 1000; // Convert minutes to milliseconds
+    
+    // Set the end time and time left
+    const endTime = new Date(now.getTime() + phaseLengthMs);
+    setPhaseEndTime(endTime);
+    setTimeLeft(phaseLengthMs);
+    
+    // Save to localStorage
+    localStorage.setItem("phaseStartTime", now.toISOString());
+    localStorage.setItem("phaseEndTime", endTime.toISOString());
+    localStorage.setItem("currentPhase", isBreakPhase ? "break" : "study");
+    localStorage.setItem("timeLeft", phaseLengthMs.toString());
+    localStorage.setItem("lastSavedTime", now.toISOString());
+    
+    if (isBreakPhase) {
+      onPhaseChange?.("break");
+      // Set break suggestion from original suggestions array
+      setCurrentBreakSuggestion(
+        breakSuggestions[Math.floor(Math.random() * breakSuggestions.length)]
       );
+    } else {
+      onPhaseChange?.("study");
+    }
+    
+    console.log("Phase initialized with timeLeft:", phaseLengthMs, "ms");
+  }
 
-      if (isBreakPhase) {
-        setCurrentBreakSuggestion(
-          breakSuggestions[Math.floor(Math.random() * breakSuggestions.length)]
-        );
+  // Function to load saved state from localStorage
+  const loadSavedState = useCallback(() => {
+    try {
+      const savedTimeLeft = localStorage.getItem("timeLeft");
+      const savedProgress = localStorage.getItem("progress");
+      const savedPhase = localStorage.getItem("currentPhase");
+      const savedIsPaused = localStorage.getItem("isPaused") === "true";
+      const savedPhaseStartTime = localStorage.getItem("phaseStartTime");
+      const savedPhaseEndTime = localStorage.getItem("phaseEndTime");
+      const savedLastTime = localStorage.getItem("lastSavedTime");
+      
+      // Only process if we have a valid saved state
+      if (savedTimeLeft && savedPhase && savedPhaseStartTime && savedPhaseEndTime) {
+        let adjustedTimeLeft = parseInt(savedTimeLeft);
+        
+        // If we have a last saved time, adjust the timeLeft based on elapsed time
+        if (savedLastTime && !savedIsPaused) {
+          const lastSavedTime = new Date(savedLastTime);
+          const now = new Date();
+          const elapsedSinceLastSave = now.getTime() - lastSavedTime.getTime();
+          
+          // Adjust if time elapsed
+          if (elapsedSinceLastSave > 0) {
+            adjustedTimeLeft = Math.max(0, adjustedTimeLeft - elapsedSinceLastSave);
+          }
+        }
+        
+        // Set states from saved values
+        setTimeLeft(adjustedTimeLeft);
+        if (savedProgress) {
+          setProgress(parseFloat(savedProgress));
+        } else {
+          // If no saved progress, use initialProgress
+          setProgress(initialProgress || 0);
+        }
+        setIsBreak(savedPhase === "break");
+        setIsPaused(savedIsPaused);
+        
+        if (savedPhaseStartTime) {
+          setPhaseStartTime(new Date(savedPhaseStartTime));
+        }
+        
+        if (savedPhaseEndTime) {
+          setPhaseEndTime(new Date(savedPhaseEndTime));
+        }
+        
+        // Save the current time as last saved time
+        localStorage.setItem("lastSavedTime", new Date().toISOString());
+        
+        console.log("Loaded saved state with timeLeft:", adjustedTimeLeft, "ms, progress:", savedProgress || initialProgress);
+        return true;
+      } 
+      
+      // No saved state but we have session data - initialize fresh
+      if (duration > 0 && breakInterval > 0) {
+        console.log("No valid saved state. Creating fresh session with duration:", duration, "min");
+        
+        // Start with a study phase (not break)
+        setIsBreak(false);
+        // Set initial progress from props
+        setProgress(initialProgress || 0);
+        setIsPaused(false);
+        
+        // Initialize the first study phase
+        const now = new Date();
+        setPhaseStartTime(now);
+        
+        // Initial phase is study phase with duration of the breakInterval
+        const initialPhaseMs = breakInterval * 60 * 1000;
+        setTimeLeft(initialPhaseMs);
+        
+        const endTime = new Date(now.getTime() + initialPhaseMs);
+        setPhaseEndTime(endTime);
+        
+        // Save to localStorage
+        localStorage.setItem("currentPhase", "study");
+        localStorage.setItem("phaseStartTime", now.toISOString());
+        localStorage.setItem("phaseEndTime", endTime.toISOString());
+        localStorage.setItem("timeLeft", initialPhaseMs.toString());
+        localStorage.setItem("progress", initialProgress?.toString() || "0");
+        localStorage.setItem("isPaused", "false");
+        localStorage.setItem("lastSavedTime", now.toISOString());
+        
+        console.log("Initialized fresh session with first phase timeLeft:", initialPhaseMs, "ms, initial progress:", initialProgress || 0);
+        return true;
       }
-    },
-    [calculatePhaseEndTime]
-  );
+      
+      console.log("No saved state and insufficient session data");
+      return false;
+    } catch (error) {
+      console.error("Error loading saved state:", error);
+      return false;
+    }
+  }, [duration, breakInterval, initialProgress, breakSuggestions]);
 
+  // Add initialization useEffect to prevent immediate race conditions
   useEffect(() => {
-    loadSavedState();
-
+    console.log("Session props:", { startTime, duration, breakInterval, breakDuration });
+    if (!isInitialized) {
+      const stateLoaded = loadSavedState();
+      console.log("Loaded state?", stateLoaded);
+      
+      // If no state was loaded, initialize a fresh study phase
+      if (!stateLoaded) {
+        console.log("No saved state found, initializing fresh study phase");
+        initializePhase(false);
+      }
+      
+      setIsInitialized(true);
+    }
+  }, [isInitialized, loadSavedState, startTime, duration, breakInterval, breakDuration, initializePhase]);
+  
+  // Update remaining useEffect calls to depend on isInitialized
+  useEffect(() => {
+    if (!isInitialized) return;
+    
     // Add event listener for beforeunload
     const handleBeforeUnload = () => {
-      localStorage.setItem("timeLeft", timeLeft.toString());
-      localStorage.setItem("progress", progress.toString());
+      if (timeLeft > 0) {
+        localStorage.setItem("timeLeft", timeLeft.toString());
+        localStorage.setItem("progress", progress.toString());
+        localStorage.setItem("currentPhase", isBreak ? "break" : "study");
+      }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
 
+    // Also add event for visibility change to handle tab switching
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // User has returned to the tab, reload state
+        loadSavedState();
+      } else {
+        // User is leaving the tab, save state
+        handleBeforeUnload();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [loadSavedState]);
+  }, [loadSavedState, timeLeft, progress, isBreak, isInitialized]);
 
+  // Timer effect
   useEffect(() => {
-    if (isPaused) return;
-
+    if (!isInitialized) {
+      console.log("Timer not started: not initialized");
+      return;
+    }
+    
+    if (isPaused) {
+      console.log("Timer paused");
+      return;
+    }
+    
+    console.log("Starting timer with timeLeft:", timeLeft, "ms");
+    
+    // Track when this timer started
+    const timerStartTime = new Date();
+    
     const timer = setInterval(() => {
-      const now = new Date();
-
-      // Handle phase transition
-      if (now >= phaseEndTime) {
-        const newIsBreak = !isBreak;
-        setIsBreak(newIsBreak);
-        initializePhase(newIsBreak);
-        onPhaseChange(newIsBreak ? "break" : "study");
-        return;
-      }
-
-      const timeRemaining = phaseEndTime.getTime() - now.getTime();
-      setTimeLeft(Math.max(0, timeRemaining));
-
-      const start = new Date(startTime);
-      const totalDuration = duration * 60 * 1000;
-      const elapsed = now.getTime() - start.getTime();
-      const newProgress = Math.min(100, (elapsed / totalDuration) * 100);
-
-      setProgress(newProgress);
-      localStorage.setItem("progress", newProgress.toString());
-
-      if (elapsed >= totalDuration) {
-        clearInterval(timer);
-        onComplete();
-      }
-    }, 1000);
-
+      setTimeLeft((prevTimeLeft) => {
+        if (prevTimeLeft <= 1000) { // Less than 1 second left
+          console.log("Phase ending, transitioning to next phase");
+          
+          // Schedule phase transition asynchronously
+          setTimeout(() => {
+            if (isBreak) {
+              console.log("Break phase ended, switching to study phase");
+              setIsBreak(false);
+              initializePhase(false);
+            } else if (breakInterval > 0) {
+              console.log("Study phase ended, switching to break phase");
+              setIsBreak(true);
+              initializePhase(true);
+            }
+          }, 0);
+          
+          return 0;
+        }
+        
+        // Decrement by 1 second (1000ms)
+        const newTimeLeft = prevTimeLeft - 1000;
+        localStorage.setItem("timeLeft", newTimeLeft.toString());
+        localStorage.setItem("lastSavedTime", new Date().toISOString());
+        
+        // Calculate overall session progress based on elapsed time since timer started
+        // NOT based on the scheduled start time
+        if (duration > 0) {
+          try {
+            const now = new Date();
+            // Calculate total session duration in ms
+            const totalSessionMs = duration * 60 * 1000;
+            
+            // Calculate how long this timer has been running
+            const timerElapsedMs = now.getTime() - timerStartTime.getTime();
+            
+            // Calculate total progress including initial progress
+            const previousProgress = initialProgress || 0;
+            const progressFromTimer = (timerElapsedMs / totalSessionMs) * 100;
+            
+            // Combine previous progress with progress made during this timer session
+            const calculatedProgress = Math.min(100, previousProgress + progressFromTimer);
+            
+            setProgress(calculatedProgress);
+            localStorage.setItem("progress", calculatedProgress.toString());
+            
+            // Check if session is complete (100% or more)
+            if (calculatedProgress >= 100) {
+              console.log("Session complete! Total progress:", calculatedProgress);
+              clearInterval(timer);
+              
+              // Clean up localStorage
+              localStorage.removeItem("timeLeft");
+              localStorage.removeItem("progress");
+              localStorage.removeItem("currentPhase");
+              localStorage.removeItem("phaseStartTime");
+              localStorage.removeItem("phaseEndTime");
+              localStorage.removeItem("isPaused");
+              localStorage.removeItem("lastSavedTime");
+              
+              // Notify parent component
+              onComplete();
+              return 0;
+            }
+          } catch (error) {
+            console.error("Error calculating progress:", error);
+          }
+        }
+        
+        return newTimeLeft;
+      });
+    }, 1000); // Update every second
+    
     return () => clearInterval(timer);
-  }, [
-    isPaused,
-    phaseEndTime,
-    startTime,
-    duration,
-    onComplete,
-    isBreak,
-    initializePhase,
-    onPhaseChange,
-  ]);
+  }, [isPaused, isBreak, breakInterval, duration, initialProgress, onComplete, initializePhase, isInitialized]);
 
   const handlePause = () => {
     setIsPaused(true);
     localStorage.setItem("isPaused", "true");
-    onPause(progress);
+    localStorage.setItem("lastSavedTime", new Date().toISOString());
+    onPause?.(progress);
   };
 
   const handleResume = () => {
     setIsPaused(false);
     localStorage.setItem("isPaused", "false");
-    onResume();
+    localStorage.setItem("lastSavedTime", new Date().toISOString());
+    onResume?.();
   };
 
   const handleSkipPhase = () => {
@@ -189,13 +363,17 @@ export function StudySessionTimer({
   };
 
   const formatTimeLeft = (ms: number) => {
-    const seconds = Math.floor((ms / 1000) % 60);
-    const minutes = Math.floor((ms / (1000 * 60)) % 60);
-    const hours = Math.floor(ms / (1000 * 60 * 60));
+    // Convert milliseconds to seconds
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    
+    // Calculate hours, minutes, seconds
+    const seconds = totalSeconds % 60;
+    const minutes = Math.floor(totalSeconds / 60) % 60;
+    const hours = Math.floor(totalSeconds / 3600);
 
+    // Format with leading zeros
     return `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+      .toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   };
 
   const calculateNextPhaseTime = () => {

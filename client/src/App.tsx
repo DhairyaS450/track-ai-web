@@ -20,6 +20,7 @@ import { DataProvider } from "@/contexts/DataProvider";
 import { Home } from "./pages/Home";
 import { Privacy } from "./pages/Privacy";
 import { TOS } from "./pages/TOS";
+import { About } from "./pages/About";
 import DemoPage from './pages/DemoPage';
 import { NotFound } from "./pages/NotFound";
 import { Unauthorized } from "./pages/Unauthorized";
@@ -78,6 +79,7 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms-of-service" element={<TOS />} />
+              <Route path="/about" element={<About />} />
 
               {/* Public routes for auth */}
               <Route path="/login" element={<Login />} />

@@ -82,15 +82,70 @@ export function StudySessions() {
     // Set active session if there's one in progress
     const activeSession = allSessions.find(s => s.status === 'in-progress');
     if (activeSession) {
-      console.log('There is an active session', activeSession)
+      console.log('Found an active session', activeSession);
       setActiveSession(activeSession);
+      
+      // Initialize session notes if they exist
+      if (activeSession.notes) {
+        setSessionNotes(prev => ({
+          ...prev,
+          [activeSession.id]: activeSession.notes || ''
+        }));
+      }
+      
+      // Only check if session has already ended if it has both startTime and scheduledFor
+      // But don't end immediately if just started
+      if (activeSession.startTime && activeSession.duration) {
+        const startTime = new Date(activeSession.startTime);
+        const currentTime = new Date();
+        const sessionDurationMs = activeSession.duration * 60 * 1000;
+        const elapsedMs = currentTime.getTime() - startTime.getTime();
+        
+        console.log('Active session elapsed time:', elapsedMs, 'of total:', sessionDurationMs);
+        
+        // If session should have ended (elapsed time > duration) and not just started
+        if (elapsedMs > sessionDurationMs && elapsedMs > 10000) { // More than 10 seconds elapsed
+          console.log('Session should have ended, ending now');
+          handleEndSession(activeSession.id);
+        }
+      }
+    } else {
+      // No active session found in database, check if there's stale data in localStorage
+      const savedPhase = localStorage.getItem("currentPhase");
+      const savedProgress = localStorage.getItem("progress");
+      
+      if (savedPhase || savedProgress) {
+        // Clear localStorage if there's no active session but localStorage has data
+        localStorage.removeItem("currentPhase");
+        localStorage.removeItem("phaseStartTime");
+        localStorage.removeItem("phaseEndTime");
+        localStorage.removeItem("timeLeft");
+        localStorage.removeItem("progress");
+        localStorage.removeItem("isPaused");
+        localStorage.removeItem("lastSavedTime");
+        console.log('Cleared stale session data from localStorage');
+      }
     }
   }, [allSessions]);
 
   const handleEndSession = async (sessionId: string) => {
     try {
-      await endSession(sessionId, sessionNotes[sessionId]);
+      console.log('Ending session:', sessionId);
+      
+      // Collect notes from state if they exist
+      const notes = sessionNotes[sessionId] || '';
+      await endSession(sessionId, notes);
       setActiveSession(null);
+      
+      // Clear localStorage when session ends
+      localStorage.removeItem("currentPhase");
+      localStorage.removeItem("phaseStartTime");
+      localStorage.removeItem("phaseEndTime");
+      localStorage.removeItem("timeLeft");
+      localStorage.removeItem("progress");
+      localStorage.removeItem("isPaused");
+      localStorage.removeItem("lastSavedTime");
+      
       toast({
         title: "Success",
         description: "Study session ended successfully",
@@ -150,7 +205,51 @@ export function StudySessions() {
 
   const handleStartSession = async (sessionId: string) => {
     try {
-      await startSession(sessionId);
+      console.log('Starting session:', sessionId);
+      
+      // Clear any lingering localStorage data before starting new session
+      localStorage.removeItem("currentPhase");
+      localStorage.removeItem("phaseStartTime");
+      localStorage.removeItem("phaseEndTime");
+      localStorage.removeItem("timeLeft");
+      localStorage.removeItem("progress");
+      localStorage.removeItem("isPaused");
+      localStorage.removeItem("lastSavedTime");
+      
+      // Find the session we want to start
+      const sessionToStart = allSessions.find(s => s.id === sessionId);
+      if (!sessionToStart) {
+        console.error('Session not found:', sessionId);
+        throw new Error('Session not found');
+      }
+      
+      // Create a current timestamp for the actual start time
+      const now = new Date();
+      const currentTimestamp = now.toISOString();
+      
+      // Start the session in the database with the current time
+      const result = await startSession(sessionId);
+      console.log('Session started in DB:', result);
+      
+      // Create active session object with current time as startTime
+      const activeSessionData = {
+        ...sessionToStart,
+        status: 'in-progress' as const,
+        startTime: currentTimestamp,  // Use current time, not scheduled time
+        completion: 0  // Reset completion to zero
+      };
+      
+      // Set as active session immediately (don't wait for effect)
+      setActiveSession(activeSessionData);
+      
+      // Initialize notes for this session
+      setSessionNotes(prev => ({
+        ...prev,
+        [sessionId]: sessionToStart.notes || ''
+      }));
+      
+      console.log('Active session set with current time:', activeSessionData);
+      
       toast({
         title: "Success",
         description: "Session started successfully",
@@ -181,6 +280,107 @@ export function StudySessions() {
   const upcomingSessions = filteredSessions.filter(s => s.status === "scheduled");
   const completedSessions = filteredSessions.filter(s => s.status === "completed");
 
+  // Component to render active session section
+  const renderActiveSession = () => {
+    if (!activeSession) return null;
+    
+    return (
+      <Card className="border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 md:px-6">
+          <CardTitle className="text-xl font-semibold flex items-center gap-2">
+            <Timer className="h-6 w-6 text-blue-500" />
+            Active Study Session
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsActiveOpen(!isActiveOpen)}
+          >
+            {isActiveOpen ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </CardHeader>
+        <Collapsible open={isActiveOpen}>
+          <CollapsibleContent>
+            <CardContent className="px-4 md:px-6">
+              <div className="space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">{activeSession.subject}</h3>
+                    <p className="text-sm text-muted-foreground">{activeSession.goal}</p>
+                  </div>
+                  <Badge
+                    variant={
+                      activeSession.priority === "High"
+                        ? "destructive"
+                        : activeSession.priority === "Medium"
+                        ? "default"
+                        : "secondary"
+                    }
+                  >
+                    {activeSession.priority}
+                  </Badge>
+                </div>
+
+                <StudySessionTimer
+                  startTime={activeSession.startTime || activeSession.scheduledFor}
+                  duration={activeSession.duration}
+                  breakInterval={activeSession.breakInterval || 25}
+                  breakDuration={activeSession.breakDuration || 5}
+                  onPhaseChange={handlePhaseChange}
+                  onComplete={() => handleEndSession(activeSession.id)}
+                  onPause={(progress) => {
+                    console.log('Session paused at progress:', progress);
+                    updateSession(activeSession.id, { 
+                      completion: progress,
+                      status: 'in-progress' 
+                    });
+                    toast({
+                      title: "Session Paused",
+                      description: `Progress saved: ${Math.round(progress)}%`,
+                    });
+                  }}
+                  onResume={() => {
+                    toast({
+                      title: "Session Resumed",
+                      description: "Keep up the good work!",
+                    });
+                  }}
+                  initialProgress={activeSession.completion || 0}
+                />
+
+                <div className="flex flex-col sm:flex-row justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => {
+                      setSessionToEdit(activeSession);
+                      setCreateSessionOpen(true);
+                    }}
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Session Settings
+                  </Button>
+                  <Button
+                    variant="default"
+                    className="w-full sm:w-auto"
+                    onClick={() => handleEndSession(activeSession.id)}
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    End Session
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6 p-4 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -208,96 +408,7 @@ export function StudySessions() {
       <ScrollArea className="h-[calc(100vh-8rem)]">
         <div className="space-y-6">
           {/* Active Session Section */}
-          {(filter === "all" || filter === "ongoing") && activeSession && (
-            <Card className="border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 md:px-6">
-                <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                  <Timer className="h-6 w-6 text-blue-500" />
-                  Active Study Session
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsActiveOpen(!isActiveOpen)}
-                >
-                  {isActiveOpen ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </Button>
-              </CardHeader>
-              <Collapsible open={isActiveOpen}>
-                <CollapsibleContent>
-                  <CardContent className="px-4 md:px-6">
-                    <div className="space-y-6">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                          <h3 className="text-lg font-semibold">{activeSession.subject}</h3>
-                          <p className="text-sm text-muted-foreground">{activeSession.goal}</p>
-                        </div>
-                        <Badge
-                          variant={
-                            activeSession.priority === "High"
-                              ? "destructive"
-                              : activeSession.priority === "Medium"
-                              ? "default"
-                              : "secondary"
-                          }
-                        >
-                          {activeSession.priority}
-                        </Badge>
-                      </div>
-
-                      <StudySessionTimer
-                        startTime={activeSession.scheduledFor}
-                        duration={activeSession.duration}
-                        breakInterval={activeSession.breakInterval || 25}
-                        breakDuration={activeSession.breakDuration || 5}
-                        onPhaseChange={handlePhaseChange}
-                        onComplete={() => handleEndSession(activeSession.id)}
-                        onPause={(progress) => {
-                          toast({
-                            title: "Session Paused",
-                            description: `Progress saved: ${Math.round(progress)}%`,
-                          });
-                        }}
-                        onResume={() => {
-                          toast({
-                            title: "Session Resumed",
-                            description: "Keep up the good work!",
-                          });
-                        }}
-                        initialProgress={activeSession.completion}
-                      />
-
-                      <div className="flex flex-col sm:flex-row justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          className="w-full sm:w-auto"
-                          onClick={() => {
-                            setSessionToEdit(activeSession);
-                            setCreateSessionOpen(true);
-                          }}
-                        >
-                          <Settings className="h-4 w-4 mr-2" />
-                          Session Settings
-                        </Button>
-                        <Button
-                          variant="default"
-                          className="w-full sm:w-auto"
-                          onClick={() => handleEndSession(activeSession.id)}
-                        >
-                          <Check className="h-4 w-4 mr-2" />
-                          End Session
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </CollapsibleContent>
-              </Collapsible>
-            </Card>
-          )}
+          {(filter === "all" || filter === "ongoing") && renderActiveSession()}
 
           {/* Upcoming Sessions Section */}
           {(filter === "all" || filter === "upcoming") && upcomingSessions.length > 0 && (
