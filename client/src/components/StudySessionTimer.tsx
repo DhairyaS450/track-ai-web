@@ -52,7 +52,7 @@ export function StudySessionTimer({
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isBreak, setIsBreak] = useState(() => savedPhase === "break");
   const [isPaused, setIsPaused] = useState(localStorage.getItem("isPaused") === "true");
-  const [phaseStartTime, setPhaseStartTime] = useState<Date>(new Date());
+  const setPhaseStartTime = useState<Date>(new Date())[1];
   const [phaseEndTime, setPhaseEndTime] = useState<Date>(new Date());
   const [progress, setProgress] = useState(initialProgress);
   const [currentBreakSuggestion, setCurrentBreakSuggestion] = useState("");
@@ -60,13 +60,13 @@ export function StudySessionTimer({
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width: 640px)");
 
-  const calculatePhaseEndTime = useCallback(
-    (startDate: Date, isBreakPhase: boolean) => {
-      const phaseLength = isBreakPhase ? breakDuration : breakInterval;
-      return new Date(startDate.getTime() + phaseLength * 60000);
-    },
-    [breakDuration, breakInterval]
-  );
+  // const calculatePhaseEndTime = useCallback(
+  //   (startDate: Date, isBreakPhase: boolean) => {
+  //     const phaseLength = isBreakPhase ? breakDuration : breakInterval;
+  //     return new Date(startDate.getTime() + phaseLength * 60000);
+  //   },
+  //   [breakDuration, breakInterval]
+  // );
 
   // Function to initialize phase
   function initializePhase(isBreakPhase: boolean) {
