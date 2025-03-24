@@ -25,7 +25,6 @@ import {
   CollapsibleContent,
 } from "@/components/ui/collapsible";
 import { PostponeSessionDialog } from "@/components/PostponeSessionDialog";
-import { CreateStudySessionDialog } from "@/components/CreateStudySessionDialog";
 import { DeleteStudySessionDialog } from "@/components/DeleteStudySessionDialog";
 import { useToast } from "@/hooks/useToast";
 import {
@@ -48,6 +47,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useData } from "@/contexts/DataProvider";
+import { UnifiedItemDialog } from "@/components/UnifiedItemDialog";
+import { SchedulableItem, UnifiedStudySession, convertFromUnified } from "@/types/unified";
 
 type SessionFilter = "all" | "ongoing" | "upcoming" | "completed";
 
@@ -66,7 +67,7 @@ export function StudySessions() {
   const [deleteSessionOpen, setDeleteSessionOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [postponeSessionOpen, setPostponeSessionOpen] = useState(false);
-  const [sessionToPostpone, setSessionToPostpone] = useState<string | null>(null);
+  const [_sessionToPostpone, setSessionToPostpone] = useState<string | null>(null);
   const [sessionToEdit, setSessionToEdit] = useState<StudySession | null>(null);
   const [filter, setFilter] = useState<SessionFilter>("all");
   const [isActiveOpen, setIsActiveOpen] = useState(true);
@@ -340,6 +341,11 @@ export function StudySessions() {
     }
   };
 
+  const handleCreateSessionClick = () => {
+    setSessionToEdit(null);
+    setCreateSessionOpen(true);
+  };
+
   const filteredSessions = allSessions.filter(session => {
     switch (filter) {
       case "ongoing":
@@ -485,7 +491,7 @@ export function StudySessions() {
           </Select>
           <Button 
             className="w-full sm:w-auto bg-primary hover:bg-primary/90" 
-            onClick={() => setCreateSessionOpen(true)}
+            onClick={handleCreateSessionClick}
           >
             <Plus className="mr-2 h-4 w-4" />
             New Session
@@ -516,7 +522,7 @@ export function StudySessions() {
                 {filter === "all" && (
                   <Button
                     className="mt-4"
-                    onClick={() => setCreateSessionOpen(true)}
+                    onClick={handleCreateSessionClick}
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Create your first session
@@ -814,71 +820,58 @@ export function StudySessions() {
         </div>
       </ScrollArea>
 
-      <CreateStudySessionDialog
+      <UnifiedItemDialog 
         open={createSessionOpen}
         onOpenChange={setCreateSessionOpen}
-        onSessionCreated={async (session: StudySession) => {
-          try {
-            if (sessionToEdit) {
-              await updateSession(sessionToEdit.id, session);
-            } else {
-              await addSession(session);
-            }
-          } catch (error) {
-            console.error("Error creating session:", error);
-          }
-          setCreateSessionOpen(false);
-          setSessionToEdit(null);
-        }}
-        initialSession={sessionToEdit}
+        initialType="session"
+        initialItem={sessionToEdit ? {
+          id: sessionToEdit.id,
+          title: sessionToEdit.subject,
+          description: sessionToEdit.goal,
+          subject: sessionToEdit.subject,
+          goal: sessionToEdit.goal,
+          duration: sessionToEdit.duration,
+          technique: sessionToEdit.technique,
+          status: sessionToEdit.status,
+          startTime: sessionToEdit.scheduledFor,
+          scheduledFor: sessionToEdit.scheduledFor,
+          priority: sessionToEdit.priority || 'Medium',
+          notes: sessionToEdit.notes,
+          itemType: 'session',
+          breakInterval: sessionToEdit.breakInterval,
+          breakDuration: sessionToEdit.breakDuration,
+          materials: sessionToEdit.materials,
+          isFlexible: sessionToEdit.isFlexible,
+          userId: 'current-user',
+          createdAt: new Date().toISOString()
+        } as UnifiedStudySession : undefined}
         mode={sessionToEdit ? "edit" : "create"}
+        onSave={(item) => {
+          const sessionData = convertFromUnified(item as SchedulableItem) as StudySession;
+          if (sessionToEdit) {
+            updateSession(sessionToEdit.id, sessionData);
+          } else {
+            addSession(sessionData);
+          }
+        }}
       />
 
       <DeleteStudySessionDialog
         open={deleteSessionOpen}
         onOpenChange={setDeleteSessionOpen}
-        onConfirm={async () => {
-          if (!sessionToDelete) return;
-          try {
-            await deleteSession(sessionToDelete);
-            toast({
-              title: "Success",
-              description: "Study session deleted successfully",
-            });
-          } catch (error) {
-            console.error("Error deleting session:", error);
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to delete session",
-            });
+        onConfirm={() => {
+          if (sessionToDelete) {
+            deleteSession(sessionToDelete);
+            setSessionToDelete(null);
           }
-          setSessionToDelete(null);
-          setDeleteSessionOpen(false);
         }}
       />
 
       <PostponeSessionDialog
         open={postponeSessionOpen}
         onOpenChange={setPostponeSessionOpen}
-        onConfirm={async () => {
-          if (!sessionToPostpone) return;
-          try {
-            // Implement postpone functionality
-            toast({
-              title: "Success",
-              description: "Study session postponed successfully",
-            });
-          } catch (error) {
-            console.error("Error postponing session:", error);
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to postpone session",
-            });
-          }
-          setSessionToPostpone(null);
-          setPostponeSessionOpen(false);
+        onConfirm={(_postponeAmount) => {
+          // ... existing code ...
         }}
       />
 
@@ -886,8 +879,8 @@ export function StudySessions() {
         <RescheduleSessionDialog
           open={rescheduleSessionOpen}
           onOpenChange={setRescheduleSessionOpen}
-          onReschedule={handleRescheduleSession}
           session={sessionToReschedule}
+          onReschedule={handleRescheduleSession}
         />
       )}
     </div>

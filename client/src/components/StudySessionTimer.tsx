@@ -52,11 +52,12 @@ export function StudySessionTimer({
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isBreak, setIsBreak] = useState(() => savedPhase === "break");
   const [isPaused, setIsPaused] = useState(localStorage.getItem("isPaused") === "true");
-  const [phaseStartTime, setPhaseStartTime] = useState<Date>(new Date());
   const [phaseEndTime, setPhaseEndTime] = useState<Date>(new Date());
   const [progress, setProgress] = useState(initialProgress);
   const [currentBreakSuggestion, setCurrentBreakSuggestion] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
+  const [pauseStartTime, setPauseStartTime] = useState<Date | null>(null);
+  const [totalPausedTime, setTotalPausedTime] = useState(0); // in milliseconds
   const [actualStartTime, setActualStartTime] = useState<Date>(() => {
     // Always use the provided startTime (which should be when user clicked Start)
     return startTime ? new Date(startTime) : new Date();
@@ -68,7 +69,6 @@ export function StudySessionTimer({
   function initializePhase(isBreakPhase: boolean) {
     console.log("Initializing phase:", isBreakPhase ? "break" : "study");
     const now = new Date();
-    setPhaseStartTime(now);
     
     // Calculate how long this phase should be (in milliseconds)
     const phaseLength = isBreakPhase ? breakDuration : breakInterval;
@@ -79,12 +79,17 @@ export function StudySessionTimer({
     setPhaseEndTime(endTime);
     setTimeLeft(phaseLengthMs);
     
+    // Reset pause state for new phase
+    setPauseStartTime(null);
+    // Keep the total paused time for overall session tracking
+    
     // Save to localStorage
     localStorage.setItem("phaseStartTime", now.toISOString());
     localStorage.setItem("phaseEndTime", endTime.toISOString());
     localStorage.setItem("currentPhase", isBreakPhase ? "break" : "study");
     localStorage.setItem("timeLeft", phaseLengthMs.toString());
     localStorage.setItem("lastSavedTime", now.toISOString());
+    localStorage.removeItem("pauseStartTime");
     
     if (isBreakPhase) {
       onPhaseChange?.("break");
@@ -109,6 +114,20 @@ export function StudySessionTimer({
       const savedPhaseStartTime = localStorage.getItem("phaseStartTime");
       const savedPhaseEndTime = localStorage.getItem("phaseEndTime");
       const savedLastTime = localStorage.getItem("lastSavedTime");
+      const savedPauseStartTime = localStorage.getItem("pauseStartTime");
+      const savedTotalPausedTime = localStorage.getItem("totalPausedTime");
+      
+      // Load total paused time if available
+      if (savedTotalPausedTime) {
+        setTotalPausedTime(parseInt(savedTotalPausedTime));
+      }
+      
+      // Load pause start time if available
+      if (savedPauseStartTime) {
+        setPauseStartTime(new Date(savedPauseStartTime));
+      } else {
+        setPauseStartTime(null);
+      }
       
       // Only process if we have a valid saved state
       if (savedTimeLeft && savedPhase && savedPhaseStartTime && savedPhaseEndTime) {
@@ -137,10 +156,6 @@ export function StudySessionTimer({
         setIsBreak(savedPhase === "break");
         setIsPaused(savedIsPaused);
         
-        if (savedPhaseStartTime) {
-          setPhaseStartTime(new Date(savedPhaseStartTime));
-        }
-        
         if (savedPhaseEndTime) {
           setPhaseEndTime(new Date(savedPhaseEndTime));
         }
@@ -161,28 +176,13 @@ export function StudySessionTimer({
         // Set initial progress from props
         setProgress(initialProgress || 0);
         setIsPaused(false);
+        setTotalPausedTime(0);
+        setPauseStartTime(null);
         
         // Initialize the first study phase
-        const now = new Date();
-        setPhaseStartTime(now);
+        initializePhase(false);
         
-        // Initial phase is study phase with duration of the breakInterval
-        const initialPhaseMs = breakInterval * 60 * 1000;
-        setTimeLeft(initialPhaseMs);
-        
-        const endTime = new Date(now.getTime() + initialPhaseMs);
-        setPhaseEndTime(endTime);
-        
-        // Save to localStorage
-        localStorage.setItem("currentPhase", "study");
-        localStorage.setItem("phaseStartTime", now.toISOString());
-        localStorage.setItem("phaseEndTime", endTime.toISOString());
-        localStorage.setItem("timeLeft", initialPhaseMs.toString());
-        localStorage.setItem("progress", initialProgress?.toString() || "0");
-        localStorage.setItem("isPaused", "false");
-        localStorage.setItem("lastSavedTime", now.toISOString());
-        
-        console.log("Initialized fresh session with first phase timeLeft:", initialPhaseMs, "ms, initial progress:", initialProgress || 0);
+        console.log("Initialized fresh session with first phase timeLeft:", timeLeft, "ms, initial progress:", initialProgress || 0);
         return true;
       }
       
@@ -192,7 +192,7 @@ export function StudySessionTimer({
       console.error("Error loading saved state:", error);
       return false;
     }
-  }, [duration, breakInterval, initialProgress, breakSuggestions]);
+  }, [duration, breakInterval, initialProgress]);
 
   // Add initialization useEffect to prevent immediate race conditions
   useEffect(() => {
@@ -325,6 +325,8 @@ export function StudySessionTimer({
               localStorage.removeItem("isPaused");
               localStorage.removeItem("lastSavedTime");
               localStorage.removeItem("actualStartTime");
+              localStorage.removeItem("pauseStartTime");
+              localStorage.removeItem("totalPausedTime");
               
               // Notify parent component
               onComplete();
@@ -356,6 +358,13 @@ export function StudySessionTimer({
         localStorage.setItem("lastSavedTime", new Date().toISOString());
         // Ensure actual start time is saved
         localStorage.setItem("actualStartTime", actualStartTime.toISOString());
+        // Save pause state
+        localStorage.setItem("totalPausedTime", totalPausedTime.toString());
+        if (pauseStartTime) {
+          localStorage.setItem("pauseStartTime", pauseStartTime.toISOString());
+        } else {
+          localStorage.removeItem("pauseStartTime");
+        }
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -376,19 +385,48 @@ export function StudySessionTimer({
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [loadSavedState, timeLeft, progress, isBreak, isPaused, isInitialized, actualStartTime]);
+  }, [loadSavedState, timeLeft, progress, isBreak, isPaused, isInitialized, actualStartTime, totalPausedTime, pauseStartTime]);
 
   const handlePause = () => {
+    // Record when we started the pause
+    const now = new Date();
+    setPauseStartTime(now);
+    
     setIsPaused(true);
     localStorage.setItem("isPaused", "true");
-    localStorage.setItem("lastSavedTime", new Date().toISOString());
+    localStorage.setItem("lastSavedTime", now.toISOString());
+    localStorage.setItem("pauseStartTime", now.toISOString());
     onPause?.(progress);
   };
 
   const handleResume = () => {
+    // Calculate how long the timer was paused
+    if (pauseStartTime) {
+      const now = new Date();
+      const pauseDurationMs = now.getTime() - pauseStartTime.getTime();
+      
+      // Update total paused time
+      const newTotalPausedTime = totalPausedTime + pauseDurationMs;
+      setTotalPausedTime(newTotalPausedTime);
+      localStorage.setItem("totalPausedTime", newTotalPausedTime.toString());
+      
+      // Extend the phase end time by the pause duration
+      const newEndTime = new Date(phaseEndTime.getTime() + pauseDurationMs);
+      setPhaseEndTime(newEndTime);
+      localStorage.setItem("phaseEndTime", newEndTime.toISOString());
+      
+      // Log pause details
+      console.log(`Timer was paused for ${Math.round(pauseDurationMs / 1000)} seconds`);
+      console.log(`Phase end time extended to ${newEndTime.toISOString()}`);
+    }
+    
+    // Clear the pause start time
+    setPauseStartTime(null);
+    
     setIsPaused(false);
     localStorage.setItem("isPaused", "false");
     localStorage.setItem("lastSavedTime", new Date().toISOString());
+    localStorage.removeItem("pauseStartTime");
     onResume?.();
   };
 
