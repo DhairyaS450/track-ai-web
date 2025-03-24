@@ -5,7 +5,7 @@ import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { CircularProgress } from "./CircularProgress";
 import { format } from "date-fns";
-import { Timer, Play, SkipForward, Pause, MessageSquare } from "lucide-react";
+import { Timer, Play, SkipForward, Pause, MessageSquare, Clock } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -213,7 +213,7 @@ export function StudySessionTimer({
       
       setIsInitialized(true);
     }
-  }, [isInitialized, loadSavedState, startTime, duration, breakInterval, breakDuration, initializePhase]);
+  }, [isInitialized, loadSavedState, startTime, duration, breakInterval, breakDuration]);
   
   // Update remaining useEffect calls to depend on isInitialized
   useEffect(() => {
@@ -225,6 +225,8 @@ export function StudySessionTimer({
         localStorage.setItem("timeLeft", timeLeft.toString());
         localStorage.setItem("progress", progress.toString());
         localStorage.setItem("currentPhase", isBreak ? "break" : "study");
+        localStorage.setItem("isPaused", isPaused ? "true" : "false");
+        localStorage.setItem("lastSavedTime", new Date().toISOString());
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -245,7 +247,7 @@ export function StudySessionTimer({
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [loadSavedState, timeLeft, progress, isBreak, isInitialized]);
+  }, [loadSavedState, timeLeft, progress, isBreak, isPaused, isInitialized]);
 
   // Timer effect
   useEffect(() => {
@@ -260,9 +262,6 @@ export function StudySessionTimer({
     }
     
     console.log("Starting timer with timeLeft:", timeLeft, "ms");
-    
-    // Track when this timer started
-    const timerStartTime = new Date();
     
     const timer = setInterval(() => {
       setTimeLeft((prevTimeLeft) => {
@@ -287,33 +286,61 @@ export function StudySessionTimer({
         
         // Decrement by 1 second (1000ms)
         const newTimeLeft = prevTimeLeft - 1000;
+        
+        // Save to localStorage
         localStorage.setItem("timeLeft", newTimeLeft.toString());
         localStorage.setItem("lastSavedTime", new Date().toISOString());
         
-        // Calculate overall session progress based on elapsed time since timer started
-        // NOT based on the scheduled start time
+        // Calculate overall session progress
         if (duration > 0) {
           try {
-            const now = new Date();
-            // Calculate total session duration in ms
-            const totalSessionMs = duration * 60 * 1000;
+            // Calculate the phase duration in milliseconds
+            const phaseMs = isBreak 
+              ? breakDuration * 60 * 1000 
+              : breakInterval * 60 * 1000;
             
-            // Calculate how long this timer has been running
-            const timerElapsedMs = now.getTime() - timerStartTime.getTime();
+            // Calculate how much of this phase is complete
+            const phaseElapsedMs = phaseMs - newTimeLeft;
+            const phaseProgressPercent = (phaseElapsedMs / phaseMs) * 100;
             
-            // Calculate total progress including initial progress
-            const previousProgress = initialProgress || 0;
-            const progressFromTimer = (timerElapsedMs / totalSessionMs) * 100;
+            // Calculate accurate session metrics
+            const totalSessionDurationMs = duration * 60 * 1000; // Total session in ms
             
-            // Combine previous progress with progress made during this timer session
-            const calculatedProgress = Math.min(100, previousProgress + progressFromTimer);
+            // Calculate total study phases and break phases
+            const totalStudyPhasesMs = totalSessionDurationMs;
+            const numBreaks = Math.floor(totalStudyPhasesMs / (breakInterval * 60 * 1000));
+            const totalBreakPhasesMs = numBreaks * breakDuration * 60 * 1000;
             
-            setProgress(calculatedProgress);
-            localStorage.setItem("progress", calculatedProgress.toString());
+            // Total duration including breaks
+            const totalDurationWithBreaksMs = totalStudyPhasesMs + totalBreakPhasesMs;
             
-            // Check if session is complete (100% or more)
-            if (calculatedProgress >= 100) {
-              console.log("Session complete! Total progress:", calculatedProgress);
+            // Calculate what percentage of the total this phase represents
+            const phasePercentage = isBreak
+              ? (breakDuration * 60 * 1000) / totalDurationWithBreaksMs * 100
+              : (breakInterval * 60 * 1000) / totalDurationWithBreaksMs * 100;
+            
+            // How much does this current phase contribute to the progress
+            const phaseContribution = (phaseProgressPercent / 100) * (phasePercentage / 100) * 100;
+            
+            // For accuracy, track how much of the session we've completed before this phase
+            // This comes from the initialProgress parameter
+            let newProgress = initialProgress || 0;
+            
+            // Add the progress from the current phase
+            newProgress += phaseContribution;
+            
+            // Ensure progress doesn't exceed 100% or go below initial value
+            newProgress = Math.min(100, Math.max(initialProgress || 0, newProgress));
+            
+            // Round to 2 decimal places for consistency
+            newProgress = Math.round(newProgress * 100) / 100;
+            
+            setProgress(newProgress);
+            localStorage.setItem("progress", newProgress.toString());
+            
+            // Check if session is complete
+            if (newProgress >= 99.5) {
+              console.log("Session complete! Final progress:", newProgress);
               clearInterval(timer);
               
               // Clean up localStorage
@@ -339,7 +366,7 @@ export function StudySessionTimer({
     }, 1000); // Update every second
     
     return () => clearInterval(timer);
-  }, [isPaused, isBreak, breakInterval, duration, initialProgress, onComplete, initializePhase, isInitialized]);
+  }, [isPaused, isBreak, breakInterval, breakDuration, duration, initialProgress, onComplete, initializePhase, isInitialized]);
 
   const handlePause = () => {
     setIsPaused(true);
@@ -385,60 +412,85 @@ export function StudySessionTimer({
   };
 
   return (
-    <Card className="p-6 bg-white dark:bg-gray-800 relative">
-      <div
-        className={`flex ${
-          isMobile ? "flex-col gap-4" : "items-center justify-between mb-4"
-        }`}
-      >
+    <Card className="p-6 bg-gradient-to-r from-background to-muted/20 dark:from-background dark:to-blue-950/10 shadow-md overflow-hidden relative border border-blue-100 dark:border-blue-900">
+      {/* Decoration element */}
+      <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full bg-blue-100/30 dark:bg-blue-900/20 blur-2xl"></div>
+      
+      <div className={`flex ${
+        isMobile ? "flex-col gap-6" : "items-center justify-between gap-8 mb-6"
+      }`}>
         <div className="flex items-center gap-4">
-          <Timer className="h-5 w-5 text-blue-500" />
-          <div>
-            <h3 className="font-medium">Time Remaining</h3>
-            <p className="text-sm text-muted-foreground">
+          <div className="p-3 bg-blue-100 dark:bg-blue-900/40 rounded-full">
+            <Timer className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-semibold text-lg">Time Remaining</h3>
+            <p className="text-2xl font-mono font-bold text-blue-600 dark:text-blue-400">
               {formatTimeLeft(timeLeft)}
             </p>
           </div>
         </div>
         <Badge
-          variant={isBreak ? "secondary" : "default"}
-          className="animate-pulse self-start"
+          variant={isBreak ? "outline" : "default"}
+          className={`animate-pulse self-start text-sm py-1.5 px-3 ${
+            isBreak 
+              ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-800" 
+              : "bg-blue-500 text-white"
+          }`}
         >
           {isBreak ? "Break Time" : "Study Time"}
         </Badge>
       </div>
 
-      <div
-        className={`${
-          isMobile ? "space-y-4" : "flex items-center justify-between mb-6"
-        }`}
-      >
-        <div className="flex flex-col gap-2">
-          <div className="text-sm text-muted-foreground">
-            Current phase ends at: {format(phaseEndTime, "hh:mm a")}
-          </div>
-          <div className="text-sm font-medium text-primary">
-            {calculateNextPhaseTime()}
+      <div className={`${
+        isMobile ? "space-y-6" : "flex items-center justify-between mb-8"
+      }`}>
+        <div className="flex flex-col gap-3 max-w-md">
+          <div className="text-sm bg-muted/50 p-3 rounded-lg border border-border/50">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="h-4 w-4 text-blue-500" />
+              <span className="font-medium">Current phase ends at: {format(phaseEndTime, "hh:mm a")}</span>
+            </div>
+            <div className="font-medium text-primary">
+              {calculateNextPhaseTime()}
+            </div>
           </div>
           {isBreak && (
-            <div className="text-sm italic text-muted-foreground mt-2 max-w-md">
-              Suggestion: {currentBreakSuggestion}
+            <div className="text-sm italic p-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-900/50 text-green-700 dark:text-green-400">
+              <div className="flex items-center gap-2 mb-1">
+                <MessageSquare className="h-4 w-4" />
+                <span className="font-medium">Break Suggestion</span>
+              </div>
+              {currentBreakSuggestion}
             </div>
           )}
         </div>
-        <CircularProgress value={progress} max={100} size={60} />
+        <div className="relative">
+          <CircularProgress 
+            value={progress} 
+            max={100} 
+            size={isMobile ? 80 : 100} 
+            strokeWidth={8}
+            progressColor={isBreak ? "rgb(34, 197, 94)" : "rgb(59, 130, 246)"}
+            bgColor={isBreak ? "rgba(34, 197, 94, 0.1)" : "rgba(59, 130, 246, 0.1)"}
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <span className="text-2xl font-bold">{Math.round(progress)}%</span>
+              <div className="text-xs text-muted-foreground">Complete</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div
-        className={`${
-          isMobile ? "space-y-4" : "flex justify-between items-center"
-        }`}
-      >
+      <div className={`${
+        isMobile ? "space-y-4" : "flex justify-between items-center"
+      }`}>
         <Button
           variant="outline"
           size="sm"
           onClick={() => navigate("/chatbot")}
-          className="gap-2 w-full sm:w-auto"
+          className="gap-2 w-full sm:w-auto border-blue-200 hover:border-blue-300 hover:bg-blue-50 text-blue-600 dark:border-blue-800 dark:hover:border-blue-700 dark:hover:bg-blue-950"
         >
           <MessageSquare className="h-4 w-4" />
           Need help? Chat with Kai!
@@ -455,23 +507,47 @@ export function StudySessionTimer({
             Skip {isBreak ? "Break" : "Study"} Phase
           </Button>
           <Button
-            variant="default"
+            variant={isPaused ? "default" : "secondary"}
             size="sm"
             onClick={isPaused ? handleResume : handlePause}
-            className="w-full sm:w-auto"
+            className={`w-full sm:w-auto ${
+              isPaused 
+                ? "bg-blue-500 hover:bg-blue-600 text-white" 
+                : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:hover:bg-amber-900"
+            }`}
           >
             {isPaused ? (
               <>
                 <Play className="h-4 w-4 mr-2" />
-                Resume
+                Resume Session
               </>
             ) : (
               <>
                 <Pause className="h-4 w-4 mr-2" />
-                Pause
+                Pause Session
               </>
             )}
           </Button>
+        </div>
+      </div>
+      
+      {/* Progress bar at the bottom */}
+      <div className="mt-6 pt-4 border-t border-border/40">
+        <div className="text-xs text-muted-foreground mb-2 flex justify-between">
+          <span>Session Progress</span>
+          <span>
+            <span className="font-medium text-primary">{Math.round(progress)}%</span> Complete
+          </span>
+        </div>
+        <div className="w-full h-3 bg-muted/30 rounded-full overflow-hidden border border-border/30">
+          <div 
+            className={`h-full transition-all duration-500 ease-in-out ${
+              isBreak 
+                ? "bg-gradient-to-r from-green-400 to-green-500" 
+                : "bg-gradient-to-r from-blue-400 to-blue-500"
+            }`} 
+            style={{ width: `${progress}%` }}
+          ></div>
         </div>
       </div>
     </Card>

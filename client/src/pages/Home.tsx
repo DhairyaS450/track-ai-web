@@ -112,6 +112,13 @@ export function Home() {
       feedback:
         "Kai is so helpful. I used to always get distracted, but now I can stay on track and efficiently plan my study sessions with the help of Kai.",
     },
+    {
+      name: "Ishaan Dhiman",
+      role: "High-School Student",
+      image: "/testimonials/student2.jpg",
+      feedback:
+        "TidalTasks AI has revolutionized how I manage my study time. The smart scheduling and break reminders help me maintain focus and prevent burnout. I've seen a significant improvement in my productivity and academic performance.",
+    },
   ];
 
 

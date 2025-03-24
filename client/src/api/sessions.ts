@@ -19,20 +19,41 @@ const saveLocalSessions = (sessions: StudySession[]) => {
 const updateSessionStatuses = (sessions: StudySession[]): StudySession[] => {
   const now = new Date();
   return sessions.map(session => {
+    // Skip if already completed
     if (session.status === 'completed') return session;
 
+    // If session has an end time, use that
     const endTime = session.endTime
       ? new Date(session.endTime) 
-      : new Date(new Date(session.scheduledFor).getTime() + session.duration * 60000);
+      : session.startTime
+        ? new Date(new Date(session.startTime).getTime() + session.duration * 60000)
+        : null;
+
+    // If no valid end time, keep current status
+    if (!endTime) return session;
 
     if (now > endTime) {
-      updateStudySession(session.id, {...session, status: 'completed' as const})
+      // Only update if not already completed
+      const status = session.status as string;
+      if (status !== 'completed') {
+        updateStudySession(session.id, {
+          status: 'completed',
+          completion: 100,
+          endTime: endTime.toISOString()
+        });
+      }
       return { ...session, status: 'completed' as const };
     }
 
     const startTime = new Date(session.scheduledFor);
     if (now >= startTime && now <= endTime) {
-      updateStudySession(session.id, {...session, status: 'in-progress' as const})
+      // Only update if not already in progress
+      const status = session.status as string;
+      if (status !== 'in-progress') {
+        updateStudySession(session.id, {
+          status: 'in-progress'
+        });
+      }
       return { ...session, status: 'in-progress' as const };
     }
 
@@ -330,23 +351,54 @@ export const updateSessionProgress = async (id: string, completion: number) => {
     console.log('Updating session progress:', id, completion);
     const studySessionRef = doc(db, 'studySessions', id);
 
-    const sessionData = {
-      completion: Math.min(100, Math.max(0, completion)),
-      updatedAt: serverTimestamp()
-    };
-
-    await updateDoc(studySessionRef, sessionData);
-
-    // Get the updated session
+    // Get current session data
     const sessionSnapshot = await getDoc(studySessionRef);
     if (!sessionSnapshot.exists()) {
       throw new Error('Session not found');
     }
 
+    const currentSession = sessionSnapshot.data() as StudySession;
+    
+    // Only update if completion is greater than current value
+    if (completion <= (currentSession.completion || 0)) {
+      console.log('New completion value not greater than current, skipping update');
+      return { session: { ...currentSession, id } as StudySession };
+    }
+
+    // Ensure completion is between 0 and 100
+    const normalizedCompletion = Math.min(100, Math.max(0, completion));
+    
+    // Define session data with appropriate typing
+    const sessionData: {
+      completion: number;
+      updatedAt: any;
+      status?: 'completed' | 'in-progress' | 'scheduled';
+      endTime?: string;
+    } = {
+      completion: normalizedCompletion,
+      updatedAt: serverTimestamp()
+    };
+
+    // Automatically set to completed if 100%
+    if (normalizedCompletion >= 100) {
+      sessionData.status = 'completed';
+      sessionData.endTime = new Date().toISOString();
+    }
+
+    await updateDoc(studySessionRef, sessionData);
+    console.log('Session progress updated successfully:', id, normalizedCompletion);
+
+    // Get the updated session
+    const updatedSnapshot = await getDoc(studySessionRef);
+    if (!updatedSnapshot.exists()) {
+      throw new Error('Session not found after update');
+    }
+
+    // Make sure we include the id in the returned object
     return {
       session: {
-        id: sessionSnapshot.id,
-        ...sessionSnapshot.data()
+        id,
+        ...updatedSnapshot.data()
       } as StudySession
     };
   } catch (error: any) {
