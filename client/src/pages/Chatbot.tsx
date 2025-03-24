@@ -617,9 +617,6 @@ export function Chatbot() {
               </div>
             )}
             
-            {/* Action Card List */}
-            <ActionCardList />
-            
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
@@ -724,6 +721,8 @@ export function Chatbot() {
             </div>
           )}
         </Card>
+        
+        <ActionCardList />
       </div>
     </Card>
   );
