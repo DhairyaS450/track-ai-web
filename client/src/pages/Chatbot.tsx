@@ -22,11 +22,8 @@ import { useLocation } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { processChatMessage } from '@/api/chatbot';
 import { auth } from '@/config/firebase';
-import { addTask, updateTask } from "@/api/tasks";
-import { addEvent, updateEvent } from "@/api/events";
-import { addStudySession, updateStudySession } from "@/api/sessions";
+import { useData } from "@/contexts/DataProvider";
 import ReactMarkdown from 'react-markdown';
-import { updateReminder } from "@/api/deadlines";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { KaiQuickInfo } from "@/components/KaiQuickInfo";
 import { KaiFullInfo } from "@/components/KaiFullInfo";
@@ -69,6 +66,14 @@ const createSpeechRecognition = () => {
 };
 
 export function Chatbot() {
+  const { 
+    addTask, updateTask, deleteTask,
+    addEvent, updateEvent, deleteEvent,
+    addSession: addStudySession, 
+    updateSession: updateStudySession, 
+    deleteSession: deleteStudySession,
+    addReminder, updateReminder, deleteReminder
+  } = useData();
   const location = useLocation()
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -169,12 +174,64 @@ export function Chatbot() {
 
       const { response: result } = await processChatMessage(content, chatHistory);
       
-      console.log(JSON.stringify(result, null, 2));
-
+      console.log("Chatbot full result:", result);
+      console.log("Chatbot response type:", typeof result.response);
+      console.log("Chatbot response value:", result.response);
+      console.log("Chatbot actions:", result.actions);
 
       // Handle any actions returned by the chatbot
-      if (result.action) {
-        console.log(result.action);
+      if (result.actions && result.actions.length > 0) {
+        console.log("Processing actions:", result.actions);
+        
+        // Process all actions sequentially
+        for (const action of result.actions) {
+          console.log("Processing action:", action);
+          switch (action.type) {
+            case 'CREATE_TASK':
+              await addTask(action.data);
+              break;
+            case 'CREATE_EVENT':
+              await addEvent(action.data);
+              break;
+            case 'CREATE_SESSION':
+              await addStudySession(action.data);
+              break;
+            case 'CREATE_REMINDER':
+              await addReminder(action.data);
+              break;
+            case 'UPDATE_TASK':
+              await updateTask(action.data.id, action.data);
+              break;
+            case 'UPDATE_EVENT':
+              await updateEvent(action.data.id, action.data);
+              break;
+            case 'UPDATE_SESSION':
+              await updateStudySession(action.data.id, action.data);
+              break;
+            case 'UPDATE_REMINDER':
+              await updateReminder(action.data.id, action.data);
+              break;
+            case 'DELETE_TASK':
+              await deleteTask(action.data.id);
+              break;
+            case 'DELETE_EVENT':
+              await deleteEvent(action.data.id);
+              break;  
+            case 'DELETE_SESSION':
+              await deleteStudySession(action.data.id);
+              break;
+            case 'DELETE_REMINDER':
+              await deleteReminder(action.data.id);
+              break;
+              
+            default:
+              console.log(`Unknown action type: ${action.type}`);
+          }
+        }
+      }
+      // For backward compatibility, also check for single action
+      else if (result.action) {
+        console.log("Processing single action:", result.action);
         switch (result.action.type) {
           case 'CREATE_TASK':
             await addTask(result.action.data);
@@ -184,6 +241,9 @@ export function Chatbot() {
             break;
           case 'CREATE_SESSION':
             await addStudySession(result.action.data);
+            break;
+          case 'CREATE_REMINDER':
+            await addReminder(result.action.data);
             break;
           case 'UPDATE_TASK':
             await updateTask(result.action.data.id, result.action.data);
@@ -197,16 +257,40 @@ export function Chatbot() {
           case 'UPDATE_REMINDER':
             await updateReminder(result.action.data.id, result.action.data);
             break;
+          case 'DELETE_TASK':
+            await deleteTask(result.action.data.id);
+            break;
+          case 'DELETE_EVENT':
+            await deleteEvent(result.action.data.id);
+            break;
+          case 'DELETE_SESSION':
+            await deleteStudySession(result.action.data.id);
+            break;
+          case 'DELETE_REMINDER':
+            await deleteReminder(result.action.data.id);
+            break;
+            
           // ... handle other action types
         }
       }
 
+      // Determine the content to display
+      let responseContent = "Sorry, I couldn't generate a response.";
+      
+      if (result.response && typeof result.response === 'string') {
+        responseContent = result.response;
+      }
+      
+      console.log("Final response content:", responseContent);
+
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: result.response.toString(),
+        content: responseContent,
         timestamp: new Date()
       };
+      
+      console.log("Bot response object:", botResponse);
       setMessages(prev => [...prev, botResponse]);
 
     } catch (error: any) {

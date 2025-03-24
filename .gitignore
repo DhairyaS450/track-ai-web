@@ -9,3 +9,5 @@ api/*.env
 client/*.env
 firebase-service-account.json
 .vercel
+client/dist/
+client/build/

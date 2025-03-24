@@ -5,6 +5,21 @@ import { getEvents } from './events';
 import { getStudySessions } from './sessions';
 import { getUserProfile } from './settings';
 
+// Define action interface
+interface ChatbotAction {
+  type: string;
+  data: any;
+}
+
+// Define response interface
+interface ChatbotResponse {
+  response: {
+    response?: string;
+    action?: ChatbotAction;
+    actions?: ChatbotAction[];
+  };
+}
+
 interface FilteredTask {
   id: string;
   title: string;
@@ -90,7 +105,7 @@ const filterSessionData = (session: any): FilteredSession => ({
   priority: session.priority
 });
 
-export const processChatMessage = async (message: string, chatHistory: { type: 'user' | 'bot', content: string }[]) => {
+export const processChatMessage = async (message: string, chatHistory: { type: 'user' | 'bot', content: string }[]): Promise<ChatbotResponse> => {
   try {
     // Gather context data
 
@@ -116,6 +131,7 @@ export const processChatMessage = async (message: string, chatHistory: { type: '
       context
     });
 
+    console.log("API response from server:", response.data);
     return response.data;
   } catch (error: any) {
     console.error('Error processing chat message:', error);
