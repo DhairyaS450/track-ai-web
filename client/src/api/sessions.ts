@@ -236,14 +236,18 @@ export const startStudySession = async (id: string) => {
     console.log('Starting study session:', id);
     const studySessionRef = doc(db, 'studySessions', id);
 
+    // Get the current time to use as the actual start time
     const startTime = new Date();
+    console.log('Using current time as session start time:', startTime.toISOString());
+    
     const sessionData = {
       status: 'in-progress',
-      startTime: startTime.toISOString(),
+      startTime: startTime.toISOString(), // Use current time, not scheduled time
       updatedAt: serverTimestamp()
     };
 
     await updateDoc(studySessionRef, sessionData);
+    console.log('Session updated with start time:', startTime.toISOString());
 
     // Get the updated session
     const sessionSnapshot = await getDoc(studySessionRef);

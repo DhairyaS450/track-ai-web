@@ -24,10 +24,10 @@ const breakSuggestions = [
 ];
 
 interface StudySessionTimerProps {
-  startTime: string;
-  duration: number;
-  breakInterval: number;
-  breakDuration: number;
+  startTime: string;       // This should be the actual time when user clicked Start
+  duration: number;        // Total session duration in minutes
+  breakInterval: number;   // Study time between breaks in minutes
+  breakDuration: number;   // Break duration in minutes
   onPhaseChange: (phase: "study" | "break") => void;
   onComplete: () => void;
   onPause: (progress: number) => void;
@@ -52,21 +52,17 @@ export function StudySessionTimer({
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isBreak, setIsBreak] = useState(() => savedPhase === "break");
   const [isPaused, setIsPaused] = useState(localStorage.getItem("isPaused") === "true");
-  const setPhaseStartTime = useState<Date>(new Date())[1];
+  const [phaseStartTime, setPhaseStartTime] = useState<Date>(new Date());
   const [phaseEndTime, setPhaseEndTime] = useState<Date>(new Date());
   const [progress, setProgress] = useState(initialProgress);
   const [currentBreakSuggestion, setCurrentBreakSuggestion] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
+  const [actualStartTime, setActualStartTime] = useState<Date>(() => {
+    // Always use the provided startTime (which should be when user clicked Start)
+    return startTime ? new Date(startTime) : new Date();
+  });
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width: 640px)");
-
-  // const calculatePhaseEndTime = useCallback(
-  //   (startDate: Date, isBreakPhase: boolean) => {
-  //     const phaseLength = isBreakPhase ? breakDuration : breakInterval;
-  //     return new Date(startDate.getTime() + phaseLength * 60000);
-  //   },
-  //   [breakDuration, breakInterval]
-  // );
 
   // Function to initialize phase
   function initializePhase(isBreakPhase: boolean) {
@@ -201,6 +197,17 @@ export function StudySessionTimer({
   // Add initialization useEffect to prevent immediate race conditions
   useEffect(() => {
     console.log("Session props:", { startTime, duration, breakInterval, breakDuration });
+    
+    // Store the actual start time
+    if (startTime) {
+      const parsedStartTime = new Date(startTime);
+      console.log("Setting actual start time:", parsedStartTime.toISOString());
+      setActualStartTime(parsedStartTime);
+      
+      // Also store in localStorage for persistence
+      localStorage.setItem("actualStartTime", parsedStartTime.toISOString());
+    }
+    
     if (!isInitialized) {
       const stateLoaded = loadSavedState();
       console.log("Loaded state?", stateLoaded);
@@ -215,40 +222,6 @@ export function StudySessionTimer({
     }
   }, [isInitialized, loadSavedState, startTime, duration, breakInterval, breakDuration]);
   
-  // Update remaining useEffect calls to depend on isInitialized
-  useEffect(() => {
-    if (!isInitialized) return;
-    
-    // Add event listener for beforeunload
-    const handleBeforeUnload = () => {
-      if (timeLeft > 0) {
-        localStorage.setItem("timeLeft", timeLeft.toString());
-        localStorage.setItem("progress", progress.toString());
-        localStorage.setItem("currentPhase", isBreak ? "break" : "study");
-        localStorage.setItem("isPaused", isPaused ? "true" : "false");
-        localStorage.setItem("lastSavedTime", new Date().toISOString());
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    // Also add event for visibility change to handle tab switching
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        // User has returned to the tab, reload state
-        loadSavedState();
-      } else {
-        // User is leaving the tab, save state
-        handleBeforeUnload();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [loadSavedState, timeLeft, progress, isBreak, isPaused, isInitialized]);
-
   // Timer effect
   useEffect(() => {
     if (!isInitialized) {
@@ -351,6 +324,7 @@ export function StudySessionTimer({
               localStorage.removeItem("phaseEndTime");
               localStorage.removeItem("isPaused");
               localStorage.removeItem("lastSavedTime");
+              localStorage.removeItem("actualStartTime");
               
               // Notify parent component
               onComplete();
@@ -367,6 +341,42 @@ export function StudySessionTimer({
     
     return () => clearInterval(timer);
   }, [isPaused, isBreak, breakInterval, breakDuration, duration, initialProgress, onComplete, initializePhase, isInitialized]);
+
+  // Update remaining useEffect calls to depend on isInitialized
+  useEffect(() => {
+    if (!isInitialized) return;
+    
+    // Add event listener for beforeunload
+    const handleBeforeUnload = () => {
+      if (timeLeft > 0) {
+        localStorage.setItem("timeLeft", timeLeft.toString());
+        localStorage.setItem("progress", progress.toString());
+        localStorage.setItem("currentPhase", isBreak ? "break" : "study");
+        localStorage.setItem("isPaused", isPaused ? "true" : "false");
+        localStorage.setItem("lastSavedTime", new Date().toISOString());
+        // Ensure actual start time is saved
+        localStorage.setItem("actualStartTime", actualStartTime.toISOString());
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Also add event for visibility change to handle tab switching
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // User has returned to the tab, reload state
+        loadSavedState();
+      } else {
+        // User is leaving the tab, save state
+        handleBeforeUnload();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [loadSavedState, timeLeft, progress, isBreak, isPaused, isInitialized, actualStartTime]);
 
   const handlePause = () => {
     setIsPaused(true);

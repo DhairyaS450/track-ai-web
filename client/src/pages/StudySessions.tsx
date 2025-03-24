@@ -88,6 +88,7 @@ export function StudySessions() {
       localStorage.removeItem("progress");
       localStorage.removeItem("isPaused");
       localStorage.removeItem("lastSavedTime");
+      localStorage.removeItem("actualStartTime");
       console.log('Cleared session data from localStorage');
     };
   
@@ -108,6 +109,7 @@ export function StudySessions() {
         const sessionDurationMs = activeSession.duration * 60 * 1000;
         
         console.log('Active session elapsed time:', elapsedMs, 'of total:', sessionDurationMs);
+        console.log('Session started at:', startTime.toISOString(), 'and should run for', activeSession.duration, 'minutes');
         
         // If session has been running longer than its duration + 5 minutes (grace period)
         // and it's been running for at least 10 seconds (to prevent premature endings)
@@ -138,6 +140,7 @@ export function StudySessions() {
           localStorage.setItem("progress", String(activeSession.completion || 0));
           localStorage.setItem("isPaused", "false");
           localStorage.setItem("lastSavedTime", new Date().toISOString());
+          localStorage.setItem("actualStartTime", activeSession.startTime);
         }
       } else {
         // If no start time, end the session
@@ -177,14 +180,17 @@ export function StudySessions() {
       // Get current time
       const now = new Date();
       
-      // Calculate end time
+      // If there's a startTime, calculate the actual endTime based on it
+      // If no startTime (shouldn't happen), use now as the endTime
       const endTime = session.startTime
-        ? Math.max(
-            new Date(session.startTime).getTime() + (session.duration * 60 * 1000),
-            now.getTime()
-          )
-        : now.getTime();
-        
+        ? new Date(new Date(session.startTime).getTime() + (session.duration * 60 * 1000))
+        : now;
+      
+      console.log('Session started at:', session.startTime || 'unknown');
+      console.log('Session duration:', session.duration, 'minutes');
+      console.log('Calculated end time:', endTime.toISOString());
+      
+      // Mark the session as 100% complete
       await endSession(sessionId, notes);
       setActiveSession(null);
       
@@ -196,6 +202,7 @@ export function StudySessions() {
       localStorage.removeItem("progress");
       localStorage.removeItem("isPaused");
       localStorage.removeItem("lastSavedTime");
+      localStorage.removeItem("actualStartTime");
       
       toast({
         title: "Success",
@@ -274,7 +281,7 @@ export function StudySessions() {
         throw new Error('Session not found');
       }
       
-      // Create a current timestamp for the actual start time
+      // Create a current timestamp for the actual start time - this is when the user clicks start
       const now = new Date();
       const currentTimestamp = now.toISOString();
       
@@ -283,15 +290,17 @@ export function StudySessions() {
       const breakDuration = sessionToStart.breakDuration || 5;
       
       // Start the session in the database with the current time
-      console.log('Starting session in database:', sessionId);
+      console.log('Starting session in database with current time:', currentTimestamp);
       const result = await startSession(sessionId);
       console.log('Session started in DB:', result);
       
       // Create active session object with current time as startTime
+      // IMPORTANT: We use the current time, NOT the scheduled time
       const activeSessionData = {
         ...sessionToStart,
         status: 'in-progress' as const,
-        startTime: currentTimestamp,
+        startTime: currentTimestamp, // Using current timestamp as the start time
+        scheduledStartTime: sessionToStart.scheduledFor, // Keep track of original scheduled time
         completion: 0, // Reset completion to zero
         breakInterval, 
         breakDuration,
