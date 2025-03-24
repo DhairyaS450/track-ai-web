@@ -25,7 +25,6 @@ import {
   CollapsibleContent,
 } from "@/components/ui/collapsible";
 import { PostponeSessionDialog } from "@/components/PostponeSessionDialog";
-import { CreateStudySessionDialog } from "@/components/CreateStudySessionDialog";
 import { DeleteStudySessionDialog } from "@/components/DeleteStudySessionDialog";
 import { useToast } from "@/hooks/useToast";
 import {
@@ -68,7 +67,7 @@ export function StudySessions() {
   const [deleteSessionOpen, setDeleteSessionOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [postponeSessionOpen, setPostponeSessionOpen] = useState(false);
-  const [sessionToPostpone, setSessionToPostpone] = useState<string | null>(null);
+  const [_sessionToPostpone, setSessionToPostpone] = useState<string | null>(null);
   const [sessionToEdit, setSessionToEdit] = useState<StudySession | null>(null);
   const [filter, setFilter] = useState<SessionFilter>("all");
   const [isActiveOpen, setIsActiveOpen] = useState(true);
@@ -871,7 +870,7 @@ export function StudySessions() {
       <PostponeSessionDialog
         open={postponeSessionOpen}
         onOpenChange={setPostponeSessionOpen}
-        onConfirm={(postponeAmount) => {
+        onConfirm={(_postponeAmount) => {
           // ... existing code ...
         }}
       />
