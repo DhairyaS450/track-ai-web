@@ -1,13 +1,21 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Sparkles } from "lucide-react";
+import { Sparkles, MessageSquare } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
-interface KaiQuickInfoProps {
-  onNewChat: () => void;
+export interface KaiQuickInfoProps {
+  onNewChat?: () => void;
+  suggestionsEnabled?: boolean;
+  onToggleSuggestions?: (enabled: boolean) => void;
 }
 
-export function KaiQuickInfo({ onNewChat }: KaiQuickInfoProps) {
+export function KaiQuickInfo({ 
+  onNewChat, 
+  suggestionsEnabled = true,
+  onToggleSuggestions
+}: KaiQuickInfoProps) {
   const funFacts = [
     "I'm named after Kairos (meaning 'time' in Greek) and Kai (meaning 'sea' in Hawaiian) 🌊",
     "Like the tides, I help you flow between tasks and stay productive! 🌊",
@@ -45,24 +53,38 @@ export function KaiQuickInfo({ onNewChat }: KaiQuickInfoProps) {
             Like the tides, I'm here to help you flow through tasks, stay organized, and 
             ride the waves of productivity!
           </p>
+          
+          {onToggleSuggestions && (
+            <div className="flex items-center space-x-2">
+              <Switch 
+                id="suggestions-mode" 
+                checked={suggestionsEnabled}
+                onCheckedChange={onToggleSuggestions}
+              />
+              <Label htmlFor="suggestions-mode" className="text-sm cursor-pointer">
+                Show quick suggestions
+              </Label>
+            </div>
+          )}
+          
           <div className="bg-secondary/10 p-3 rounded-lg">
             <p className="text-sm font-medium flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
               Fun Fact
             </p>
-            <p className="text-sm text-muted-foreground">{randomFact}</p>
+            <p className="text-sm mt-1">{randomFact}</p>
           </div>
-          <div>
-            <p className="text-sm font-medium mb-2">Try asking me:</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>"Help me ride the productivity wave today! 🏄‍♂️"</li>
-              <li>"What's on my tide chart (schedule) for this week?"</li>
-              <li>"I'm drowning in tasks! Help me organize them!"</li>
-            </ul>
-          </div>
-          <Button className="w-full" onClick={onNewChat}>
-            Start New Chat with Kai
-          </Button>
+          
+          {onNewChat && (
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={onNewChat}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Start New Chat
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

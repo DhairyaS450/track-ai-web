@@ -105,10 +105,39 @@ const filterSessionData = (session: any): FilteredSession => ({
   priority: session.priority
 });
 
+// Validate response data
+const validateResponse = (responseData: any): ChatbotResponse => {
+  // If the response is not in expected format, transform it to match the expected structure
+  if (!responseData) {
+    throw new Error('Empty response received from server');
+  }
+  
+  if (typeof responseData !== 'object') {
+    return {
+      response: {
+        response: String(responseData),
+        actions: []
+      }
+    };
+  }
+  
+  // If response is not nested properly, fix the structure
+  if (typeof responseData.response === 'string') {
+    return {
+      response: {
+        response: responseData.response,
+        actions: Array.isArray(responseData.actions) ? responseData.actions : []
+      }
+    };
+  }
+  
+  // If the structure seems correct, return as is
+  return responseData;
+};
+
 export const processChatMessage = async (message: string, chatHistory: { type: 'user' | 'bot', content: string }[]): Promise<ChatbotResponse> => {
   try {
     // Gather context data
-
     const [tasksResponse, eventsResponse, sessionsResponse, profileResponse] = await Promise.all([
       getTasks(),
       getEvents(),
@@ -126,15 +155,39 @@ export const processChatMessage = async (message: string, chatHistory: { type: '
       chatHistory: chatHistory.slice(-5) // Only keep last 5 messages for context
     };
 
+    console.log("Sending request to chatbot API with context:", {
+      message,
+      contextSize: {
+        tasks: context.tasks.length,
+        events: context.events.length,
+        sessions: context.sessions.length,
+        chatHistory: context.chatHistory.length
+      }
+    });
+
     const response = await api.post('/api/chatbot', { 
       message,
       context
     });
 
     console.log("API response from server:", response.data);
-    return response.data;
+    
+    // Validate and normalize the response
+    const validatedResponse = validateResponse(response.data);
+    console.log("Validated response:", validatedResponse);
+    
+    return validatedResponse;
   } catch (error: any) {
     console.error('Error processing chat message:', error);
-    throw new Error(error?.response?.data?.error || error.message);
+    
+    // Provide more detailed error information
+    const errorMessage = error?.response?.data?.error || error.message;
+    const statusCode = error?.response?.status;
+    
+    // Log detailed error information
+    console.error(`Chat API Error (${statusCode}): ${errorMessage}`);
+    
+    // Throw a user-friendly error
+    throw new Error(`Failed to process your message: ${errorMessage}`);
   }
 };

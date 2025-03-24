@@ -26,6 +26,8 @@ import { useData } from "@/contexts/DataProvider";
 import ReactMarkdown from 'react-markdown';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { KaiQuickInfo } from "@/components/KaiQuickInfo";
+import { ActionCardList } from "@/components/ActionCardList";
+import { useActionVisualization } from "@/contexts/ActionVisualizationProvider";
 import { KaiFullInfo } from "@/components/KaiFullInfo";
 
 interface SpeechRecognition extends EventTarget {
@@ -67,13 +69,20 @@ const createSpeechRecognition = () => {
 
 export function Chatbot() {
   const { 
-    addTask, updateTask, deleteTask,
-    addEvent, updateEvent, deleteEvent,
+    addTask, updateTask, deleteTask, tasks,
+    addEvent, updateEvent, deleteEvent, events,
     addSession: addStudySession, 
     updateSession: updateStudySession, 
-    deleteSession: deleteStudySession,
-    addReminder, updateReminder, deleteReminder
+    deleteSession: deleteStudySession, sessions,
+    addReminder, updateReminder, deleteReminder, reminders
   } = useData();
+  
+  const { 
+    addCreateAction,
+    addUpdateAction,
+    addDeleteAction
+  } = useActionVisualization();
+  
   const location = useLocation()
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -179,101 +188,6 @@ export function Chatbot() {
       console.log("Chatbot response value:", result.response);
       console.log("Chatbot actions:", result.actions);
 
-      // Handle any actions returned by the chatbot
-      if (result.actions && result.actions.length > 0) {
-        console.log("Processing actions:", result.actions);
-        
-        // Process all actions sequentially
-        for (const action of result.actions) {
-          console.log("Processing action:", action);
-          switch (action.type) {
-            case 'CREATE_TASK':
-              await addTask(action.data);
-              break;
-            case 'CREATE_EVENT':
-              await addEvent(action.data);
-              break;
-            case 'CREATE_SESSION':
-              await addStudySession(action.data);
-              break;
-            case 'CREATE_REMINDER':
-              await addReminder(action.data);
-              break;
-            case 'UPDATE_TASK':
-              await updateTask(action.data.id, action.data);
-              break;
-            case 'UPDATE_EVENT':
-              await updateEvent(action.data.id, action.data);
-              break;
-            case 'UPDATE_SESSION':
-              await updateStudySession(action.data.id, action.data);
-              break;
-            case 'UPDATE_REMINDER':
-              await updateReminder(action.data.id, action.data);
-              break;
-            case 'DELETE_TASK':
-              await deleteTask(action.data.id);
-              break;
-            case 'DELETE_EVENT':
-              await deleteEvent(action.data.id);
-              break;  
-            case 'DELETE_SESSION':
-              await deleteStudySession(action.data.id);
-              break;
-            case 'DELETE_REMINDER':
-              await deleteReminder(action.data.id);
-              break;
-              
-            default:
-              console.log(`Unknown action type: ${action.type}`);
-          }
-        }
-      }
-      // For backward compatibility, also check for single action
-      else if (result.action) {
-        console.log("Processing single action:", result.action);
-        switch (result.action.type) {
-          case 'CREATE_TASK':
-            await addTask(result.action.data);
-            break;
-          case 'CREATE_EVENT':
-            await addEvent(result.action.data);
-            break;
-          case 'CREATE_SESSION':
-            await addStudySession(result.action.data);
-            break;
-          case 'CREATE_REMINDER':
-            await addReminder(result.action.data);
-            break;
-          case 'UPDATE_TASK':
-            await updateTask(result.action.data.id, result.action.data);
-            break;
-          case 'UPDATE_EVENT':
-            await updateEvent(result.action.data.id, result.action.data);
-            break;
-          case 'UPDATE_SESSION':
-            await updateStudySession(result.action.data.id, result.action.data);
-            break;
-          case 'UPDATE_REMINDER':
-            await updateReminder(result.action.data.id, result.action.data);
-            break;
-          case 'DELETE_TASK':
-            await deleteTask(result.action.data.id);
-            break;
-          case 'DELETE_EVENT':
-            await deleteEvent(result.action.data.id);
-            break;
-          case 'DELETE_SESSION':
-            await deleteStudySession(result.action.data.id);
-            break;
-          case 'DELETE_REMINDER':
-            await deleteReminder(result.action.data.id);
-            break;
-            
-          // ... handle other action types
-        }
-      }
-
       // Determine the content to display
       let responseContent = "Sorry, I couldn't generate a response.";
       
@@ -281,6 +195,244 @@ export function Chatbot() {
         responseContent = result.response;
       }
       
+      console.log("Initial response content:", responseContent);
+
+      // Handle any actions returned by the chatbot
+      if (result.actions && result.actions.length > 0) {
+        console.log("Processing actions:", result.actions);
+        
+        // Process all actions sequentially
+        for (const action of result.actions) {
+          try {
+            console.log("Processing action:", action);
+            switch (action.type) {
+              case 'CREATE_TASK': {
+                const taskResult = await addTask(action.data);
+                if (taskResult?.task) {
+                  addCreateAction(taskResult.task, "Task");
+                }
+                break;
+              }
+              case 'CREATE_EVENT': {
+                const eventResult = await addEvent(action.data);
+                if (eventResult?.event) {
+                  addCreateAction(eventResult.event, "Event");
+                }
+                break;
+              }
+              case 'CREATE_SESSION': {
+                const sessionResult = await addStudySession(action.data);
+                if (sessionResult?.session) {
+                  addCreateAction(sessionResult.session, "Study Session");
+                }
+                break;
+              }
+              case 'CREATE_REMINDER': {
+                const reminderResult = await addReminder(action.data);
+                if (reminderResult?.reminder) {
+                  addCreateAction(reminderResult.reminder, "Reminder");
+                }
+                break;
+              }
+              case 'UPDATE_TASK': {
+                const oldTask = tasks.find(t => t.id === action.data.id);
+                if (oldTask) {
+                  const updResult = await updateTask(action.data.id, action.data);
+                  if (updResult?.task) {
+                    addUpdateAction("Task", oldTask, { ...oldTask, ...action.data });
+                  }
+                }
+                break;
+              }
+              case 'UPDATE_EVENT': {
+                const oldEvent = events.find(e => e.id === action.data.id);
+                if (oldEvent) {
+                  const updResult = await updateEvent(action.data.id, action.data);
+                  if (updResult) {
+                    addUpdateAction("Event", oldEvent, { ...oldEvent, ...action.data });
+                  }
+                }
+                break;
+              }
+              case 'UPDATE_SESSION': {
+                const oldSession = sessions.find(s => s.id === action.data.id);
+                if (oldSession) {
+                  const updResult = await updateStudySession(action.data.id, action.data);
+                  if (updResult) {
+                    addUpdateAction("Study Session", oldSession, { ...oldSession, ...action.data });
+                  }
+                }
+                break;
+              }
+              case 'UPDATE_REMINDER': {
+                const oldReminder = reminders.find(r => r.id === action.data.id);
+                if (oldReminder) {
+                  const updResult = await updateReminder(action.data.id, action.data);
+                  if (updResult) {
+                    addUpdateAction("Reminder", oldReminder, { ...oldReminder, ...action.data });
+                  }
+                }
+                break;
+              }
+              case 'DELETE_TASK': {
+                const taskToDelete = tasks.find(t => t.id === action.data.id);
+                if (taskToDelete) {
+                  await deleteTask(action.data.id);
+                  addDeleteAction(taskToDelete, "Task");
+                }
+                break;
+              }
+              case 'DELETE_EVENT': {
+                const eventToDelete = events.find(e => e.id === action.data.id);
+                if (eventToDelete) {
+                  await deleteEvent(action.data.id);
+                  addDeleteAction(eventToDelete, "Event");
+                }
+                break;
+              }
+              case 'DELETE_SESSION': {
+                const sessionToDelete = sessions.find(s => s.id === action.data.id);
+                if (sessionToDelete) {
+                  await deleteStudySession(action.data.id);
+                  addDeleteAction(sessionToDelete, "Study Session");
+                }
+                break;
+              }
+              case 'DELETE_REMINDER': {
+                const reminderToDelete = reminders.find(r => r.id === action.data.id);
+                if (reminderToDelete) {
+                  await deleteReminder(action.data.id);
+                  addDeleteAction(reminderToDelete, "Reminder");
+                }
+                break;
+              }
+              
+              default:
+                console.log(`Unknown action type: ${action.type}`);
+            }
+          } catch (error) {
+            const actionError = error as Error;
+            console.error(`Error processing action ${action.type}:`, actionError);
+            // Add the error to the bot's response
+            responseContent += `\n\n⚠️ Error: I couldn't complete the ${action.type.replace('_', ' ').toLowerCase()} action. ${actionError.message}`;
+          }
+        }
+      }
+      // For backward compatibility, also check for single action
+      else if (result.action && typeof result.action === 'object') {
+        const action = result.action;
+        try {
+          console.log("Processing single action:", action);
+          switch (action.type) {
+            case 'CREATE_TASK': {
+              const taskResult = await addTask(action.data);
+              if (taskResult?.task) {
+                addCreateAction(taskResult.task, "Task");
+              }
+              break;
+            }
+            case 'CREATE_EVENT': {
+              const eventResult = await addEvent(action.data);
+              if (eventResult?.event) {
+                addCreateAction(eventResult.event, "Event");
+              }
+              break;
+            }
+            case 'CREATE_SESSION': {
+              const sessionResult = await addStudySession(action.data);
+              if (sessionResult?.session) {
+                addCreateAction(sessionResult.session, "Study Session");
+              }
+              break;
+            }
+            case 'CREATE_REMINDER': {
+              const reminderResult = await addReminder(action.data);
+              if (reminderResult?.reminder) {
+                addCreateAction(reminderResult.reminder, "Reminder");
+              }
+              break;
+            }
+            case 'UPDATE_TASK': {
+              const oldTask = tasks.find(t => t.id === action.data.id);
+              if (oldTask) {
+                const updResult = await updateTask(action.data.id, action.data);
+                if (updResult) {
+                  addUpdateAction("Task", oldTask, { ...oldTask, ...action.data });
+                }
+              }
+              break;
+            }
+            case 'UPDATE_EVENT': {
+              const oldEvent = events.find(e => e.id === action.data.id);
+              if (oldEvent) {
+                const updResult = await updateEvent(action.data.id, action.data);
+                if (updResult) {
+                  addUpdateAction("Event", oldEvent, { ...oldEvent, ...action.data });
+                }
+              }
+              break;
+            }
+            case 'UPDATE_SESSION': {
+              const oldSession = sessions.find(s => s.id === action.data.id);
+              if (oldSession) {
+                const updResult = await updateStudySession(action.data.id, action.data);
+                if (updResult) {
+                  addUpdateAction("Study Session", oldSession, { ...oldSession, ...action.data });
+                }
+              }
+              break;
+            }
+            case 'UPDATE_REMINDER': {
+              const oldReminder = reminders.find(r => r.id === action.data.id);
+              if (oldReminder) {
+                const updResult = await updateReminder(action.data.id, action.data);
+                if (updResult) {
+                  addUpdateAction("Reminder", oldReminder, { ...oldReminder, ...action.data });
+                }
+              }
+              break;
+            }
+            case 'DELETE_TASK': {
+              const taskToDelete = tasks.find(t => t.id === action.data.id);
+              if (taskToDelete) {
+                await deleteTask(action.data.id);
+                addDeleteAction(taskToDelete, "Task");
+              }
+              break;
+            }
+            case 'DELETE_EVENT': {
+              const eventToDelete = events.find(e => e.id === action.data.id);
+              if (eventToDelete) {
+                await deleteEvent(action.data.id);
+                addDeleteAction(eventToDelete, "Event");
+              }
+              break;
+            }
+            case 'DELETE_SESSION': {
+              const sessionToDelete = sessions.find(s => s.id === action.data.id);
+              if (sessionToDelete) {
+                await deleteStudySession(action.data.id);
+                addDeleteAction(sessionToDelete, "Study Session");
+              }
+              break;
+            }
+            case 'DELETE_REMINDER': {
+              const reminderToDelete = reminders.find(r => r.id === action.data.id);
+              if (reminderToDelete) {
+                await deleteReminder(action.data.id);
+                addDeleteAction(reminderToDelete, "Reminder");
+              }
+              break;
+            }
+          }
+        } catch (error) {
+          const actionError = error as Error;
+          console.error(`Error processing action ${action.type}:`, actionError);
+          // Add the error to the bot's response
+          responseContent += `\n\n⚠️ Error: I couldn't complete the ${action.type.replace('_', ' ').toLowerCase()} action. ${actionError.message}`;
+        }
+      }
+
       console.log("Final response content:", responseContent);
 
       const botResponse: Message = {
@@ -374,6 +526,21 @@ export function Chatbot() {
       <div className="relative flex-1 overflow-hidden">
         <ScrollArea className="h-full p-4">
           <div className="space-y-6 pb-4">
+            <div className="flex flex-col items-center text-center p-4">
+              <div className="w-16 h-16 mb-2">
+                <img src="/chatbot-icon.png" alt="Kai" className="w-full h-full object-cover rounded-full" />
+              </div>
+              <h1 className="text-2xl font-bold mb-1">Kai</h1>
+              <p className="text-sm text-muted-foreground mb-4 max-w-md">
+                Your personal AI study assistant. I can help with creating tasks, planning study sessions, and answering questions.
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={handleNewChat}>
+                  New Chat
+                </Button>
+              </div>
+            </div>
+            
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -449,6 +616,9 @@ export function Chatbot() {
                 </div>
               </div>
             )}
+            
+            {/* Action Card List */}
+            <ActionCardList />
             
             <div ref={messagesEndRef} />
           </div>

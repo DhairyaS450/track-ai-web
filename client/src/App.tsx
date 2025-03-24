@@ -25,6 +25,7 @@ import DemoPage from './pages/DemoPage';
 import { NotFound } from "./pages/NotFound";
 import { Unauthorized } from "./pages/Unauthorized";
 import { Spinner } from "./components/ui/spinner";
+import { ActionVisualizationProvider } from "./contexts/ActionVisualizationProvider";
 
 function App() {
   console.log("App");
@@ -72,47 +73,49 @@ function App() {
   return (
     <AuthProvider>
       <DataProvider>
-        <ThemeProvider defaultTheme="system" storageKey="ui-theme">
-          <Router>
-            <Routes>
-              {/* Public Marketing Homepage */}
-              <Route path="/" element={<Home />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/terms-of-service" element={<TOS />} />
-              <Route path="/about" element={<About />} />
+        <ActionVisualizationProvider>
+          <ThemeProvider defaultTheme="system" storageKey="ui-theme">
+            <Router>
+              <Routes>
+                {/* Public Marketing Homepage */}
+                <Route path="/" element={<Home />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms-of-service" element={<TOS />} />
+                <Route path="/about" element={<About />} />
 
-              {/* Public routes for auth */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/unauthorized" element={<Unauthorized />} />
-              <Route
-                path="/verify-email"
-                element={<EmailVerification user={user} />}
-              />
-              {/* abviously this is a demo page so it should be public */}
-              <Route path="demo" element={<DemoPage />} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="calendar" element={<Calendar />} />
-                <Route path="study" element={<StudySessions />} />
-                <Route path="analytics" element={<Analytics />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="chatbot" element={<Chatbot />} />
-              </Route>
+                {/* Public routes for auth */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/unauthorized" element={<Unauthorized />} />
+                <Route
+                  path="/verify-email"
+                  element={<EmailVerification user={user} />}
+                />
+                {/* abviously this is a demo page so it should be public */}
+                <Route path="demo" element={<DemoPage />} />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="calendar" element={<Calendar />} />
+                  <Route path="study" element={<StudySessions />} />
+                  <Route path="analytics" element={<Analytics />} />
+                  <Route path="settings" element={<Settings />} />
+                  <Route path="chatbot" element={<Chatbot />} />
+                </Route>
 
-              {/* 404 Not Found - must be last */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <Toaster />
-          </Router>
-        </ThemeProvider>
+                {/* 404 Not Found - must be last */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              <Toaster />
+            </Router>
+          </ThemeProvider>
+        </ActionVisualizationProvider>
       </DataProvider>
     </AuthProvider>
   );
