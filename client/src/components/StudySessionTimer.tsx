@@ -90,6 +90,8 @@ export function StudySessionTimer({
     localStorage.setItem("timeLeft", phaseLengthMs.toString());
     localStorage.setItem("lastSavedTime", now.toISOString());
     localStorage.removeItem("pauseStartTime");
+    localStorage.removeItem("phaseContribution");
+    localStorage.removeItem("progressAtPause");
     
     if (isBreakPhase) {
       onPhaseChange?.("break");
@@ -116,6 +118,8 @@ export function StudySessionTimer({
       const savedLastTime = localStorage.getItem("lastSavedTime");
       const savedPauseStartTime = localStorage.getItem("pauseStartTime");
       const savedTotalPausedTime = localStorage.getItem("totalPausedTime");
+      const savedPhaseContribution = localStorage.getItem("phaseContribution") || "0";
+      const savedBaseProgress = localStorage.getItem("baseProgress") || (initialProgress ? initialProgress.toString() : "0");
       
       // Load total paused time if available
       if (savedTotalPausedTime) {
@@ -130,7 +134,7 @@ export function StudySessionTimer({
       }
       
       // Only process if we have a valid saved state
-      if (savedTimeLeft && savedPhase && savedPhaseStartTime && savedPhaseEndTime) {
+      if (savedTimeLeft && savedPhase) {
         let adjustedTimeLeft = parseInt(savedTimeLeft);
         
         // If we have a last saved time, adjust the timeLeft based on elapsed time
@@ -163,6 +167,16 @@ export function StudySessionTimer({
         // Save the current time as last saved time
         localStorage.setItem("lastSavedTime", new Date().toISOString());
         
+        // Initialize phase contribution if not present
+        if (!localStorage.getItem("phaseContribution")) {
+          localStorage.setItem("phaseContribution", savedPhaseContribution);
+        }
+        
+        // Initialize base progress if not present
+        if (!localStorage.getItem("baseProgress")) {
+          localStorage.setItem("baseProgress", savedBaseProgress);
+        }
+        
         console.log("Loaded saved state with timeLeft:", adjustedTimeLeft, "ms, progress:", savedProgress || initialProgress);
         return true;
       } 
@@ -181,6 +195,10 @@ export function StudySessionTimer({
         
         // Initialize the first study phase
         initializePhase(false);
+        
+        // Initialize progress tracking values
+        localStorage.setItem("baseProgress", initialProgress ? initialProgress.toString() : "0");
+        localStorage.setItem("phaseContribution", "0");
         
         console.log("Initialized fresh session with first phase timeLeft:", timeLeft, "ms, initial progress:", initialProgress || 0);
         return true;
@@ -296,11 +314,44 @@ export function StudySessionTimer({
             const phaseContribution = (phaseProgressPercent / 100) * (phasePercentage / 100) * 100;
             
             // For accuracy, track how much of the session we've completed before this phase
-            // This comes from the initialProgress parameter
-            let newProgress = initialProgress || 0;
+            // Get the stored progress from localStorage, otherwise fall back to initialProgress
+            const storedProgress = localStorage.getItem("progress");
+            const baseProgress = storedProgress ? parseFloat(storedProgress) : initialProgress || 0;
             
-            // Add the progress from the current phase
-            newProgress += phaseContribution;
+            // Get current phase contribution from localStorage or calculate it
+            const storedPhaseContribution = localStorage.getItem("phaseContribution");
+            let currentPhaseContribution = 0;
+            
+            // Only update progress if we've made more progress in this phase than before
+            if (storedPhaseContribution) {
+              currentPhaseContribution = parseFloat(storedPhaseContribution);
+              // Only increase if the new contribution is higher
+              if (phaseContribution > currentPhaseContribution) {
+                currentPhaseContribution = phaseContribution;
+                localStorage.setItem("phaseContribution", phaseContribution.toString());
+              }
+            } else {
+              currentPhaseContribution = phaseContribution;
+              localStorage.setItem("phaseContribution", phaseContribution.toString());
+            }
+            
+            // Calculate new progress based on the base progress (before this phase)
+            // plus the current phase contribution
+            let newProgress = baseProgress;
+            
+            // Check if this is a new phase by looking at the phase name in localStorage
+            const currentPhase = isBreak ? "break" : "study";
+            const storedPhase = localStorage.getItem("currentPhase");
+            
+            // If we switched phases, update the base progress and reset phase contribution
+            if (storedPhase !== currentPhase) {
+              newProgress = baseProgress + currentPhaseContribution;
+              localStorage.setItem("baseProgress", newProgress.toString());
+              localStorage.setItem("phaseContribution", "0");
+              localStorage.setItem("currentPhase", currentPhase);
+            } else {
+              newProgress = baseProgress + currentPhaseContribution;
+            }
             
             // Ensure progress doesn't exceed 100% or go below initial value
             newProgress = Math.min(100, Math.max(initialProgress || 0, newProgress));
@@ -327,6 +378,8 @@ export function StudySessionTimer({
               localStorage.removeItem("actualStartTime");
               localStorage.removeItem("pauseStartTime");
               localStorage.removeItem("totalPausedTime");
+              localStorage.removeItem("phaseContribution");
+              localStorage.removeItem("baseProgress");
               
               // Notify parent component
               onComplete();
@@ -392,11 +445,15 @@ export function StudySessionTimer({
     const now = new Date();
     setPauseStartTime(now);
     
+    // Save the exact progress at pause time to ensure we don't increment on resume
+    const currentProgress = progress;
+    
     setIsPaused(true);
     localStorage.setItem("isPaused", "true");
     localStorage.setItem("lastSavedTime", now.toISOString());
     localStorage.setItem("pauseStartTime", now.toISOString());
-    onPause?.(progress);
+    localStorage.setItem("progressAtPause", currentProgress.toString());
+    onPause?.(currentProgress);
   };
 
   const handleResume = () => {
@@ -418,6 +475,14 @@ export function StudySessionTimer({
       // Log pause details
       console.log(`Timer was paused for ${Math.round(pauseDurationMs / 1000)} seconds`);
       console.log(`Phase end time extended to ${newEndTime.toISOString()}`);
+      
+      // Restore progress from when we paused
+      const savedProgress = localStorage.getItem("progressAtPause");
+      if (savedProgress) {
+        const progressValue = parseFloat(savedProgress);
+        setProgress(progressValue);
+        localStorage.setItem("progress", progressValue.toString());
+      }
     }
     
     // Clear the pause start time
@@ -427,6 +492,7 @@ export function StudySessionTimer({
     localStorage.setItem("isPaused", "false");
     localStorage.setItem("lastSavedTime", new Date().toISOString());
     localStorage.removeItem("pauseStartTime");
+    localStorage.removeItem("progressAtPause");
     onResume?.();
   };
 

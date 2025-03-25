@@ -362,7 +362,8 @@ export function UnifiedItemDialog({
                 </RadioGroup>
               </div>
 
-              {itemType !== 'reminder' && (
+              {/* Date/Time Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div className="grid gap-2">
                   <Label htmlFor="startTime">
                     {itemType === 'task' ? 'Deadline' : 'Start Time'}
@@ -374,31 +375,31 @@ export function UnifiedItemDialog({
                     onChange={(e) => setStartTime(e.target.value)}
                   />
                 </div>
-              )}
 
-              {(itemType === 'event' || itemType === 'session') && (
-                <div className="grid gap-2">
-                  <Label htmlFor="endTime">End Time</Label>
-                  <Input
-                    id="endTime"
-                    type="datetime-local"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                  />
-                </div>
-              )}
+                {(itemType === 'event' || itemType === 'session') && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="endTime">End Time</Label>
+                    <Input
+                      id="endTime"
+                      type="datetime-local"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                    />
+                  </div>
+                )}
 
-              {itemType === 'reminder' && (
-                <div className="grid gap-2">
-                  <Label htmlFor="reminderTime">Reminder Time</Label>
-                  <Input
-                    id="reminderTime"
-                    type="datetime-local"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                  />
-                </div>
-              )}
+                {itemType === 'reminder' && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="reminderTime">Reminder Time</Label>
+                    <Input
+                      id="reminderTime"
+                      type="datetime-local"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Item type specific content */}
