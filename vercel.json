@@ -13,13 +13,6 @@
       "destination": "/index.html"
     }
   ],
-  "redirects": [
-    {
-      "source": "https://www.tidaltasks.app/:path*",
-      "destination": "https://tidaltasks.app/:path*",
-      "permanent": true
-    }
-  ],
   "headers": [
     {
       "source": "/api/(.*)",
