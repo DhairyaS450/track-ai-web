@@ -308,9 +308,12 @@ export function Home() {
           <div className="container mx-auto px-6">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold mb-4">
-                Trusted by High-School and University Students Worldwide
+                Trusted by High-School Students Across Many Schools
               </h2>
-              <div className="flex flex-wrap justify-center gap-8 opacity-70">
+              <p className="text-muted-foreground text-lg">
+                Join the beta testers excited to use TidalTasks AI to excel in their studies.
+              </p>
+              {/* <div className="flex flex-wrap justify-center gap-8 opacity-70">
                 <img
                   src="/university-logos/harvard.png"
                   alt="Harvard University Logo"
@@ -329,7 +332,7 @@ export function Home() {
                   className="h-12"
                   loading="lazy"
                 />
-              </div>
+              </div> */}
             </div>
           </div>
         </section>
