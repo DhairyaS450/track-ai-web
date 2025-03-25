@@ -145,9 +145,9 @@ export function ActionCardList() {
   };
 
   const handleEdit = async (
-    _actionId: string, 
+    actionId: string, 
     entityType: string, 
-    _entityId: string,
+    entityId: string,
     originalData: StudySession | Task | Event | Reminder
   ) => {
     try {
