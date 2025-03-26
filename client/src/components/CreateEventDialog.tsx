@@ -20,6 +20,8 @@ import { X } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ExternalUpdateDialog } from "./ExternalUpdateDialog";
 import { updateCalendarEvent } from "@/api/calendar";
+import { DateTimeRangePicker, DateTimeRange } from "./ui/date-time-range-picker";
+import { format, parseISO } from "date-fns";
 
 interface CreateEventDialogProps {
   open: boolean;
@@ -39,8 +41,18 @@ export function CreateEventDialog({
   tasks = [],
 }: CreateEventDialogProps) {
   const [name, setName] = useState(initialEvent?.name || "");
-  const [startTime, setStartTime] = useState(initialEvent?.startTime || "");
-  const [endTime, setEndTime] = useState(initialEvent?.endTime || "");
+  const [dateTimeRange, setDateTimeRange] = useState<DateTimeRange>(() => {
+    if (initialEvent) {
+      const startDate = initialEvent.startTime ? new Date(initialEvent.startTime) : new Date();
+      const endDate = initialEvent.endTime ? new Date(initialEvent.endTime) : new Date();
+      return { from: startDate, to: endDate };
+    }
+    // Default: start now, end in 1 hour
+    const now = new Date();
+    const inOneHour = new Date(now);
+    inOneHour.setHours(inOneHour.getHours() + 1);
+    return { from: now, to: inOneHour };
+  });
   const [isAllDay, setIsAllDay] = useState(initialEvent?.isAllDay || false);
   const [isFlexible, setIsFlexible] = useState(initialEvent?.isFlexible || false);
   const [location, setLocation] = useState(initialEvent?.location || "");
@@ -65,8 +77,12 @@ export function CreateEventDialog({
   useEffect(() => {
     if (initialEvent) {
       setName(initialEvent.name);
-      setStartTime(initialEvent.startTime);
-      setEndTime(initialEvent.endTime);
+      if (initialEvent.startTime) {
+        const startDate = new Date(initialEvent.startTime);
+        const endDate = initialEvent.endTime ? new Date(initialEvent.endTime) : new Date(startDate);
+        endDate.setHours(endDate.getHours() + 1);
+        setDateTimeRange({ from: startDate, to: endDate });
+      }
       setIsAllDay(initialEvent.isAllDay);
       setIsFlexible(initialEvent.isFlexible);
       setLocation(initialEvent.location || "");
@@ -78,8 +94,11 @@ export function CreateEventDialog({
       setAssociatedTaskIds(initialEvent.associatedTaskIds || []);
     } else {
       setName("");
-      setStartTime("");
-      setEndTime("");
+      // Reset to default time range
+      const now = new Date();
+      const inOneHour = new Date(now);
+      inOneHour.setHours(inOneHour.getHours() + 1);
+      setDateTimeRange({ from: now, to: inOneHour });
       setIsAllDay(false);
       setIsFlexible(false);
       setLocation("");
@@ -100,12 +119,38 @@ export function CreateEventDialog({
     setReminders(reminders.filter((_, i) => i !== index));
   };
 
+  const formatDateForEvent = (date: Date): string => {
+    if (isAllDay) {
+      return format(date, "yyyy-MM-dd");
+    }
+    return date.toISOString();
+  };
+
   const handleSubmit = async () => {
     try {
+      if (!dateTimeRange.from || !dateTimeRange.to) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please specify both start and end times",
+        });
+        return;
+      }
+      
+      // Ensure end time is after start time
+      if (dateTimeRange.to < dateTimeRange.from) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "End time must be after start time",
+        });
+        return;
+      }
+
       const eventData = {
         name,
-        startTime,
-        endTime,
+        startTime: formatDateForEvent(dateTimeRange.from),
+        endTime: formatDateForEvent(dateTimeRange.to),
         isAllDay,
         isFlexible,
         location,
@@ -117,6 +162,7 @@ export function CreateEventDialog({
         associatedTaskIds,
         source: initialEvent?.source || 'manual',
         calendarId: initialEvent?.calendarId,
+        id: initialEvent?.id
       };
 
       onEventCreated(eventData as Event);
@@ -199,30 +245,17 @@ export function CreateEventDialog({
               />
             </div>
 
-            <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-2 gap-4'}`}>
-              <div className="grid gap-2">
-                <Label htmlFor="startTime">Start Time*</Label>
-                <Input
-                  id="startTime"
-                  type="datetime-local"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="endTime">End Time*</Label>
-                <Input
-                  id="endTime"
-                  type="datetime-local"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  required
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label>Event Time*</Label>
+              <DateTimeRangePicker
+                dateTimeRange={dateTimeRange}
+                setDateTimeRange={setDateTimeRange}
+                showTime={!isAllDay}
+                disabled={false}
+              />
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center space-x-2">
                 <Switch
                   id="isAllDay"
@@ -272,37 +305,32 @@ export function CreateEventDialog({
             </div>
 
             <div className="grid gap-2">
-              <Label>Priority</Label>
+              <Label htmlFor="priority">Priority</Label>
               <RadioGroup
                 value={priority}
-                onValueChange={(value: "High" | "Medium" | "Low") =>
-                  setPriority(value)
-                }
+                onValueChange={(value) => setPriority(value as "High" | "Medium" | "Low")}
+                className="flex space-x-4"
               >
-                <div className="flex space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="High" id="priority-high" />
-                    <Label htmlFor="priority-high">High</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Medium" id="priority-medium" />
-                    <Label htmlFor="priority-medium">Medium</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Low" id="priority-low" />
-                    <Label htmlFor="priority-low">Low</Label>
-                  </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="High" id="priority-high" />
+                  <Label htmlFor="priority-high">High</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Medium" id="priority-medium" />
+                  <Label htmlFor="priority-medium">Medium</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Low" id="priority-low" />
+                  <Label htmlFor="priority-low">Low</Label>
                 </div>
               </RadioGroup>
             </div>
 
             <div className="grid gap-2">
-              <Label>Recurrence</Label>
+              <Label htmlFor="recurrence">Recurrence</Label>
               <Select
                 value={recurrence}
-                onValueChange={(value: "daily" | "weekly" | "monthly") =>
-                  setRecurrence(value)
-                }
+                onValueChange={(value) => setRecurrence(value as "daily" | "weekly" | "monthly")}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select recurrence" />
@@ -370,54 +398,57 @@ export function CreateEventDialog({
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label>Associated Tasks</Label>
-              <div className="space-y-2">
-                {tasks.map((task) => (
-                  <div key={task.id} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={associatedTaskIds.includes(task.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setAssociatedTaskIds([...associatedTaskIds, task.id]);
-                        } else {
-                          setAssociatedTaskIds(
-                            associatedTaskIds.filter((id) => id !== task.id)
-                          );
-                        }
-                      }}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
-                    <span>{task.title}</span>
-                  </div>
-                ))}
+            {tasks.length > 0 && (
+              <div className="grid gap-2">
+                <Label>Associated Tasks</Label>
+                <div className="space-y-2">
+                  {tasks.map((task) => (
+                    <div key={task.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={associatedTaskIds.includes(task.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setAssociatedTaskIds([...associatedTaskIds, task.id]);
+                          } else {
+                            setAssociatedTaskIds(
+                              associatedTaskIds.filter((id) => id !== task.id)
+                            );
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <span>{task.title}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </ScrollArea>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>
+          <Button type="button" onClick={handleSubmit}>
             {mode === "edit" ? "Save Changes" : "Create Event"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-
+    
     <ExternalUpdateDialog
       open={isUpdateDialogOpen}
       title="Update Google Calendar Event"
       dialogContent="Do you want to update the event on Google Calendar?"
-      note="This will update the event on Google Calendar with the changes made in TidalTasks AI."
-      onConfirm={() => {
-        handleConfirmUpdate(newlyCreatedEvent);
-      }}
-      onCancel={() => {
-        setUpdateDialogOpen(false);
-      }}/>
-      </>
+      note="This will update the event on Google Calendar with the changes made in the app."
+      onConfirm={() => handleConfirmUpdate(newlyCreatedEvent)}
+      onCancel={() => setUpdateDialogOpen(false)}
+    />
+    </>
   );
 }

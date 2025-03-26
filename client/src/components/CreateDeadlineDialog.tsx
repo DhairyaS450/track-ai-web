@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { format } from "date-fns";
+import { format, startOfDay, addDays, addWeeks, addMonths } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +40,7 @@ import { updateDeadline } from "@/api/deadlines";
 import { addTask } from "@/api/tasks";
 import { Deadline, DeadlineStatus } from "@/types";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -227,56 +228,19 @@ export function CreateDeadlineDialog({
               control={form.control}
               name="dueDate"
               render={({ field }) => (
-                <FormItem className="flex flex-col md:flex-row md:items-center">
-                  <FormLabel className="md:w-1/3">Due Date & Time</FormLabel>
-                  <div className="flex flex-col md:flex-row space-x-2">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-[240px] pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date < new Date(new Date().setHours(0, 0, 0, 0))
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    {isMobile ? (
-                      <Input
-                        type="time"
-                        value={selectedTime}
-                        onChange={(e) => setSelectedTime(e.target.value)}
-                        className="mt-2 w-[120px]"
-                      />
-                    ) : (
-                      <Input
-                        type="time"
-                        value={selectedTime}
-                        onChange={(e) => setSelectedTime(e.target.value)}
-                        className="mt-0 w-[120px]"
-                      />
-                    )}
-                  </div>
+                <FormItem className="flex flex-col">
+                  <FormLabel>Due Date & Time</FormLabel>
+                  <DateTimePicker
+                    date={field.value || new Date()}
+                    setDate={field.onChange}
+                    label="Select deadline"
+                    quickSelectOptions={[
+                      { label: "Today", value: startOfDay(new Date()) },
+                      { label: "Tomorrow", value: startOfDay(addDays(new Date(), 1)) },
+                      { label: "Next Week", value: startOfDay(addWeeks(new Date(), 1)) },
+                      { label: "Next Month", value: startOfDay(addMonths(new Date(), 1)) },
+                    ]}
+                  />
                   <FormMessage />
                 </FormItem>
               )}

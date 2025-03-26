@@ -18,6 +18,7 @@ import {
   MoreVertical,
   Sparkles,
   Settings,
+  Play,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -86,91 +87,36 @@ export function StudySessions() {
 
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Define a function to clean localStorage
-    const cleanLocalStorage = () => {
-      localStorage.removeItem("currentPhase");
-      localStorage.removeItem("phaseStartTime");
-      localStorage.removeItem("phaseEndTime");
-      localStorage.removeItem("timeLeft");
-      localStorage.removeItem("progress");
-      localStorage.removeItem("isPaused");
-      localStorage.removeItem("lastSavedTime");
-      localStorage.removeItem("actualStartTime");
-      console.log('Cleared session data from localStorage');
-    };
-  
-    // Try to find an in-progress session
-    const activeSession = allSessions.find(s => s.status === 'in-progress');
-    
-    // If we have an active session
-    if (activeSession) {
-      console.log('Found an active session', activeSession);
-      
-      // Only set as active if it has a valid start time
-      if (activeSession.startTime) {
-        const startTime = new Date(activeSession.startTime);
-        const currentTime = new Date();
-        const elapsedMs = currentTime.getTime() - startTime.getTime();
-        
-        // Get session duration in milliseconds
-        const sessionDurationMs = activeSession.duration * 60 * 1000;
-        
-        console.log('Active session elapsed time:', elapsedMs, 'of total:', sessionDurationMs);
-        console.log('Session started at:', startTime.toISOString(), 'and should run for', activeSession.duration, 'minutes');
-        
-        // If session has been running longer than its duration + 5 minutes (grace period)
-        // and it's been running for at least 10 seconds (to prevent premature endings)
-        if (elapsedMs > (sessionDurationMs + 300000) && elapsedMs > 10000) {
-          console.log('Session exceeded max duration, ending now');
-          handleEndSession(activeSession.id);
-          return;
-        }
-        
-        // If session just started, we might need to initialize localStorage
-        const freshStart = elapsedMs < 10000;
-        
-        // Set the active session in state
-        setActiveSession(activeSession);
-        
-        // Initialize session notes if they exist
-        if (activeSession.notes) {
-          setSessionNotes(prev => ({
-            ...prev,
-            [activeSession.id]: activeSession.notes || ''
-          }));
-        }
-        
-        // If this is a fresh start or localStorage is missing key data, initialize it
-        if (freshStart || !localStorage.getItem("currentPhase")) {
-          console.log('Initializing localStorage for active session');
-          localStorage.setItem("currentPhase", "study");
-          localStorage.setItem("progress", String(activeSession.completion || 0));
-          localStorage.setItem("isPaused", "false");
-          localStorage.setItem("lastSavedTime", new Date().toISOString());
-          localStorage.setItem("actualStartTime", activeSession.startTime);
-        }
-      } else {
-        // If no start time, end the session
-        console.log('Active session has no start time, ending session');
-        handleEndSession(activeSession.id);
-      }
-    } else {
-      // No active session in the database
-      console.log('No active session found in database');
-      
-      // Check if there's stale data in localStorage
-      const savedPhase = localStorage.getItem("currentPhase");
-      
-      if (savedPhase) {
-        console.log('Found stale data in localStorage, cleaning up');
-        cleanLocalStorage();
-      }
-      
-      // Ensure active session state is null
-      setActiveSession(null);
+  const [noteUpdateTimeout, setNoteUpdateTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  const handleNoteChange = (sessionId: string, newNotes: string) => {
+    // Update the local state immediately for responsive UI
+    setSessionNotes(prev => ({
+      ...prev,
+      [sessionId]: newNotes
+    }));
+
+    // Clear any existing timeout to avoid multiple rapid updates
+    if (noteUpdateTimeout) {
+      clearTimeout(noteUpdateTimeout);
     }
-  }, [allSessions]);
+
+    // Set a new timeout to update the database after 500ms of inactivity
+    const timeout = setTimeout(() => {
+      updateSession(sessionId, { notes: newNotes });
+    }, 500);
+
+    setNoteUpdateTimeout(timeout);
+  };
+
+  // Clean up timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (noteUpdateTimeout) {
+        clearTimeout(noteUpdateTimeout);
+      }
+    };
+  }, [noteUpdateTimeout]);
 
   const handleEndSession = async (sessionId: string) => {
     try {
@@ -211,6 +157,8 @@ export function StudySessions() {
       localStorage.removeItem("isPaused");
       localStorage.removeItem("lastSavedTime");
       localStorage.removeItem("actualStartTime");
+      localStorage.removeItem("baseProgress");
+      localStorage.removeItem("isFirstPhase");
       
       toast({
         title: "Success",
@@ -225,6 +173,101 @@ export function StudySessions() {
       });
     }
   };
+
+  useEffect(() => {
+    // Define a function to clean localStorage
+    const cleanLocalStorage = () => {
+      localStorage.removeItem("currentPhase");
+      localStorage.removeItem("phaseStartTime");
+      localStorage.removeItem("phaseEndTime");
+      localStorage.removeItem("timeLeft");
+      localStorage.removeItem("progress");
+      localStorage.removeItem("isPaused");
+      localStorage.removeItem("lastSavedTime");
+      localStorage.removeItem("actualStartTime");
+      localStorage.removeItem("baseProgress");
+      localStorage.removeItem("isFirstPhase");
+      console.log('Cleared session data from localStorage');
+    };
+  
+    // Try to find an in-progress session
+    const activeSession = allSessions.find(s => s.status === 'in-progress');
+    
+    // If we have an active session
+    if (activeSession) {
+      console.log('Found an active session', activeSession);
+      
+      // Only set as active if it has a valid start time
+      if (activeSession.startTime) {
+        const startTime = new Date(activeSession.startTime);
+        const currentTime = new Date();
+        const elapsedMs = currentTime.getTime() - startTime.getTime();
+        
+        // Get session duration in milliseconds
+        const sessionDurationMs = activeSession.duration * 60 * 1000;
+        
+        console.log('Active session elapsed time:', elapsedMs, 'of total:', sessionDurationMs);
+        console.log('Session started at:', startTime.toISOString(), 'and should run for', activeSession.duration, 'minutes');
+        
+        // If session has been running longer than its duration + 5 minutes (grace period)
+        // and it's been running for at least 10 seconds (to prevent premature endings)
+        if (elapsedMs > (sessionDurationMs + 300000) && elapsedMs > 10000) {
+          console.log('Session exceeded max duration, ending now');
+          handleEndSession(activeSession.id);
+          return;
+        }
+        
+        // Set the active session in state
+        setActiveSession(activeSession);
+        
+        // Initialize session notes if they exist
+        if (activeSession.notes) {
+          setSessionNotes(prev => ({
+            ...prev,
+            [activeSession.id]: activeSession.notes || ''
+          }));
+        }
+        
+        // Ensure localStorage has all the data needed, preserving existing state if valid
+        const savedPhase = localStorage.getItem("currentPhase");
+        const savedProgress = localStorage.getItem("progress");
+        
+        if (!savedPhase || !savedProgress) {
+          console.log('Initializing localStorage for active session');
+          // Only initialize what's missing
+          if (!savedPhase) localStorage.setItem("currentPhase", "study");
+          if (!savedProgress) localStorage.setItem("progress", String(activeSession.completion || 0));
+          
+          // These should always be updated
+          localStorage.setItem("isPaused", "false");
+          localStorage.setItem("lastSavedTime", new Date().toISOString());
+          localStorage.setItem("actualStartTime", activeSession.startTime);
+          localStorage.setItem("baseProgress", String(activeSession.completion || 0));
+        }
+        
+        // Make sure active tab shows the session
+        setActiveTab("active");
+      } else {
+        // If no start time, end the session
+        console.log('Active session has no start time, ending session');
+        handleEndSession(activeSession.id);
+      }
+    } else {
+      // No active session in the database
+      console.log('No active session found in database');
+      
+      // Check if there's stale data in localStorage
+      const savedPhase = localStorage.getItem("currentPhase");
+      
+      if (savedPhase) {
+        console.log('Found stale data in localStorage, cleaning up');
+        cleanLocalStorage();
+      }
+      
+      // Ensure active session state is null
+      setActiveSession(null);
+    }
+  }, [allSessions, handleEndSession, setSessionNotes]);
 
   const handleRescheduleSession = async (startTime: string, duration: number) => {
     if (!sessionToReschedule) return;
@@ -276,7 +319,9 @@ export function StudySessions() {
       // Clear all localStorage data to ensure a clean start
       const keysToRemove = [
         "currentPhase", "phaseStartTime", "phaseEndTime", 
-        "timeLeft", "progress", "isPaused", "lastSavedTime"
+        "timeLeft", "progress", "isPaused", "lastSavedTime",
+        "baseProgress", "isFirstPhase", "totalPausedTime", 
+        "pauseStartTime", "actualStartTime"
       ];
       
       keysToRemove.forEach(key => localStorage.removeItem(key));
@@ -293,9 +338,15 @@ export function StudySessions() {
       const now = new Date();
       const currentTimestamp = now.toISOString();
       
-      // Ensure we have break interval and duration set
-      const breakInterval = sessionToStart.breakInterval || 25;
-      const breakDuration = sessionToStart.breakDuration || 5;
+      // Ensure we have break interval and duration set - ensure they're proportional to session length
+      const breakInterval = sessionToStart.breakInterval || Math.min(
+        sessionToStart.duration, // Never exceed total duration
+        Math.max(1, Math.floor(sessionToStart.duration * 0.5))
+      );
+      const breakDuration = sessionToStart.breakDuration || Math.min(
+        Math.floor(sessionToStart.duration * 0.2),
+        Math.max(1, Math.floor(sessionToStart.duration * 0.1))
+      );
       
       // Start the session in the database with the current time
       console.log('Starting session in database with current time:', currentTimestamp);
@@ -329,10 +380,20 @@ export function StudySessions() {
       // Initialize basic localStorage values for timer initialization
       localStorage.setItem("currentPhase", "study");
       localStorage.setItem("progress", "0");
+      localStorage.setItem("baseProgress", "0"); // Explicitly set base progress to 0 when starting
       localStorage.setItem("isPaused", "false");
       localStorage.setItem("lastSavedTime", currentTimestamp);
+      localStorage.setItem("actualStartTime", currentTimestamp); // Set the actual start time
+      localStorage.setItem("isFirstPhase", "true"); // Mark as first phase
+      localStorage.setItem("totalPausedTime", "0"); // Reset paused time
       
-      console.log('Active session set with current time:', activeSessionData);
+      console.log('LocalStorage initialized for new session:', {
+        currentPhase: "study",
+        progress: "0",
+        baseProgress: "0",
+        actualStartTime: currentTimestamp,
+        isFirstPhase: true
+      });
       
       toast({
         title: "Success",
@@ -374,108 +435,47 @@ export function StudySessions() {
     if (!activeSession) return null;
 
     return (
-      <Card className="border-t-4 border-t-blue-500 shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
-            <Timer className="h-5 w-5 text-blue-500" />
-            Active Study Session
-          </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsActiveOpen(!isActiveOpen)}
-            className="h-8 w-8 p-0 hover:bg-muted/50"
-          >
-            {isActiveOpen ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
+      <Card className="shadow-md border-0 overflow-hidden bg-blue-950 dark:bg-blue-950 text-white">
+        <CardContent className="p-0">
+          <StudySessionTimer
+            startTime={activeSession.startTime || activeSession.scheduledFor}
+            duration={activeSession.duration}
+            breakInterval={activeSession.breakInterval || Math.min(
+              activeSession.duration,  // Never exceed the total duration
+              Math.max(1, Math.floor(activeSession.duration * 0.5))
             )}
-          </Button>
-        </CardHeader>
-        <Collapsible open={isActiveOpen}>
-          <CollapsibleContent>
-            <CardContent className="pt-3">
-              <div className="space-y-4">
-                {/* Session header */}
-                <div className="flex flex-wrap gap-2 items-start justify-between">
-                  <div className="space-y-1">
-                    <h3 className="font-semibold text-lg leading-tight">{activeSession.subject}</h3>
-                    <p className="text-sm text-muted-foreground">{activeSession.goal}</p>
-                  </div>
-                  <Badge
-                    variant={
-                      activeSession.priority === "High"
-                        ? "outline"
-                        : activeSession.priority === "Medium"
-                        ? "outline"
-                        : "outline"
-                    }
-                    className={cn(
-                      "rounded-md py-1 px-2 text-xs",
-                      activeSession.priority === "High" && "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800",
-                      activeSession.priority === "Medium" && "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800",
-                      activeSession.priority === "Low" && "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800"
-                    )}
-                  >
-                    {activeSession.priority} Priority
-                  </Badge>
-                </div>
-
-                <StudySessionTimer
-                  startTime={activeSession.startTime || activeSession.scheduledFor}
-                  duration={activeSession.duration}
-                  breakInterval={activeSession.breakInterval || 25}
-                  breakDuration={activeSession.breakDuration || 5}
-                  onPhaseChange={handlePhaseChange}
-                  onComplete={() => handleEndSession(activeSession.id)}
-                  onPause={(progress) => {
-                    console.log('Session paused at progress:', progress);
-                    updateSession(activeSession.id, { 
-                      completion: progress,
-                      status: 'in-progress' 
-                    });
-                    toast({
-                      title: "Session Paused",
-                      description: `Progress saved: ${Math.round(progress)}%`,
-                    });
-                  }}
-                  onResume={() => {
-                    toast({
-                      title: "Session Resumed",
-                      description: "Keep up the good work!",
-                    });
-                  }}
-                  initialProgress={activeSession.completion || 0}
-                />
-
-                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2 border-t border-blue-200/50 dark:border-blue-800/50">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full sm:w-auto border-blue-200 hover:border-blue-300 hover:bg-blue-50 text-blue-600 dark:border-blue-800 dark:hover:border-blue-700 dark:hover:bg-blue-950"
-                    onClick={() => {
-                      setSessionToEdit(activeSession);
-                      setCreateSessionOpen(true);
-                    }}
-                  >
-                    <Settings className="h-3.5 w-3.5 mr-1.5" />
-                    Session Settings
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600"
-                    onClick={() => handleEndSession(activeSession.id)}
-                  >
-                    <Check className="h-3.5 w-3.5 mr-1.5" />
-                    End Session
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
+            breakDuration={activeSession.breakDuration || Math.min(
+              Math.floor(activeSession.duration * 0.2),
+              Math.max(1, Math.floor(activeSession.duration * 0.1))
+            )}
+            onPhaseChange={handlePhaseChange}
+            onComplete={() => handleEndSession(activeSession.id)}
+            onPause={(progress) => {
+              console.log('Session paused at progress:', progress);
+              updateSession(activeSession.id, { 
+                completion: progress,
+                status: 'in-progress' 
+              });
+              toast({
+                title: "Session Paused",
+                description: `Progress saved: ${Math.round(progress)}%`,
+              });
+            }}
+            onResume={() => {
+              toast({
+                title: "Session Resumed",
+                description: "Keep up the good work!",
+              });
+            }}
+            initialProgress={activeSession.completion || 0}
+            onSettings={() => {
+              setSessionToEdit(activeSession);
+              setCreateSessionOpen(true);
+            }}
+            subjectName={activeSession.subject}
+            priority={activeSession.priority || "Medium"}
+          />
+        </CardContent>
       </Card>
     );
   };
@@ -485,17 +485,17 @@ export function StudySessions() {
     if (upcomingSessions.length === 0) return null;
     
     return (
-      <Card className="border-t-4 border-t-blue-500 shadow-sm">
+      <Card className="border-t-4 border-t-blue-500 dark:border-t-blue-500 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
-            <CalendarDays className="h-5 w-5 text-blue-500" />
+            <CalendarDays className="h-5 w-5 text-blue-500 dark:text-blue-400" />
             Upcoming Sessions
           </CardTitle>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsUpcomingOpen(!isUpcomingOpen)}
-            className="h-8 w-8 p-0 hover:bg-muted/50"
+            className="h-8 w-8 p-0 hover:bg-muted/50 dark:hover:bg-muted/20"
           >
             {isUpcomingOpen ? (
               <ChevronUp className="h-4 w-4" />
@@ -515,7 +515,7 @@ export function StudySessions() {
                       "p-3 md:p-4 rounded-lg border transition-all hover:shadow-md",
                       session.isAIRecommended
                         ? "bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-950/30 dark:to-purple-950/30"
-                        : "bg-card hover:bg-accent/5",
+                        : "bg-card hover:bg-accent/5 dark:hover:bg-accent/5",
                       session.priority === "High" && "border-l-4 border-l-red-400 dark:border-l-red-600"
                     )}
                   >
@@ -557,17 +557,17 @@ export function StudySessions() {
                       
                       {/* Session Details */}
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs md:text-sm">
-                        <div className="flex items-center gap-1 md:gap-2 bg-muted/30 p-1.5 md:p-2 rounded-md">
-                          <Clock className="h-3 w-3 md:h-4 md:w-4 text-blue-500" />
+                        <div className="flex items-center gap-1 md:gap-2 bg-muted/30 dark:bg-muted/30 p-1.5 md:p-2 rounded-md">
+                          <Clock className="h-3 w-3 md:h-4 md:w-4 text-blue-500 dark:text-blue-400" />
                           <span className="truncate">{format(new Date(session.scheduledFor), "MMM d, h:mm a")}</span>
                         </div>
-                        <div className="flex items-center gap-1 md:gap-2 bg-muted/30 p-1.5 md:p-2 rounded-md">
-                          <Timer className="h-3 w-3 md:h-4 md:w-4 text-blue-500" />
+                        <div className="flex items-center gap-1 md:gap-2 bg-muted/30 dark:bg-muted/30 p-1.5 md:p-2 rounded-md">
+                          <Timer className="h-3 w-3 md:h-4 md:w-4 text-blue-500 dark:text-blue-400" />
                           <span>{session.duration} min</span>
                         </div>
                         {session.technique && (
-                          <div className="flex items-center col-span-2 md:col-span-1 gap-1 md:gap-2 bg-muted/30 p-1.5 md:p-2 rounded-md">
-                            <Settings className="h-3 w-3 md:h-4 md:w-4 text-blue-500 flex-shrink-0" />
+                          <div className="flex items-center col-span-2 md:col-span-1 gap-1 md:gap-2 bg-muted/30 dark:bg-muted/30 p-1.5 md:p-2 rounded-md">
+                            <Settings className="h-3 w-3 md:h-4 md:w-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
                             <span className="truncate">{session.technique}</span>
                           </div>
                         )}
@@ -575,19 +575,6 @@ export function StudySessions() {
                       
                       {/* Session Actions - Simplified for mobile */}
                       <div className="flex items-center justify-between">
-                        <Button
-                          variant="outline"
-                          size="sm" 
-                          className="h-8 text-xs p-2 md:p-2.5"
-                          onClick={() => {
-                            setSessionToEdit(session);
-                            setCreateSessionOpen(true);
-                          }}
-                        >
-                          <Edit className="h-3 w-3 md:h-4 md:w-4" />
-                          <span className="ml-1 md:ml-2">Edit</span>
-                        </Button>
-                        
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" className="h-8 text-xs p-2 md:p-2.5 border-muted-foreground/20">
@@ -595,27 +582,28 @@ export function StudySessions() {
                               <span className="ml-1 md:ml-2">More</span>
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSessionToPostpone(session.id);
-                                setPostponeSessionOpen(true);
-                              }}
-                              className="cursor-pointer"
-                            >
+                          <DropdownMenuContent align="start" className="w-48">
+                            <DropdownMenuItem onClick={() => {
+                              setSessionToEdit(session);
+                              setCreateSessionOpen(true);
+                            }}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              <span>Edit</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSessionToPostpone(session.id);
+                              setPostponeSessionOpen(true);
+                            }}>
                               <CalendarDays className="h-4 w-4 mr-2" />
-                              Postpone Session
+                              <span>Postpone Session</span>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-red-600 dark:text-red-400 cursor-pointer"
-                              onClick={() => {
-                                setSessionToDelete(session.id);
-                                setDeleteSessionOpen(true);
-                              }}
-                            >
+                            <DropdownMenuItem className="text-red-600 dark:text-red-400" onClick={() => {
+                              setSessionToDelete(session.id);
+                              setDeleteSessionOpen(true);
+                            }}>
                               <X className="h-4 w-4 mr-2" />
-                              Delete Session
+                              <span>Delete Session</span>
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -732,14 +720,9 @@ export function StudySessions() {
                         value={sessionNotes[session.id] || session.notes || ""}
                         onChange={(e) => {
                           const newNotes = e.target.value;
-                          setSessionNotes({
-                            ...sessionNotes,
-                            [session.id]: newNotes,
-                          });
-                          // Auto-save notes after a short delay
-                          updateSession(session.id, { notes: newNotes });
+                          handleNoteChange(session.id, newNotes);
                         }}
-                        className="min-h-[60px] md:min-h-[100px] text-xs md:text-sm resize-none bg-background/50 border-muted"
+                        className="min-h-[80px] text-xs resize-none bg-muted/20 border-muted"
                       />
                     </div>
                     <div className="flex justify-between items-center gap-2">
@@ -786,27 +769,37 @@ export function StudySessions() {
     
     // Function to get the appropriate status color
     const getStatusColor = () => {
-      if (isActive) return "bg-blue-500";
-      if (isCompleted) return "bg-green-500";
-      if (session.priority === "High") return "bg-red-500";
-      if (session.priority === "Medium") return "bg-amber-500";
-      return "bg-slate-500";
+      if (isActive) return "bg-blue-500 dark:bg-blue-500";
+      if (isCompleted) return "bg-green-500 dark:bg-green-500";
+      if (session.priority === "High") return "bg-red-500 dark:bg-red-500";
+      if (session.priority === "Medium") return "bg-amber-500 dark:bg-amber-500";
+      return "bg-slate-500 dark:bg-slate-500";
     };
     
+    // Check for active session in mobile view and always expand it
+    useEffect(() => {
+      if (isActive && session.id) {
+        setExpandedSessionId(session.id);
+      }
+    }, [isActive, session.id]);
+
     return (
       <div 
         key={session.id}
         className={cn(
           "border rounded-lg mb-3 overflow-hidden transition-all",
           isExpanded ? "shadow-md" : "shadow-sm",
-          isActive && "border-blue-200 dark:border-blue-800",
+          isActive && "border-0 bg-gradient-to-r from-blue-950 to-slate-900 dark:from-blue-950 dark:to-slate-900 text-white",
           isCompleted && "border-green-200 dark:border-green-800",
           session.isAIRecommended && !isActive && !isCompleted && "bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20"
         )}
       >
         {/* Clickable header that shows minimal info */}
-        <div 
-          className="flex items-center p-3 gap-3 cursor-pointer"
+        <div
+          className={cn(
+            "flex items-center p-3 gap-3 cursor-pointer",
+            isActive && "text-white"
+          )}
           onClick={() => {
             if (isActive) {
               // Always keep active session expanded
@@ -821,9 +814,12 @@ export function StudySessions() {
           {/* Subject and time */}
           <div className="flex-1 min-w-0">
             <h3 className="font-medium text-sm truncate">{session.subject}</h3>
-            <p className="text-xs text-muted-foreground">
+            <p className={cn(
+              "text-xs",
+              isActive ? "text-white/70" : "text-muted-foreground"
+            )}>
               {isActive ? (
-                <span className="text-blue-600 dark:text-blue-400">In progress</span>
+                <span>In progress</span>
               ) : isCompleted ? (
                 <span className="text-green-600 dark:text-green-400">Completed</span>
               ) : (
@@ -834,13 +830,21 @@ export function StudySessions() {
           
           {/* Duration and icon */}
           <div className="flex items-center gap-1.5">
-            <div className="text-xs text-muted-foreground">{session.duration}m</div>
+            <div className={cn(
+              "text-xs",
+              isActive ? "text-white/70" : "text-muted-foreground"
+            )}>
+              {session.duration}m
+            </div>
             {!isActive && (
-              <div className="w-5 h-5 flex items-center justify-center">
+              <div className={cn(
+                "w-5 h-5 flex items-center justify-center",
+                isActive ? "text-white" : "text-muted-foreground"
+              )}>
                 {isExpanded ? (
-                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  <ChevronUp className="h-4 w-4" />
                 ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  <ChevronDown className="h-4 w-4" />
                 )}
               </div>
             )}
@@ -849,19 +853,28 @@ export function StudySessions() {
         
         {/* Expanded content */}
         {(isExpanded || isActive) && (
-          <div className="px-3 pb-3 border-t border-border/30 pt-3">
+          <div className={cn(
+            "px-0 pb-0",
+            isActive ? "" : "border-t border-border/30"
+          )}>
             {/* If active session, show timer */}
             {isActive ? (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">{session.goal}</p>
+              <div>
+                <div className="px-3 pt-2">
+                  <p className="text-xs text-white/70 mb-2">{session.goal}</p>
+                </div>
                 
                 <StudySessionTimer
                   startTime={session.startTime || session.scheduledFor}
                   duration={session.duration}
-                  breakInterval={session.breakInterval || 25}
-                  breakDuration={session.breakDuration || 5}
+                  breakInterval={session.breakInterval || Math.min(25, Math.max(5, Math.floor(session.duration * 0.8)))}
+                  breakDuration={session.breakDuration || Math.min(5, Math.max(1, Math.floor(session.duration * 0.2)))}
                   onPhaseChange={handlePhaseChange}
                   onComplete={() => handleEndSession(session.id)}
+                  onSettings={() => {
+                    setSessionToEdit(session);
+                    setCreateSessionOpen(true);
+                  }}
                   onPause={(progress) => {
                     updateSession(session.id, { 
                       completion: progress,
@@ -879,161 +892,129 @@ export function StudySessions() {
                     });
                   }}
                   initialProgress={session.completion || 0}
+                  subjectName={session.subject}
+                  priority={session.priority || "Medium"}
                 />
-                
-                <div className="flex gap-2 mt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 h-8 text-xs border-blue-200 hover:border-blue-300 hover:bg-blue-50 text-blue-600"
-                    onClick={() => {
-                      setSessionToEdit(session);
-                      setCreateSessionOpen(true);
-                    }}
-                  >
-                    <Settings className="h-3 w-3 mr-1" />
-                    Settings
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="flex-1 h-8 text-xs bg-blue-500 hover:bg-blue-600"
-                    onClick={() => handleEndSession(session.id)}
-                  >
-                    <Check className="h-3 w-3 mr-1" />
-                    End
-                  </Button>
-                </div>
-              </div>
-            ) : isCompleted ? (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">{session.goal}</p>
-                
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex items-center gap-1 bg-muted/30 p-1.5 rounded-md">
-                    <CalendarDays className="h-3 w-3 text-green-500" />
-                    <span>{format(new Date(session.scheduledFor), "MMM d, h:mm a")}</span>
-                  </div>
-                  <div className="flex items-center gap-1 bg-muted/30 p-1.5 rounded-md">
-                    <Timer className="h-3 w-3 text-green-500" />
-                    <span>{session.duration} min</span>
-                  </div>
-                </div>
-                
-                <div className="flex flex-col space-y-1">
-                  <p className="text-xs font-medium">Session Notes:</p>
-                  <Textarea
-                    placeholder="Add session notes..."
-                    value={sessionNotes[session.id] || session.notes || ""}
-                    onChange={(e) => {
-                      const newNotes = e.target.value;
-                      setSessionNotes({
-                        ...sessionNotes,
-                        [session.id]: newNotes,
-                      });
-                      updateSession(session.id, { notes: newNotes });
-                    }}
-                    className="min-h-[80px] text-xs resize-none bg-muted/20 border-muted"
-                  />
-                </div>
-                
-                <div className="flex gap-2 mt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 h-8 text-xs border-red-200 hover:bg-red-50 text-red-600"
-                    onClick={() => {
-                      setSessionToDelete(session.id);
-                      setDeleteSessionOpen(true);
-                    }}
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    Delete
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 h-8 text-xs border-blue-200 hover:bg-blue-50 text-blue-600"
-                    onClick={() => {
-                      setSessionToReschedule(session);
-                      setRescheduleSessionOpen(true);
-                    }}
-                  >
-                    <CalendarDays className="h-3 w-3 mr-1" />
-                    Schedule Again
-                  </Button>
-                </div>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3 p-3">
                 <p className="text-xs text-muted-foreground">{session.goal}</p>
                 
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {session.technique && (
-                    <div className="flex items-center gap-1 bg-muted/30 p-1.5 rounded-md col-span-2">
-                      <Settings className="h-3 w-3 text-blue-500" />
-                      <span>{session.technique}</span>
+                {isCompleted ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="flex items-center gap-1 bg-muted/30 dark:bg-muted/30 p-1.5 rounded-md">
+                        <CalendarDays className="h-3 w-3 text-green-500 dark:text-green-500" />
+                        <span>{format(new Date(session.scheduledFor), "MMM d, h:mm a")}</span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-muted/30 dark:bg-muted/30 p-1.5 rounded-md">
+                        <Timer className="h-3 w-3 text-green-500 dark:text-green-500" />
+                        <span>{session.duration} min</span>
+                      </div>
                     </div>
-                  )}
-                </div>
-                
-                {session.isAIRecommended && (
-                  <div className="flex items-center gap-1.5 text-xs text-purple-600 bg-purple-50 dark:bg-purple-950/30 dark:text-purple-400 p-1.5 rounded-md">
-                    <Sparkles className="h-3 w-3" />
-                    <span>AI Recommended</span>
-                  </div>
+                    
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-xs font-medium">Session Notes:</p>
+                      <Textarea
+                        placeholder="Add session notes..."
+                        value={sessionNotes[session.id] || session.notes || ""}
+                        onChange={(e) => {
+                          const newNotes = e.target.value;
+                          handleNoteChange(session.id, newNotes);
+                        }}
+                        className="min-h-[80px] text-xs resize-none bg-muted/20 dark:bg-muted/20 border-muted"
+                      />
+                    </div>
+                    
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-7 text-xs border-red-200 hover:bg-red-50 text-red-600 dark:border-red-800 dark:hover:bg-red-950/30 dark:text-red-400"
+                        onClick={() => {
+                          setSessionToDelete(session.id);
+                          setDeleteSessionOpen(true);
+                        }}
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Delete
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-7 text-xs border-blue-200 hover:bg-blue-50 text-blue-600 dark:border-blue-800 dark:hover:bg-blue-950/30 dark:text-blue-400"
+                        onClick={() => {
+                          setSessionToReschedule(session);
+                          setRescheduleSessionOpen(true);
+                        }}
+                      >
+                        <CalendarDays className="h-3 w-3 mr-1" />
+                        Schedule Again
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="flex items-center gap-1 bg-muted/30 dark:bg-muted/30 p-1.5 rounded-md">
+                        <CalendarDays className="h-3 w-3 text-blue-500 dark:text-blue-400" />
+                        <span>{format(new Date(session.scheduledFor), "MMM d, h:mm a")}</span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-muted/30 dark:bg-muted/30 p-1.5 rounded-md">
+                        <Timer className="h-3 w-3 text-blue-500 dark:text-blue-400" />
+                        <span>{session.duration} min</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 mt-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 h-7 text-xs"
+                          >
+                            <MoreVertical className="h-3 w-3 mr-1" />
+                            More
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-48">
+                          <DropdownMenuItem onClick={() => {
+                            setSessionToEdit(session);
+                            setCreateSessionOpen(true);
+                          }}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setSessionToPostpone(session.id);
+                            setPostponeSessionOpen(true);
+                          }}>
+                            <CalendarDays className="h-4 w-4 mr-2" />
+                            <span>Postpone</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-red-600 dark:text-red-400" onClick={() => {
+                            setSessionToDelete(session.id);
+                            setDeleteSessionOpen(true);
+                          }}>
+                            <X className="h-4 w-4 mr-2" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="flex-1 h-7 text-xs"
+                        onClick={() => handleStartSession(session.id)}
+                      >
+                        <Play className="h-3 w-3 mr-1" />
+                        Start
+                      </Button>
+                    </div>
+                  </>
                 )}
-                
-                <div className="flex flex-wrap gap-2 mt-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs py-0 px-2 text-muted-foreground"
-                    onClick={() => {
-                      setSessionToPostpone(session.id);
-                      setPostponeSessionOpen(true);
-                    }}
-                  >
-                    <Clock className="h-3 w-3 mr-1" />
-                    Postpone
-                  </Button>
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs py-0 px-2 text-blue-600"
-                    onClick={() => {
-                      setSessionToEdit(session);
-                      setCreateSessionOpen(true);
-                    }}
-                  >
-                    <Edit className="h-3 w-3 mr-1" />
-                    Edit
-                  </Button>
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs py-0 px-2 text-red-600"
-                    onClick={() => {
-                      setSessionToDelete(session.id);
-                      setDeleteSessionOpen(true);
-                    }}
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    Delete
-                  </Button>
-                  
-                  <Button
-                    onClick={() => handleStartSession(session.id)}
-                    variant="default"
-                    size="sm"
-                    className="h-8 ml-auto text-xs py-0 px-4 bg-blue-500 hover:bg-blue-600 text-white"
-                  >
-                    <Timer className="h-3 w-3 mr-1" />
-                    Start
-                  </Button>
-                </div>
               </div>
             )}
           </div>
@@ -1045,7 +1026,7 @@ export function StudySessions() {
   // Render mobile view with tabs
   const renderMobileView = () => {
     const tabs = [
-      { id: "active", label: "Active", count: activeSession ? 1 : 0, icon: <Timer className="h-3.5 w-3.5" /> },
+      { id: "active", label: "Current", count: activeSession ? 1 : 0, icon: <Timer className="h-3.5 w-3.5" /> },
       { id: "upcoming", label: "Upcoming", count: upcomingSessions.length, icon: <CalendarDays className="h-3.5 w-3.5" /> },
       { id: "completed", label: "Completed", count: completedSessions.length, icon: <CheckCircle2 className="h-3.5 w-3.5" /> }
     ] as const;

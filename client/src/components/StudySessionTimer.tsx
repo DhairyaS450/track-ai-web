@@ -5,10 +5,11 @@ import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { CircularProgress } from "./CircularProgress";
 import { format } from "date-fns";
-import { Timer, Play, SkipForward, Pause, MessageSquare, Clock } from "lucide-react";
+import { Timer, Play, SkipForward, Pause, MessageSquare, Clock, Check, Settings } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { cn } from "@/lib/utils";
 
 const breakSuggestions = [
   "Stretch for 5 minutes to reduce muscle tension",
@@ -16,23 +17,22 @@ const breakSuggestions = [
   "Did you know? Short breaks improve focus and productivity!",
   "Stand up and walk around to boost circulation",
   "Look at something 20 feet away for 20 seconds to reduce eye strain",
-  "Do some quick desk exercises to stay energized",
   "Practice mindful breathing to reduce stress",
-  "Give your eyes a rest from the screen",
-  "Try some shoulder and neck stretches",
-  "Hydrate and have a healthy snack if needed",
 ];
 
 interface StudySessionTimerProps {
-  startTime: string;       // This should be the actual time when user clicked Start
-  duration: number;        // Total session duration in minutes
-  breakInterval: number;   // Study time between breaks in minutes
-  breakDuration: number;   // Break duration in minutes
+  startTime: string;       
+  duration: number;        
+  breakInterval: number;   
+  breakDuration: number;   
   onPhaseChange: (phase: "study" | "break") => void;
   onComplete: () => void;
   onPause: (progress: number) => void;
   onResume: () => void;
+  onSettings?: () => void;
   initialProgress?: number;
+  subjectName?: string;
+  priority?: "High" | "Medium" | "Low";
 }
 
 export function StudySessionTimer({
@@ -44,7 +44,10 @@ export function StudySessionTimer({
   onComplete,
   onPause,
   onResume,
+  onSettings,
   initialProgress = 0,
+  subjectName,
+  priority,
 }: StudySessionTimerProps) {
   // Get the starting state from local storage if available
   const savedPhase = localStorage.getItem("currentPhase");
@@ -54,12 +57,14 @@ export function StudySessionTimer({
   const [isPaused, setIsPaused] = useState(localStorage.getItem("isPaused") === "true");
   const [phaseEndTime, setPhaseEndTime] = useState<Date>(new Date());
   const [progress, setProgress] = useState(initialProgress);
+  const [baseProgress, setBaseProgress] = useState(() => 
+    parseFloat(localStorage.getItem("baseProgress") || initialProgress.toString())
+  );
   const [currentBreakSuggestion, setCurrentBreakSuggestion] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
   const [pauseStartTime, setPauseStartTime] = useState<Date | null>(null);
-  const [totalPausedTime, setTotalPausedTime] = useState(0); // in milliseconds
+  const [totalPausedTime, setTotalPausedTime] = useState(0);
   const [actualStartTime, setActualStartTime] = useState<Date>(() => {
-    // Always use the provided startTime (which should be when user clicked Start)
     return startTime ? new Date(startTime) : new Date();
   });
   const navigate = useNavigate();
@@ -67,12 +72,33 @@ export function StudySessionTimer({
 
   // Function to initialize phase
   function initializePhase(isBreakPhase: boolean) {
-    console.log("Initializing phase:", isBreakPhase ? "break" : "study");
+    console.log("Initializing phase:", isBreakPhase ? "break" : "study", {
+      duration,
+      breakInterval,
+      breakDuration,
+      progress,
+      baseProgress
+    });
     const now = new Date();
     
     // Calculate how long this phase should be (in milliseconds)
     const phaseLength = isBreakPhase ? breakDuration : breakInterval;
-    const phaseLengthMs = phaseLength * 60 * 1000; // Convert minutes to milliseconds
+    
+    // For the first study phase, ensure we use the full duration if no breakInterval is specified
+    const isFirstPhase = localStorage.getItem("isFirstPhase") === "true" || !localStorage.getItem("isFirstPhase");
+    
+    let phaseLengthMs;
+    
+    if (!isBreakPhase && isFirstPhase) {
+      // First study phase should use the full duration or breakInterval if explicitly set
+      phaseLengthMs = (breakInterval !== duration) ? breakInterval * 60 * 1000 : duration * 60 * 1000;
+      localStorage.setItem("isFirstPhase", "false");
+      console.log("First study phase, duration set to:", phaseLengthMs / 60000, "minutes");
+    } else {
+      // For subsequent phases, use the specified intervals
+      phaseLengthMs = phaseLength * 60 * 1000;
+      console.log(`Setting ${isBreakPhase ? "break" : "study"} phase length:`, phaseLengthMs / 60000, "minutes");
+    }
     
     // Set the end time and time left
     const endTime = new Date(now.getTime() + phaseLengthMs);
@@ -81,7 +107,6 @@ export function StudySessionTimer({
     
     // Reset pause state for new phase
     setPauseStartTime(null);
-    // Keep the total paused time for overall session tracking
     
     // Save to localStorage
     localStorage.setItem("phaseStartTime", now.toISOString());
@@ -89,21 +114,24 @@ export function StudySessionTimer({
     localStorage.setItem("currentPhase", isBreakPhase ? "break" : "study");
     localStorage.setItem("timeLeft", phaseLengthMs.toString());
     localStorage.setItem("lastSavedTime", now.toISOString());
-    localStorage.removeItem("pauseStartTime");
-    localStorage.removeItem("phaseContribution");
-    localStorage.removeItem("progressAtPause");
     
+    // If starting a break phase, make sure we preserve the current progress
     if (isBreakPhase) {
+      // In breaks we should maintain the progress from the previous study phase
+      const currentSavedProgress = localStorage.getItem("baseProgress");
+      console.log("Starting break phase, preserving progress:", currentSavedProgress);
       onPhaseChange?.("break");
-      // Set break suggestion from original suggestions array
       setCurrentBreakSuggestion(
         breakSuggestions[Math.floor(Math.random() * breakSuggestions.length)]
       );
     } else {
+      // If starting a study phase, we can update base progress with current progress
+      // This is important for resuming after a break
+      console.log("Starting study phase with base progress:", progress);
+      localStorage.setItem("baseProgress", progress.toString());
+      setBaseProgress(progress);
       onPhaseChange?.("study");
     }
-    
-    console.log("Phase initialized with timeLeft:", phaseLengthMs, "ms");
   }
 
   // Function to load saved state from localStorage
@@ -118,12 +146,40 @@ export function StudySessionTimer({
       const savedLastTime = localStorage.getItem("lastSavedTime");
       const savedPauseStartTime = localStorage.getItem("pauseStartTime");
       const savedTotalPausedTime = localStorage.getItem("totalPausedTime");
-      const savedPhaseContribution = localStorage.getItem("phaseContribution") || "0";
-      const savedBaseProgress = localStorage.getItem("baseProgress") || (initialProgress ? initialProgress.toString() : "0");
+      const savedBaseProgress = localStorage.getItem("baseProgress");
+      const savedActualStartTime = localStorage.getItem("actualStartTime");
+      
+      console.log("Loading saved state with values:", {
+        savedProgress,
+        savedBaseProgress,
+        savedPhase,
+        initialProgress
+      });
       
       // Load total paused time if available
       if (savedTotalPausedTime) {
         setTotalPausedTime(parseInt(savedTotalPausedTime));
+      }
+      
+      // Load base progress with proper fallbacks
+      if (savedBaseProgress) {
+        const parsedBaseProgress = parseFloat(savedBaseProgress);
+        if (!isNaN(parsedBaseProgress)) {
+          setBaseProgress(parsedBaseProgress);
+        } else if (initialProgress) {
+          setBaseProgress(initialProgress);
+        } else {
+          setBaseProgress(0);
+        }
+      } else if (initialProgress) {
+        setBaseProgress(initialProgress);
+      }
+      
+      // Load actual start time if available
+      if (savedActualStartTime) {
+        setActualStartTime(new Date(savedActualStartTime));
+      } else if (startTime) {
+        setActualStartTime(new Date(startTime));
       }
       
       // Load pause start time if available
@@ -152,9 +208,9 @@ export function StudySessionTimer({
         // Set states from saved values
         setTimeLeft(adjustedTimeLeft);
         if (savedProgress) {
-          setProgress(parseFloat(savedProgress));
+          const parsedProgress = parseFloat(savedProgress);
+          setProgress(isNaN(parsedProgress) ? (initialProgress || 0) : parsedProgress);
         } else {
-          // If no saved progress, use initialProgress
           setProgress(initialProgress || 0);
         }
         setIsBreak(savedPhase === "break");
@@ -167,19 +223,8 @@ export function StudySessionTimer({
         // Save the current time as last saved time
         localStorage.setItem("lastSavedTime", new Date().toISOString());
         
-        // Initialize phase contribution if not present
-        if (!localStorage.getItem("phaseContribution")) {
-          localStorage.setItem("phaseContribution", savedPhaseContribution);
-        }
-        
-        // Initialize base progress if not present
-        if (!localStorage.getItem("baseProgress")) {
-          localStorage.setItem("baseProgress", savedBaseProgress);
-        }
-        
-        console.log("Loaded saved state with timeLeft:", adjustedTimeLeft, "ms, progress:", savedProgress || initialProgress);
         return true;
-      } 
+      }
       
       // No saved state but we have session data - initialize fresh
       if (duration > 0 && breakInterval > 0) {
@@ -187,24 +232,24 @@ export function StudySessionTimer({
         
         // Start with a study phase (not break)
         setIsBreak(false);
-        // Set initial progress from props
         setProgress(initialProgress || 0);
+        setBaseProgress(initialProgress || 0);
         setIsPaused(false);
         setTotalPausedTime(0);
         setPauseStartTime(null);
+        
+        // Reset isFirstPhase flag for proper initialization
+        localStorage.setItem("isFirstPhase", "true");
         
         // Initialize the first study phase
         initializePhase(false);
         
         // Initialize progress tracking values
         localStorage.setItem("baseProgress", initialProgress ? initialProgress.toString() : "0");
-        localStorage.setItem("phaseContribution", "0");
         
-        console.log("Initialized fresh session with first phase timeLeft:", timeLeft, "ms, initial progress:", initialProgress || 0);
         return true;
       }
       
-      console.log("No saved state and insufficient session data");
       return false;
     } catch (error) {
       console.error("Error loading saved state:", error);
@@ -212,458 +257,342 @@ export function StudySessionTimer({
     }
   }, [duration, breakInterval, initialProgress]);
 
-  // Add initialization useEffect to prevent immediate race conditions
+  // Initial setup
   useEffect(() => {
-    console.log("Session props:", { startTime, duration, breakInterval, breakDuration });
-    
-    // Store the actual start time
     if (startTime) {
       const parsedStartTime = new Date(startTime);
-      console.log("Setting actual start time:", parsedStartTime.toISOString());
       setActualStartTime(parsedStartTime);
-      
-      // Also store in localStorage for persistence
       localStorage.setItem("actualStartTime", parsedStartTime.toISOString());
+      console.log("SessionTimer - Initialized actual start time:", parsedStartTime);
     }
     
     if (!isInitialized) {
       const stateLoaded = loadSavedState();
-      console.log("Loaded state?", stateLoaded);
-      
-      // If no state was loaded, initialize a fresh study phase
       if (!stateLoaded) {
-        console.log("No saved state found, initializing fresh study phase");
+        // Initialize with a clean state
+        console.log("SessionTimer - Initializing fresh session");
         initializePhase(false);
+      } else {
+        console.log("SessionTimer - Loaded saved state");
       }
-      
       setIsInitialized(true);
     }
-  }, [isInitialized, loadSavedState, startTime, duration, breakInterval, breakDuration]);
+  }, [isInitialized, loadSavedState, startTime]);
   
-  // Timer effect
+  // Progress calculation function to use consistently
+  const calculateSessionProgress = useCallback(() => {
+    // Calculate progress based on total elapsed time relative to total session duration
+    const sessionDurationMs = duration * 60 * 1000;
+    const startTimeMs = actualStartTime.getTime();
+    const currentTimeMs = new Date().getTime();
+    const elapsedMs = currentTimeMs - startTimeMs - totalPausedTime;
+    
+    // Ensure progress is always between 0-100%
+    const calculatedProgress = Math.min(100, Math.max(0, (elapsedMs / sessionDurationMs) * 100));
+    
+    console.log("Progress calculation:", {
+      currentTime: new Date().toISOString(),
+      actualStartTime: actualStartTime.toISOString(),
+      elapsedMs,
+      sessionDurationMs,
+      totalPausedTime,
+      calculatedProgress: Math.round(calculatedProgress)
+    });
+    
+    return calculatedProgress;
+  }, [actualStartTime, duration, totalPausedTime]);
+  
+  // Timer effect - Use the consistent calculation function
   useEffect(() => {
-    if (!isInitialized) {
-      console.log("Timer not started: not initialized");
+    if (!isInitialized || isPaused) {
       return;
     }
     
-    if (isPaused) {
-      console.log("Timer paused");
-      return;
-    }
-    
-    console.log("Starting timer with timeLeft:", timeLeft, "ms");
+    // Save current browser time for accurate timing
+    localStorage.setItem("lastSavedTime", new Date().toISOString());
     
     const timer = setInterval(() => {
-      setTimeLeft((prevTimeLeft) => {
-        if (prevTimeLeft <= 1000) { // Less than 1 second left
-          console.log("Phase ending, transitioning to next phase");
-          
-          // Schedule phase transition asynchronously
-          setTimeout(() => {
-            if (isBreak) {
-              console.log("Break phase ended, switching to study phase");
-              setIsBreak(false);
-              initializePhase(false);
-            } else if (breakInterval > 0) {
-              console.log("Study phase ended, switching to break phase");
-              setIsBreak(true);
-              initializePhase(true);
-            }
-          }, 0);
-          
-          return 0;
-        }
+      setTimeLeft((prev) => {
+        const newTimeLeft = Math.max(0, prev - 1000);
         
-        // Decrement by 1 second (1000ms)
-        const newTimeLeft = prevTimeLeft - 1000;
-        
-        // Save to localStorage
+        // Save time left to localStorage
         localStorage.setItem("timeLeft", newTimeLeft.toString());
         localStorage.setItem("lastSavedTime", new Date().toISOString());
         
-        // Calculate overall session progress
-        if (duration > 0) {
-          try {
-            // Calculate the phase duration in milliseconds
-            const phaseMs = isBreak 
-              ? breakDuration * 60 * 1000 
-              : breakInterval * 60 * 1000;
+        if (newTimeLeft === 0) {
+          // Phase is completed
+          const wasBreak = isBreak;
+          
+          // If this was a break phase, we need to resume with study phase
+          if (wasBreak) {
+            console.log("Break phase complete, transitioning to study phase");
+            setIsBreak(false);
+            initializePhase(false);
+          } else {
+            // This was a study phase
+            const calculatedProgress = calculateSessionProgress();
             
-            // Calculate how much of this phase is complete
-            const phaseElapsedMs = phaseMs - newTimeLeft;
-            const phaseProgressPercent = (phaseElapsedMs / phaseMs) * 100;
-            
-            // Calculate accurate session metrics
-            const totalSessionDurationMs = duration * 60 * 1000; // Total session in ms
-            
-            // Calculate total study phases and break phases
-            const totalStudyPhasesMs = totalSessionDurationMs;
-            const numBreaks = Math.floor(totalStudyPhasesMs / (breakInterval * 60 * 1000));
-            const totalBreakPhasesMs = numBreaks * breakDuration * 60 * 1000;
-            
-            // Total duration including breaks
-            const totalDurationWithBreaksMs = totalStudyPhasesMs + totalBreakPhasesMs;
-            
-            // Calculate what percentage of the total this phase represents
-            const phasePercentage = isBreak
-              ? (breakDuration * 60 * 1000) / totalDurationWithBreaksMs * 100
-              : (breakInterval * 60 * 1000) / totalDurationWithBreaksMs * 100;
-            
-            // How much does this current phase contribute to the progress
-            const phaseContribution = (phaseProgressPercent / 100) * (phasePercentage / 100) * 100;
-            
-            // For accuracy, track how much of the session we've completed before this phase
-            // Get the stored progress from localStorage, otherwise fall back to initialProgress
-            const storedProgress = localStorage.getItem("progress");
-            const baseProgress = storedProgress ? parseFloat(storedProgress) : initialProgress || 0;
-            
-            // Get current phase contribution from localStorage or calculate it
-            const storedPhaseContribution = localStorage.getItem("phaseContribution");
-            let currentPhaseContribution = 0;
-            
-            // Only update progress if we've made more progress in this phase than before
-            if (storedPhaseContribution) {
-              currentPhaseContribution = parseFloat(storedPhaseContribution);
-              // Only increase if the new contribution is higher
-              if (phaseContribution > currentPhaseContribution) {
-                currentPhaseContribution = phaseContribution;
-                localStorage.setItem("phaseContribution", phaseContribution.toString());
-              }
-            } else {
-              currentPhaseContribution = phaseContribution;
-              localStorage.setItem("phaseContribution", phaseContribution.toString());
-            }
-            
-            // Calculate new progress based on the base progress (before this phase)
-            // plus the current phase contribution
-            let newProgress = baseProgress;
-            
-            // Check if this is a new phase by looking at the phase name in localStorage
-            const currentPhase = isBreak ? "break" : "study";
-            const storedPhase = localStorage.getItem("currentPhase");
-            
-            // If we switched phases, update the base progress and reset phase contribution
-            if (storedPhase !== currentPhase) {
-              newProgress = baseProgress + currentPhaseContribution;
-              localStorage.setItem("baseProgress", newProgress.toString());
-              localStorage.setItem("phaseContribution", "0");
-              localStorage.setItem("currentPhase", currentPhase);
-            } else {
-              newProgress = baseProgress + currentPhaseContribution;
-            }
-            
-            // Ensure progress doesn't exceed 100% or go below initial value
-            newProgress = Math.min(100, Math.max(initialProgress || 0, newProgress));
-            
-            // Round to 2 decimal places for consistency
-            newProgress = Math.round(newProgress * 100) / 100;
-            
-            setProgress(newProgress);
-            localStorage.setItem("progress", newProgress.toString());
-            
-            // Check if session is complete
-            if (newProgress >= 99.5) {
-              console.log("Session complete! Final progress:", newProgress);
-              clearInterval(timer);
-              
-              // Clean up localStorage
-              localStorage.removeItem("timeLeft");
-              localStorage.removeItem("progress");
-              localStorage.removeItem("currentPhase");
-              localStorage.removeItem("phaseStartTime");
-              localStorage.removeItem("phaseEndTime");
-              localStorage.removeItem("isPaused");
-              localStorage.removeItem("lastSavedTime");
-              localStorage.removeItem("actualStartTime");
-              localStorage.removeItem("pauseStartTime");
-              localStorage.removeItem("totalPausedTime");
-              localStorage.removeItem("phaseContribution");
-              localStorage.removeItem("baseProgress");
-              
-              // Notify parent component
-              onComplete();
+            // If we're at 100% progress, end the session
+            if (calculatedProgress >= 99.5) {
+              // Complete session
+              console.log("Session complete (100% progress reached)");
+              setProgress(100); // Ensure we show exactly 100%
+              localStorage.setItem("progress", "100");
+              onComplete?.();
               return 0;
             }
-          } catch (error) {
-            console.error("Error calculating progress:", error);
+            
+            // Store the current progress before starting break
+            const progressToSave = Math.round(calculatedProgress * 100) / 100; // Round to 2 decimal places
+            console.log("Saving progress before break phase:", progressToSave);
+            localStorage.setItem("baseProgress", progressToSave.toString());
+            setBaseProgress(progressToSave);
+            setProgress(progressToSave); // Update visible progress immediately
+            
+            // Start a break phase
+            console.log("Study phase complete, transitioning to break phase");
+            setIsBreak(true);
+            initializePhase(true);
           }
         }
         
         return newTimeLeft;
       });
-    }, 1000); // Update every second
-    
-    return () => clearInterval(timer);
-  }, [isPaused, isBreak, breakInterval, breakDuration, duration, initialProgress, onComplete, initializePhase, isInitialized]);
-
-  // Update remaining useEffect calls to depend on isInitialized
-  useEffect(() => {
-    if (!isInitialized) return;
-    
-    // Add event listener for beforeunload
-    const handleBeforeUnload = () => {
-      if (timeLeft > 0) {
-        localStorage.setItem("timeLeft", timeLeft.toString());
-        localStorage.setItem("progress", progress.toString());
-        localStorage.setItem("currentPhase", isBreak ? "break" : "study");
-        localStorage.setItem("isPaused", isPaused ? "true" : "false");
-        localStorage.setItem("lastSavedTime", new Date().toISOString());
-        // Ensure actual start time is saved
-        localStorage.setItem("actualStartTime", actualStartTime.toISOString());
-        // Save pause state
-        localStorage.setItem("totalPausedTime", totalPausedTime.toString());
-        if (pauseStartTime) {
-          localStorage.setItem("pauseStartTime", pauseStartTime.toISOString());
-        } else {
-          localStorage.removeItem("pauseStartTime");
+      
+      // Update progress in study phases only, maintain during breaks
+      if (!isBreak) {
+        const calculatedProgress = calculateSessionProgress();
+        setProgress(calculatedProgress);
+        localStorage.setItem("progress", calculatedProgress.toString());
+      } else {
+        // During breaks, maintain the progress from the last study phase
+        const storedBaseProgress = parseFloat(localStorage.getItem("baseProgress") || baseProgress.toString());
+        if (!isNaN(storedBaseProgress)) {
+          setProgress(storedBaseProgress);
         }
       }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [isInitialized, isPaused, isBreak, onComplete, calculateSessionProgress, baseProgress]);
 
-    // Also add event for visibility change to handle tab switching
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        // User has returned to the tab, reload state
-        loadSavedState();
+  // Cleanup and persistence on unmount
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      localStorage.setItem("isPaused", isPaused.toString());
+      localStorage.setItem("timeLeft", timeLeft.toString());
+      localStorage.setItem("progress", progress.toString());
+      localStorage.setItem("baseProgress", baseProgress.toString());
+      localStorage.setItem("lastSavedTime", new Date().toISOString());
+      localStorage.setItem("totalPausedTime", totalPausedTime.toString());
+      if (pauseStartTime) {
+        localStorage.setItem("pauseStartTime", pauseStartTime.toISOString());
       } else {
-        // User is leaving the tab, save state
-        handleBeforeUnload();
+        localStorage.removeItem("pauseStartTime");
       }
     };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      handleBeforeUnload();
     };
-  }, [loadSavedState, timeLeft, progress, isBreak, isPaused, isInitialized, actualStartTime, totalPausedTime, pauseStartTime]);
+  }, [isPaused, timeLeft, progress, totalPausedTime, pauseStartTime, baseProgress]);
 
   const handlePause = () => {
-    // Record when we started the pause
-    const now = new Date();
-    setPauseStartTime(now);
-    
-    // Save the exact progress at pause time to ensure we don't increment on resume
-    const currentProgress = progress;
+    if (isPaused) return; // Already paused
     
     setIsPaused(true);
+    setPauseStartTime(new Date());
+    
+    // Save to localStorage
     localStorage.setItem("isPaused", "true");
-    localStorage.setItem("lastSavedTime", now.toISOString());
-    localStorage.setItem("pauseStartTime", now.toISOString());
-    localStorage.setItem("progressAtPause", currentProgress.toString());
-    onPause?.(currentProgress);
+    localStorage.setItem("pauseStartTime", new Date().toISOString());
+    localStorage.setItem("lastSavedTime", new Date().toISOString());
+    
+    // Call the onPause callback with current progress
+    onPause?.(progress);
   };
 
   const handleResume = () => {
-    // Calculate how long the timer was paused
+    if (!isPaused) return; // Already running
+    
+    // Calculate time spent paused
     if (pauseStartTime) {
       const now = new Date();
-      const pauseDurationMs = now.getTime() - pauseStartTime.getTime();
+      const additionalPausedTime = now.getTime() - pauseStartTime.getTime();
+      const newTotalPausedTime = totalPausedTime + additionalPausedTime;
       
-      // Update total paused time
-      const newTotalPausedTime = totalPausedTime + pauseDurationMs;
       setTotalPausedTime(newTotalPausedTime);
       localStorage.setItem("totalPausedTime", newTotalPausedTime.toString());
-      
-      // Extend the phase end time by the pause duration
-      const newEndTime = new Date(phaseEndTime.getTime() + pauseDurationMs);
-      setPhaseEndTime(newEndTime);
-      localStorage.setItem("phaseEndTime", newEndTime.toISOString());
-      
-      // Log pause details
-      console.log(`Timer was paused for ${Math.round(pauseDurationMs / 1000)} seconds`);
-      console.log(`Phase end time extended to ${newEndTime.toISOString()}`);
-      
-      // Restore progress from when we paused
-      const savedProgress = localStorage.getItem("progressAtPause");
-      if (savedProgress) {
-        const progressValue = parseFloat(savedProgress);
-        setProgress(progressValue);
-        localStorage.setItem("progress", progressValue.toString());
-      }
     }
     
-    // Clear the pause start time
+    // Reset pause state
+    setIsPaused(false);
     setPauseStartTime(null);
     
-    setIsPaused(false);
+    // Update localStorage
     localStorage.setItem("isPaused", "false");
-    localStorage.setItem("lastSavedTime", new Date().toISOString());
     localStorage.removeItem("pauseStartTime");
-    localStorage.removeItem("progressAtPause");
+    localStorage.setItem("lastSavedTime", new Date().toISOString());
+    
+    // Notify parent component
     onResume?.();
   };
 
   const handleSkipPhase = () => {
     const newIsBreak = !isBreak;
+    console.log(`Manually skipping to ${newIsBreak ? 'break' : 'study'} phase`);
+    
+    if (isBreak) {
+      // Transitioning from break to study
+      // Just keep the current progress as we move back to study
+      console.log("Maintaining progress at transition from break to study:", progress);
+    } else {
+      // Transitioning from study to break - use our consistent calculation function
+      const calculatedProgress = calculateSessionProgress();
+      
+      // Store calculated progress before entering break
+      const progressToSave = Math.round(calculatedProgress * 100) / 100;
+      console.log("Saving current progress before manually entering break:", progressToSave);
+      localStorage.setItem("baseProgress", progressToSave.toString());
+      setBaseProgress(progressToSave);
+      setProgress(progressToSave);
+    }
+    
+    // Change the phase
     setIsBreak(newIsBreak);
     initializePhase(newIsBreak);
     onPhaseChange(newIsBreak ? "break" : "study");
   };
 
+  // Format time display with leading zeros
   const formatTimeLeft = (ms: number) => {
-    // Convert milliseconds to seconds
     const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-    
-    // Calculate hours, minutes, seconds
     const seconds = totalSeconds % 60;
     const minutes = Math.floor(totalSeconds / 60) % 60;
     const hours = Math.floor(totalSeconds / 3600);
-
-    // Format with leading zeros
-    return `${hours.toString().padStart(2, "0")}:${minutes
-      .toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    
+    // Only display hours if they exist
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, "0")}:${minutes
+        .toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    }
+    
+    // Otherwise just show minutes and seconds
+    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   };
 
+  // Better next phase text
   const calculateNextPhaseTime = () => {
     const nextPhaseIn = Math.floor(timeLeft / 1000 / 60);
-    const nextPhaseType = isBreak ? "Focused Study" : "Break";
-    return `Next: ${nextPhaseType} in ${nextPhaseIn} minute${
-      nextPhaseIn !== 1 ? "s" : ""
-    }`;
+    const nextPhaseType = isBreak ? "Study" : "Break";
+    
+    if (nextPhaseIn === 0) {
+      const secondsLeft = Math.floor(timeLeft / 1000);
+      return `Next: ${nextPhaseType} in ${secondsLeft}s`;
+    }
+    
+    return `Next: ${nextPhaseType} in ${nextPhaseIn}m`;
   };
 
   return (
-    <Card className="p-6 bg-gradient-to-r from-background to-muted/20 dark:from-background dark:to-blue-950/10 shadow-md overflow-hidden relative border border-blue-100 dark:border-blue-900">
-      {/* Decoration element */}
-      <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full bg-blue-100/30 dark:bg-blue-900/20 blur-2xl"></div>
-      
-      <div className={`flex ${
-        isMobile ? "flex-col gap-6" : "items-center justify-between gap-8 mb-6"
-      }`}>
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-blue-100 dark:bg-blue-900/40 rounded-full">
-            <Timer className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="font-semibold text-lg">Time Remaining</h3>
-            <p className="text-2xl font-mono font-bold text-blue-600 dark:text-blue-400">
-              {formatTimeLeft(timeLeft)}
-            </p>
-          </div>
-        </div>
-        <Badge
-          variant={isBreak ? "outline" : "default"}
-          className={`animate-pulse self-start text-sm py-1.5 px-3 ${
-            isBreak 
-              ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-800" 
-              : "bg-blue-500 text-white"
-          }`}
-        >
-          {isBreak ? "Break Time" : "Study Time"}
+    <div className="bg-white dark:bg-blue-950 text-slate-800 dark:text-white rounded-lg shadow-md overflow-hidden p-6 border dark:border-0">
+      {/* Top row with subject and priority badge */}
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-xl font-medium">{subjectName || "Study Session"}</h3>
+        <Badge className="bg-amber-500 dark:bg-amber-600/90 text-white border-0 rounded-md py-1 px-3">
+          {priority || "Medium"} Priority
         </Badge>
       </div>
-
-      <div className={`${
-        isMobile ? "space-y-6" : "flex items-center justify-between mb-8"
-      }`}>
-        <div className="flex flex-col gap-3 max-w-md">
-          <div className="text-sm bg-muted/50 p-3 rounded-lg border border-border/50">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="h-4 w-4 text-blue-500" />
-              <span className="font-medium">Current phase ends at: {format(phaseEndTime, "hh:mm a")}</span>
-            </div>
-            <div className="font-medium text-primary">
-              {calculateNextPhaseTime()}
-            </div>
-          </div>
-          {isBreak && (
-            <div className="text-sm italic p-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-900/50 text-green-700 dark:text-green-400">
-              <div className="flex items-center gap-2 mb-1">
-                <MessageSquare className="h-4 w-4" />
-                <span className="font-medium">Break Suggestion</span>
-              </div>
-              {currentBreakSuggestion}
-            </div>
-          )}
+      
+      {/* Big centered timer */}
+      <div className="text-center mb-8">
+        <div className="font-mono text-7xl font-bold text-slate-800 dark:text-white mb-4">
+          {formatTimeLeft(timeLeft)}
         </div>
-        <div className="relative">
-          <CircularProgress 
-            value={progress} 
-            max={100} 
-            size={isMobile ? 80 : 100} 
-            strokeWidth={8}
-            progressColor={isBreak ? "rgb(34, 197, 94)" : "rgb(59, 130, 246)"}
-            bgColor={isBreak ? "rgba(34, 197, 94, 0.1)" : "rgba(59, 130, 246, 0.1)"}
-          />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <span className="text-2xl font-bold">{Math.round(progress)}%</span>
-              <div className="text-xs text-muted-foreground">Complete</div>
-            </div>
-          </div>
-        </div>
+        <Badge className="bg-blue-500 dark:bg-blue-500 text-white border-0 rounded-full py-1.5 px-5">
+          {isBreak ? "Break" : "Study Time"}
+        </Badge>
       </div>
-
-      <div className={`${
-        isMobile ? "space-y-4" : "flex justify-between items-center"
-      }`}>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate("/chatbot")}
-          className="gap-2 w-full sm:w-auto border-blue-200 hover:border-blue-300 hover:bg-blue-50 text-blue-600 dark:border-blue-800 dark:hover:border-blue-700 dark:hover:bg-blue-950"
-        >
-          <MessageSquare className="h-4 w-4" />
-          Need help? Chat with Kai!
-        </Button>
-
-        <div className={`flex gap-2 ${isMobile ? "flex-col" : ""}`}>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSkipPhase}
-            className="w-full sm:w-auto"
-          >
-            <SkipForward className="h-4 w-4 mr-2" />
-            Skip {isBreak ? "Break" : "Study"} Phase
-          </Button>
-          <Button
-            variant={isPaused ? "default" : "secondary"}
-            size="sm"
-            onClick={isPaused ? handleResume : handlePause}
-            className={`w-full sm:w-auto ${
-              isPaused 
-                ? "bg-blue-500 hover:bg-blue-600 text-white" 
-                : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:hover:bg-amber-900"
-            }`}
-          >
-            {isPaused ? (
-              <>
-                <Play className="h-4 w-4 mr-2" />
-                Resume Session
-              </>
-            ) : (
-              <>
-                <Pause className="h-4 w-4 mr-2" />
-                Pause Session
-              </>
-            )}
-          </Button>
+      
+      {/* End time and next phase */}
+      <div className="flex justify-between items-center mb-4 text-sm text-slate-700 dark:text-white">
+        <div className="flex items-center">
+          <Clock className="h-4 w-4 mr-1.5" />
+          <span>Ends: {format(phaseEndTime, "h:mm a")}</span>
+        </div>
+        <div>
+          Next: {isBreak ? `Study in ${Math.floor(timeLeft / 60000) || 1}m` : `Break in ${Math.ceil(timeLeft / 60000) || 1}m`}
         </div>
       </div>
       
-      {/* Progress bar at the bottom */}
-      <div className="mt-6 pt-4 border-t border-border/40">
-        <div className="text-xs text-muted-foreground mb-2 flex justify-between">
-          <span>Session Progress</span>
-          <span>
-            <span className="font-medium text-primary">{Math.round(progress)}%</span> Complete
-          </span>
+      {/* Progress section */}
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-1.5">
+          <div className="text-sm text-slate-700 dark:text-white">Progress</div>
+          <div className="text-sm font-medium text-slate-700 dark:text-white">{Math.round(progress)}%</div>
         </div>
-        <div className="w-full h-3 bg-muted/30 rounded-full overflow-hidden border border-border/30">
+        <div className="w-full h-1.5 bg-slate-200 dark:bg-blue-900/50 rounded-full overflow-hidden">
           <div 
-            className={`h-full transition-all duration-500 ease-in-out ${
-              isBreak 
-                ? "bg-gradient-to-r from-green-400 to-green-500" 
-                : "bg-gradient-to-r from-blue-400 to-blue-500"
-            }`} 
-            style={{ width: `${progress}%` }}
+            className="h-full bg-blue-500 dark:bg-blue-500 rounded-full transition-all duration-300" 
+            style={{ width: `${Math.max(0, Math.min(100, Math.round(progress)))}%` }}
           ></div>
         </div>
       </div>
-    </Card>
+      
+      {/* Main control buttons */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <Button
+          variant="outline"
+          className="bg-slate-100 dark:bg-black/20 hover:bg-slate-200 dark:hover:bg-black/30 text-slate-800 dark:text-white border border-slate-200 dark:border-0 rounded-md h-12"
+          onClick={isPaused ? handleResume : handlePause}
+        >
+          {isPaused ? (
+            <>
+              <Play className="h-5 w-5 mr-2" />
+              Resume
+            </>
+          ) : (
+            <>
+              <Pause className="h-5 w-5 mr-2" />
+              Pause
+            </>
+          )}
+        </Button>
+        
+        <Button
+          variant="outline"
+          className="bg-slate-100 dark:bg-black/20 hover:bg-slate-200 dark:hover:bg-black/30 text-slate-800 dark:text-white border border-slate-200 dark:border-0 rounded-md h-12"
+          onClick={handleSkipPhase}
+        >
+          <SkipForward className="h-5 w-5 mr-2" />
+          Skip {isBreak ? "Break" : "Study"}
+        </Button>
+      </div>
+      
+      {/* Bottom buttons */}
+      <div className="flex justify-between">
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-slate-100 dark:bg-black/20 hover:bg-slate-200 dark:hover:bg-black/30 text-slate-800 dark:text-white border border-slate-200 dark:border-0 rounded-md"
+          onClick={onSettings}
+        >
+          <Settings className="h-4 w-4 mr-1.5" />
+          Settings
+        </Button>
+        
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => onComplete?.()}
+          className="bg-blue-500 dark:bg-blue-500 hover:bg-blue-600 dark:hover:bg-blue-600 text-white rounded-md"
+        >
+          <Check className="h-4 w-4 mr-1.5" />
+          End
+        </Button>
+      </div>
+    </div>
   );
 }

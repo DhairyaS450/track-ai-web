@@ -44,8 +44,8 @@ export function CreateStudySessionDialog({
   const [duration, setDuration] = useState(initialSession?.duration || 60);
   const [goal, setGoal] = useState(initialSession?.goal || "");
   const [technique, setTechnique] = useState(initialSession?.technique || "pomodoro");
-  const [breakInterval, setBreakInterval] = useState(initialSession?.breakInterval || 25);
-  const [breakDuration, setBreakDuration] = useState(initialSession?.breakDuration || 5);
+  const [breakInterval, setBreakInterval] = useState(initialSession?.breakInterval || Math.min(25, Math.max(5, Math.floor((initialSession?.duration || 60) * 0.8))));
+  const [breakDuration, setBreakDuration] = useState(initialSession?.breakDuration || Math.min(5, Math.max(1, Math.floor((initialSession?.duration || 60) * 0.2))));
   const [materials, setMaterials] = useState(initialSession?.materials || "");
   const [priority, setPriority] = useState<"High" | "Medium" | "Low" | undefined>(
     initialSession?.priority
@@ -70,8 +70,8 @@ export function CreateStudySessionDialog({
       setDuration(initialSession.duration);
       setGoal(initialSession.goal);
       setTechnique(initialSession.technique);
-      setBreakInterval(initialSession.breakInterval || 25);
-      setBreakDuration(initialSession.breakDuration || 5);
+      setBreakInterval(initialSession.breakInterval || Math.min(25, Math.max(5, Math.floor((initialSession.duration || 60) * 0.8))));
+      setBreakDuration(initialSession.breakDuration || Math.min(5, Math.max(1, Math.floor((initialSession.duration || 60) * 0.2))));
       setMaterials(initialSession.materials || "");
       setPriority(initialSession.priority);
       setIsFlexible(initialSession.isFlexible || false);
@@ -82,6 +82,26 @@ export function CreateStudySessionDialog({
       setNotes(initialSession.notes || "");
     }
   }, [initialSession]);
+
+  // Initialize break intervals based on duration for new sessions
+  useEffect(() => {
+    if (!initialSession) {
+      // For pomodoro, scale break intervals with duration
+      if (technique === "pomodoro") {
+        // For sessions shorter than 25 minutes, use scaled intervals
+        if (duration < 25) {
+          const scaledInterval = Math.max(5, Math.floor(duration * 0.8));
+          const scaledBreak = Math.max(1, Math.floor(duration * 0.2));
+          setBreakInterval(scaledInterval);
+          setBreakDuration(scaledBreak);
+        } else {
+          // For standard or longer sessions, use default Pomodoro (25/5)
+          setBreakInterval(25);
+          setBreakDuration(5);
+        }
+      }
+    }
+  }, [duration, technique, initialSession]);
 
   const handleSubmit = async () => {
     if (!startTime) {
@@ -227,7 +247,12 @@ export function CreateStudySessionDialog({
             {technique === "pomodoro" && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-2">
-                  <Label htmlFor="breakInterval">Break Interval (minutes)</Label>
+                  <Label htmlFor="breakInterval">
+                    Break Interval (minutes) 
+                    <span className="text-xs ml-1 text-muted-foreground">
+                      ~ {Math.round(duration * 0.8)}% of session
+                    </span>
+                  </Label>
                   <Input
                     id="breakInterval"
                     type="number"
@@ -237,7 +262,12 @@ export function CreateStudySessionDialog({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="breakDuration">Break Duration (minutes)</Label>
+                  <Label htmlFor="breakDuration">
+                    Break Duration (minutes)
+                    <span className="text-xs ml-1 text-muted-foreground">
+                      ~ {Math.round(duration * 0.2)}% of session
+                    </span>
+                  </Label>
                   <Input
                     id="breakDuration"
                     type="number"
