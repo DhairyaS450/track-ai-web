@@ -2,14 +2,11 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "./ui/button";
-import { Card } from "./ui/card";
-import { CircularProgress } from "./CircularProgress";
 import { format } from "date-fns";
-import { Timer, Play, SkipForward, Pause, MessageSquare, Clock, Check, Settings } from "lucide-react";
+import { Play, SkipForward, Pause, Clock, Check, Settings } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { cn } from "@/lib/utils";
 
 const breakSuggestions = [
   "Stretch for 5 minutes to reduce muscle tension",
@@ -57,15 +54,15 @@ export function StudySessionTimer({
   const [isPaused, setIsPaused] = useState(localStorage.getItem("isPaused") === "true");
   const [phaseEndTime, setPhaseEndTime] = useState<Date>(new Date());
   const [progress, setProgress] = useState(initialProgress);
-  const [currentBreakSuggestion, setCurrentBreakSuggestion] = useState("");
+  const [_currentBreakSuggestion, setCurrentBreakSuggestion] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
   const [pauseStartTime, setPauseStartTime] = useState<Date | null>(null);
   const [totalPausedTime, setTotalPausedTime] = useState(0);
   const [actualStartTime, setActualStartTime] = useState<Date>(() => {
     return startTime ? new Date(startTime) : new Date();
   });
-  const navigate = useNavigate();
-  const isMobile = useMediaQuery("(max-width: 640px)");
+  const _navigate = useNavigate();
+  const _isMobile = useMediaQuery("(max-width: 640px)");
 
   // Function to initialize phase
   function initializePhase(isBreakPhase: boolean) {
@@ -131,7 +128,6 @@ export function StudySessionTimer({
       const savedProgress = localStorage.getItem("progress");
       const savedPhase = localStorage.getItem("currentPhase");
       const savedIsPaused = localStorage.getItem("isPaused") === "true";
-      const savedPhaseStartTime = localStorage.getItem("phaseStartTime");
       const savedPhaseEndTime = localStorage.getItem("phaseEndTime");
       const savedLastTime = localStorage.getItem("lastSavedTime");
       const savedPauseStartTime = localStorage.getItem("pauseStartTime");
@@ -433,19 +429,6 @@ export function StudySessionTimer({
     
     // Otherwise just show minutes and seconds
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-  };
-
-  // Better next phase text
-  const calculateNextPhaseTime = () => {
-    const nextPhaseIn = Math.floor(timeLeft / 1000 / 60);
-    const nextPhaseType = isBreak ? "Study" : "Break";
-    
-    if (nextPhaseIn === 0) {
-      const secondsLeft = Math.floor(timeLeft / 1000);
-      return `Next: ${nextPhaseType} in ${secondsLeft}s`;
-    }
-    
-    return `Next: ${nextPhaseType} in ${nextPhaseIn}m`;
   };
 
   return (

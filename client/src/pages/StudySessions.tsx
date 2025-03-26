@@ -6,7 +6,6 @@ import { format } from "date-fns";
 import {
   Timer,
   Plus,
-  Check,
   ChevronDown,
   ChevronUp,
   Edit,
@@ -74,7 +73,6 @@ export function StudySessions() {
   const [_sessionToPostpone, setSessionToPostpone] = useState<string | null>(null);
   const [sessionToEdit, setSessionToEdit] = useState<StudySession | null>(null);
   const [filter, setFilter] = useState<SessionFilter>("all");
-  const [isActiveOpen, setIsActiveOpen] = useState(true);
   const [isUpcomingOpen, setIsUpcomingOpen] = useState(true);
   const [isCompletedOpen, setIsCompletedOpen] = useState(true);
   const [sessionNotes, setSessionNotes] = useState<Record<string, string>>({});

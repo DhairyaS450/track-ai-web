@@ -60,8 +60,9 @@ function Calendar({
         IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
       }}
+      // @ts-ignore 
       formatters={{
-        formatAria: (date) => format(date, "MMMM d, yyyy"),
+        formatAria: (date) => date.toLocaleDateString(),
         formatCaption: (date, options) => format(date, "MMMM yyyy", options),
       }}
       {...props}
