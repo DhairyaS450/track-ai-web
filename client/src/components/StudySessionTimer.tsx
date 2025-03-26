@@ -57,9 +57,6 @@ export function StudySessionTimer({
   const [isPaused, setIsPaused] = useState(localStorage.getItem("isPaused") === "true");
   const [phaseEndTime, setPhaseEndTime] = useState<Date>(new Date());
   const [progress, setProgress] = useState(initialProgress);
-  const [baseProgress, setBaseProgress] = useState(() => 
-    parseFloat(localStorage.getItem("baseProgress") || initialProgress.toString())
-  );
   const [currentBreakSuggestion, setCurrentBreakSuggestion] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
   const [pauseStartTime, setPauseStartTime] = useState<Date | null>(null);
@@ -76,8 +73,7 @@ export function StudySessionTimer({
       duration,
       breakInterval,
       breakDuration,
-      progress,
-      baseProgress
+      currentProgress: Math.round(progress)
     });
     const now = new Date();
     
@@ -115,21 +111,15 @@ export function StudySessionTimer({
     localStorage.setItem("timeLeft", phaseLengthMs.toString());
     localStorage.setItem("lastSavedTime", now.toISOString());
     
-    // If starting a break phase, make sure we preserve the current progress
+    // Phase-specific logic
     if (isBreakPhase) {
-      // In breaks we should maintain the progress from the previous study phase
-      const currentSavedProgress = localStorage.getItem("baseProgress");
-      console.log("Starting break phase, preserving progress:", currentSavedProgress);
+      // Start a break phase
       onPhaseChange?.("break");
       setCurrentBreakSuggestion(
         breakSuggestions[Math.floor(Math.random() * breakSuggestions.length)]
       );
     } else {
-      // If starting a study phase, we can update base progress with current progress
-      // This is important for resuming after a break
-      console.log("Starting study phase with base progress:", progress);
-      localStorage.setItem("baseProgress", progress.toString());
-      setBaseProgress(progress);
+      // Start a study phase
       onPhaseChange?.("study");
     }
   }
@@ -146,14 +136,13 @@ export function StudySessionTimer({
       const savedLastTime = localStorage.getItem("lastSavedTime");
       const savedPauseStartTime = localStorage.getItem("pauseStartTime");
       const savedTotalPausedTime = localStorage.getItem("totalPausedTime");
-      const savedBaseProgress = localStorage.getItem("baseProgress");
       const savedActualStartTime = localStorage.getItem("actualStartTime");
       
       console.log("Loading saved state with values:", {
         savedProgress,
-        savedBaseProgress,
         savedPhase,
-        initialProgress
+        initialProgress,
+        savedActualStartTime
       });
       
       // Load total paused time if available
@@ -161,25 +150,13 @@ export function StudySessionTimer({
         setTotalPausedTime(parseInt(savedTotalPausedTime));
       }
       
-      // Load base progress with proper fallbacks
-      if (savedBaseProgress) {
-        const parsedBaseProgress = parseFloat(savedBaseProgress);
-        if (!isNaN(parsedBaseProgress)) {
-          setBaseProgress(parsedBaseProgress);
-        } else if (initialProgress) {
-          setBaseProgress(initialProgress);
-        } else {
-          setBaseProgress(0);
-        }
-      } else if (initialProgress) {
-        setBaseProgress(initialProgress);
-      }
-      
-      // Load actual start time if available
+      // Load actual start time if available - this is critical for progress calculation
       if (savedActualStartTime) {
         setActualStartTime(new Date(savedActualStartTime));
+        console.log("Loaded actualStartTime from localStorage:", new Date(savedActualStartTime).toISOString());
       } else if (startTime) {
         setActualStartTime(new Date(startTime));
+        console.log("No saved actualStartTime, using startTime prop:", new Date(startTime).toISOString());
       }
       
       // Load pause start time if available
@@ -233,7 +210,6 @@ export function StudySessionTimer({
         // Start with a study phase (not break)
         setIsBreak(false);
         setProgress(initialProgress || 0);
-        setBaseProgress(initialProgress || 0);
         setIsPaused(false);
         setTotalPausedTime(0);
         setPauseStartTime(null);
@@ -244,9 +220,6 @@ export function StudySessionTimer({
         // Initialize the first study phase
         initializePhase(false);
         
-        // Initialize progress tracking values
-        localStorage.setItem("baseProgress", initialProgress ? initialProgress.toString() : "0");
-        
         return true;
       }
       
@@ -255,7 +228,7 @@ export function StudySessionTimer({
       console.error("Error loading saved state:", error);
       return false;
     }
-  }, [duration, breakInterval, initialProgress]);
+  }, [duration, breakInterval, initialProgress, startTime]);
 
   // Initial setup
   useEffect(() => {
@@ -263,7 +236,10 @@ export function StudySessionTimer({
       const parsedStartTime = new Date(startTime);
       setActualStartTime(parsedStartTime);
       localStorage.setItem("actualStartTime", parsedStartTime.toISOString());
-      console.log("SessionTimer - Initialized actual start time:", parsedStartTime);
+      console.log("SessionTimer - Initialized actual start time:", parsedStartTime.toISOString());
+      console.log("SessionTimer - Current start time prop:", startTime);
+    } else {
+      console.warn("SessionTimer - No start time provided!");
     }
     
     if (!isInitialized) {
@@ -279,30 +255,34 @@ export function StudySessionTimer({
     }
   }, [isInitialized, loadSavedState, startTime]);
   
-  // Progress calculation function to use consistently
-  const calculateSessionProgress = useCallback(() => {
-    // Calculate progress based on total elapsed time relative to total session duration
-    const sessionDurationMs = duration * 60 * 1000;
-    const startTimeMs = actualStartTime.getTime();
-    const currentTimeMs = new Date().getTime();
-    const elapsedMs = currentTimeMs - startTimeMs - totalPausedTime;
+  // Progress calculation function that works correctly in all scenarios
+  const calculateTotalProgress = useCallback(() => {
+    if (!actualStartTime) return 0;
     
-    // Ensure progress is always between 0-100%
-    const calculatedProgress = Math.min(100, Math.max(0, (elapsedMs / sessionDurationMs) * 100));
+    // Get total session duration in ms
+    const totalDurationMs = duration * 60 * 1000;
+    
+    // Calculate elapsed time since session started
+    const now = new Date();
+    const elapsedMs = Math.max(0, now.getTime() - actualStartTime.getTime() - totalPausedTime);
+    
+    // Calculate progress percentage (capped at 100%)
+    const rawProgress = (elapsedMs / totalDurationMs) * 100;
+    const finalProgress = Math.min(100, Math.max(0, rawProgress));
     
     console.log("Progress calculation:", {
-      currentTime: new Date().toISOString(),
+      currentTime: now.toISOString(),
       actualStartTime: actualStartTime.toISOString(),
       elapsedMs,
-      sessionDurationMs,
+      totalDurationMs,
       totalPausedTime,
-      calculatedProgress: Math.round(calculatedProgress)
+      calculatedProgress: Math.round(finalProgress)
     });
     
-    return calculatedProgress;
+    return finalProgress;
   }, [actualStartTime, duration, totalPausedTime]);
   
-  // Timer effect - Use the consistent calculation function
+  // Timer effect
   useEffect(() => {
     if (!isInitialized || isPaused) {
       return;
@@ -319,38 +299,33 @@ export function StudySessionTimer({
         localStorage.setItem("timeLeft", newTimeLeft.toString());
         localStorage.setItem("lastSavedTime", new Date().toISOString());
         
+        // Handle phase completion
         if (newTimeLeft === 0) {
-          // Phase is completed
+          // Current phase completed
           const wasBreak = isBreak;
           
-          // If this was a break phase, we need to resume with study phase
+          // Calculate current progress
+          const currentProgress = calculateTotalProgress();
+          
           if (wasBreak) {
+            // Moving from break to study
             console.log("Break phase complete, transitioning to study phase");
             setIsBreak(false);
             initializePhase(false);
           } else {
-            // This was a study phase
-            const calculatedProgress = calculateSessionProgress();
+            // Moving from study to break
+            console.log("Study phase complete, transitioning to break phase");
             
-            // If we're at 100% progress, end the session
-            if (calculatedProgress >= 99.5) {
-              // Complete session
+            // If we've reached 100%, end the session
+            if (currentProgress >= 99.5) {
               console.log("Session complete (100% progress reached)");
-              setProgress(100); // Ensure we show exactly 100%
+              setProgress(100);
               localStorage.setItem("progress", "100");
               onComplete?.();
               return 0;
             }
             
-            // Store the current progress before starting break
-            const progressToSave = Math.round(calculatedProgress * 100) / 100; // Round to 2 decimal places
-            console.log("Saving progress before break phase:", progressToSave);
-            localStorage.setItem("baseProgress", progressToSave.toString());
-            setBaseProgress(progressToSave);
-            setProgress(progressToSave); // Update visible progress immediately
-            
-            // Start a break phase
-            console.log("Study phase complete, transitioning to break phase");
+            // Otherwise start a break
             setIsBreak(true);
             initializePhase(true);
           }
@@ -359,22 +334,16 @@ export function StudySessionTimer({
         return newTimeLeft;
       });
       
-      // Update progress in study phases only, maintain during breaks
-      if (!isBreak) {
-        const calculatedProgress = calculateSessionProgress();
-        setProgress(calculatedProgress);
-        localStorage.setItem("progress", calculatedProgress.toString());
-      } else {
-        // During breaks, maintain the progress from the last study phase
-        const storedBaseProgress = parseFloat(localStorage.getItem("baseProgress") || baseProgress.toString());
-        if (!isNaN(storedBaseProgress)) {
-          setProgress(storedBaseProgress);
-        }
-      }
+      // IMPORTANT: Always calculate progress based on total session time,
+      // regardless of whether we're in a study or break phase
+      const currentProgress = calculateTotalProgress();
+      setProgress(currentProgress);
+      localStorage.setItem("progress", currentProgress.toString());
+      
     }, 1000);
     
     return () => clearInterval(timer);
-  }, [isInitialized, isPaused, isBreak, onComplete, calculateSessionProgress, baseProgress]);
+  }, [isInitialized, isPaused, isBreak, onComplete, calculateTotalProgress]);
 
   // Cleanup and persistence on unmount
   useEffect(() => {
@@ -382,7 +351,6 @@ export function StudySessionTimer({
       localStorage.setItem("isPaused", isPaused.toString());
       localStorage.setItem("timeLeft", timeLeft.toString());
       localStorage.setItem("progress", progress.toString());
-      localStorage.setItem("baseProgress", baseProgress.toString());
       localStorage.setItem("lastSavedTime", new Date().toISOString());
       localStorage.setItem("totalPausedTime", totalPausedTime.toString());
       if (pauseStartTime) {
@@ -397,7 +365,7 @@ export function StudySessionTimer({
       window.removeEventListener("beforeunload", handleBeforeUnload);
       handleBeforeUnload();
     };
-  }, [isPaused, timeLeft, progress, totalPausedTime, pauseStartTime, baseProgress]);
+  }, [isPaused, timeLeft, progress, totalPausedTime, pauseStartTime]);
 
   const handlePause = () => {
     if (isPaused) return; // Already paused
@@ -444,23 +412,7 @@ export function StudySessionTimer({
     const newIsBreak = !isBreak;
     console.log(`Manually skipping to ${newIsBreak ? 'break' : 'study'} phase`);
     
-    if (isBreak) {
-      // Transitioning from break to study
-      // Just keep the current progress as we move back to study
-      console.log("Maintaining progress at transition from break to study:", progress);
-    } else {
-      // Transitioning from study to break - use our consistent calculation function
-      const calculatedProgress = calculateSessionProgress();
-      
-      // Store calculated progress before entering break
-      const progressToSave = Math.round(calculatedProgress * 100) / 100;
-      console.log("Saving current progress before manually entering break:", progressToSave);
-      localStorage.setItem("baseProgress", progressToSave.toString());
-      setBaseProgress(progressToSave);
-      setProgress(progressToSave);
-    }
-    
-    // Change the phase
+    // No changes to progress calculation needed since we're using total time
     setIsBreak(newIsBreak);
     initializePhase(newIsBreak);
     onPhaseChange(newIsBreak ? "break" : "study");

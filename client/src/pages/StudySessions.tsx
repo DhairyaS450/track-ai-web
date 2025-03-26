@@ -157,8 +157,9 @@ export function StudySessions() {
       localStorage.removeItem("isPaused");
       localStorage.removeItem("lastSavedTime");
       localStorage.removeItem("actualStartTime");
-      localStorage.removeItem("baseProgress");
       localStorage.removeItem("isFirstPhase");
+      localStorage.removeItem("totalPausedTime");
+      localStorage.removeItem("pauseStartTime");
       
       toast({
         title: "Success",
@@ -177,16 +178,14 @@ export function StudySessions() {
   useEffect(() => {
     // Define a function to clean localStorage
     const cleanLocalStorage = () => {
-      localStorage.removeItem("currentPhase");
-      localStorage.removeItem("phaseStartTime");
-      localStorage.removeItem("phaseEndTime");
-      localStorage.removeItem("timeLeft");
-      localStorage.removeItem("progress");
-      localStorage.removeItem("isPaused");
-      localStorage.removeItem("lastSavedTime");
-      localStorage.removeItem("actualStartTime");
-      localStorage.removeItem("baseProgress");
-      localStorage.removeItem("isFirstPhase");
+      const keysToRemove = [
+        "currentPhase", "phaseStartTime", "phaseEndTime", 
+        "timeLeft", "progress", "isPaused", "lastSavedTime",
+        "isFirstPhase", "totalPausedTime", "pauseStartTime", 
+        "actualStartTime"
+      ];
+      
+      keysToRemove.forEach(key => localStorage.removeItem(key));
       console.log('Cleared session data from localStorage');
     };
   
@@ -242,7 +241,8 @@ export function StudySessions() {
           localStorage.setItem("isPaused", "false");
           localStorage.setItem("lastSavedTime", new Date().toISOString());
           localStorage.setItem("actualStartTime", activeSession.startTime);
-          localStorage.setItem("baseProgress", String(activeSession.completion || 0));
+          localStorage.setItem("isFirstPhase", "true"); // Mark as first phase
+          localStorage.setItem("totalPausedTime", "0"); // Reset paused time
         }
         
         // Make sure active tab shows the session
@@ -380,19 +380,18 @@ export function StudySessions() {
       // Initialize basic localStorage values for timer initialization
       localStorage.setItem("currentPhase", "study");
       localStorage.setItem("progress", "0");
-      localStorage.setItem("baseProgress", "0"); // Explicitly set base progress to 0 when starting
       localStorage.setItem("isPaused", "false");
       localStorage.setItem("lastSavedTime", currentTimestamp);
-      localStorage.setItem("actualStartTime", currentTimestamp); // Set the actual start time
+      localStorage.setItem("actualStartTime", currentTimestamp); // Critical for progress calculation
       localStorage.setItem("isFirstPhase", "true"); // Mark as first phase
       localStorage.setItem("totalPausedTime", "0"); // Reset paused time
       
       console.log('LocalStorage initialized for new session:', {
         currentPhase: "study",
         progress: "0",
-        baseProgress: "0",
         actualStartTime: currentTimestamp,
-        isFirstPhase: true
+        isFirstPhase: true,
+        totalPausedTime: 0
       });
       
       toast({
