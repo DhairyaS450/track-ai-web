@@ -104,6 +104,15 @@ export function CreateStudySessionDialog({
   }, [duration, technique, initialSession]);
 
   const handleSubmit = async () => {
+    if (!topic.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Subject is required",
+      });
+      return;
+    }
+
     if (!startTime) {
       toast({
         variant: "destructive",
@@ -114,23 +123,29 @@ export function CreateStudySessionDialog({
     }
 
     try {
+      // Preserve the original status when editing
+      const sessionStatus = initialSession?.status || "scheduled";
+      
       const sessionData = {
+        ...(initialSession?.id ? { id: initialSession.id } : {}),
         subject: topic,
         scheduledFor: startTime,
-        duration,
-        goal,
-        technique,
-        breakInterval,
-        breakDuration,
-        materials,
-        priority,
-        isFlexible,
-        reminders,
-        linkedTaskIds,
-        linkedEventIds,
-        status: "scheduled" as const,
-        completion,
-        notes,
+        duration: duration || 60,
+        goal: goal || '',
+        technique: technique || 'pomodoro',
+        breakInterval: breakInterval || 25,
+        breakDuration: breakDuration || 5,
+        materials: materials || '',
+        priority: priority || 'Medium',
+        isFlexible: isFlexible || false,
+        reminders: reminders || [],
+        linkedTaskIds: linkedTaskIds || [],
+        linkedEventIds: linkedEventIds || [],
+        // Preserve status and start time if this is an in-progress session
+        status: sessionStatus,
+        startTime: sessionStatus === "in-progress" ? initialSession?.startTime : undefined,
+        completion: sessionStatus === "in-progress" ? initialSession?.completion || 0 : 0,
+        notes: notes || '',
       };
 
       onSessionCreated(sessionData as StudySession);

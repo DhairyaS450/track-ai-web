@@ -3,11 +3,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "./ui/button";
 import { format } from "date-fns";
-import { Play, SkipForward, Pause, Clock, Check, Settings } from "lucide-react";
+import { Play, SkipForward, Pause, Clock, Check, Settings, MoreVertical, Edit, CalendarDays, X } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "./ui/dropdown-menu";
 
 const breakSuggestions = [
   "Stretch for 5 minutes to reduce muscle tension",
@@ -28,6 +35,8 @@ interface StudySessionTimerProps {
   onPause: (progress: number) => void;
   onResume: () => void;
   onSettings?: () => void;
+  onPostpone?: () => void;
+  onDelete?: () => void;
   initialProgress?: number;
   subjectName?: string;
   priority?: "High" | "Medium" | "Low";
@@ -43,6 +52,8 @@ export function StudySessionTimer({
   onPause,
   onResume,
   onSettings,
+  onPostpone,
+  onDelete,
   initialProgress = 0,
   subjectName,
   priority,
@@ -356,8 +367,8 @@ export function StudySessionTimer({
     // Update immediately
     updateProgress();
     
-    // Then update every second (but only if not paused)
-    const timer = !isPaused ? setInterval(updateProgress, 1000) : null;
+    // Then update more frequently (200ms) for smoother progress updates
+    const timer = !isPaused ? setInterval(updateProgress, 200) : null;
     
     return () => {
       if (timer) clearInterval(timer);
@@ -532,7 +543,7 @@ export function StudySessionTimer({
       <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
         <div 
           className={cn(
-            "h-full rounded-full transition-all duration-300",
+            "h-full rounded-full",
             priority === "High" && "bg-red-500",
             priority === "Medium" && "bg-[#F49D1A]",
             priority === "Low" && "bg-green-500",
@@ -540,37 +551,12 @@ export function StudySessionTimer({
           )} 
           style={{ 
             width: `${Math.max(0, Math.min(100, progress))}%`,
-            transition: "width 0.3s ease-out" 
+            transition: "width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)" 
           }}
         />
       </div>
     </div>
   );
-
-  // Add debug info in development mode
-  const debugInfo = process.env.NODE_ENV === 'development' ? (
-    <div className="text-xs text-muted-foreground border-t p-2 bg-stone-100 dark:bg-stone-900 space-y-1">
-      <div>Debug: ActualStartTime: {actualStartTime.toLocaleTimeString()}</div>
-      <div>Phase: {isBreak ? 'Break' : 'Study'} ({formatTimeLeft(timeLeft)} remaining)</div>
-      
-      {/* Calculate overall session progress */}
-      {(() => {
-        const sessionStartTime = actualStartTime ? actualStartTime.getTime() : 0;
-        const totalSessionDurationMs = duration * 60 * 1000;
-        const now = new Date().getTime();
-        const elapsedTimeMs = now - sessionStartTime - totalPausedTime;
-        const overallProgress = (elapsedTimeMs / totalSessionDurationMs) * 100;
-        return (
-          <>
-            <div>Phase Progress: {progress.toFixed(1)}%</div>
-            <div>Overall Progress: {Math.min(100, Math.max(0, overallProgress)).toFixed(1)}%</div>
-            <div>TotalPausedTime: {Math.round(totalPausedTime / 1000)}s</div>
-            <div>IsPaused: {isPaused ? 'true' : 'false'}</div>
-          </>
-        );
-      })()}
-    </div>
-  ) : null;
 
   // Handle the "End" button click
   const handleEndSession = () => {
@@ -674,31 +660,64 @@ export function StudySessionTimer({
       
       {/* Bottom buttons */}
       <div className="flex justify-between p-4">
-        <button
-          className="bg-muted text-foreground border rounded py-1 px-3 flex items-center justify-center text-xs font-medium hover:bg-muted/80"
-          onClick={onSettings}
-        >
-          <Settings className="h-3.5 w-3.5 mr-1" />
-          Settings
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 text-xs p-2 md:p-2.5 border-muted-foreground/20"
+            >
+              <MoreVertical className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="ml-1 md:ml-2">More</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem onClick={() => {
+              console.log("Settings button clicked");
+              if (onSettings) {
+                onSettings();
+              }
+            }}>
+              <Edit className="h-4 w-4 mr-2" />
+              <span>Edit</span>
+            </DropdownMenuItem>
+            {onPostpone && (
+              <DropdownMenuItem onClick={() => {
+                console.log("Postpone button clicked");
+                onPostpone();
+              }}>
+                <CalendarDays className="h-4 w-4 mr-2" />
+                <span>Postpone Session</span>
+              </DropdownMenuItem>
+            )}
+            {onDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  className="text-red-600 dark:text-red-400"
+                  onClick={() => {
+                    console.log("Delete button clicked");
+                    onDelete();
+                  }}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  <span>Delete Session</span>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
         
-        <button
+        <Button
           onClick={handleEndSession}
-          className={cn(
-            "text-white rounded py-1 px-3 flex items-center justify-center text-xs font-medium",
-            priority === "High" && "bg-red-500 hover:bg-red-600",
-            priority === "Medium" && "bg-[#F49D1A] hover:bg-[#d68a17]",
-            priority === "Low" && "bg-green-500 hover:bg-green-600",
-            !priority && "bg-green-500 hover:bg-green-600" // Default to green if no priority
-          )}
+          variant="default"
+          size="sm"
+          className="h-8 text-xs"
         >
-          <Check className="h-3.5 w-3.5 mr-1" />
+          <Check className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
           End
-        </button>
+        </Button>
       </div>
-      
-      {/* Add debugging information if in development */}
-      {debugInfo}
     </div>
   );
 }

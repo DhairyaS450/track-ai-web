@@ -466,8 +466,19 @@ export function StudySessions() {
             }}
             initialProgress={activeSession.completion || 0}
             onSettings={() => {
+              console.log("Opening edit dialog for session:", activeSession.id);
               setSessionToEdit(activeSession);
               setCreateSessionOpen(true);
+            }}
+            onPostpone={() => {
+              console.log("Opening postpone dialog for session:", activeSession.id);
+              setSessionToPostpone(activeSession.id);
+              setPostponeSessionOpen(true);
+            }}
+            onDelete={() => {
+              console.log("Opening delete dialog for session:", activeSession.id);
+              setSessionToDelete(activeSession.id);
+              setDeleteSessionOpen(true);
             }}
             subjectName={activeSession.subject}
             priority={activeSession.priority || "Medium"}
@@ -572,16 +583,21 @@ export function StudySessions() {
                       </div>
                       
                       {/* Session Actions - Simplified for mobile */}
-                      <div className="flex items-center justify-between">
+                      <div className="flex justify-between items-center gap-2">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-8 text-xs p-2 md:p-2.5 border-muted-foreground/20">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 text-xs p-2 md:p-2.5 border-muted-foreground/20"
+                            >
                               <MoreVertical className="h-3 w-3 md:h-4 md:w-4" />
                               <span className="ml-1 md:ml-2">More</span>
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start" className="w-48">
                             <DropdownMenuItem onClick={() => {
+                              console.log("Opening edit dialog for session:", session.id);
                               setSessionToEdit(session);
                               setCreateSessionOpen(true);
                             }}>
@@ -596,10 +612,13 @@ export function StudySessions() {
                               <span>Postpone Session</span>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600 dark:text-red-400" onClick={() => {
-                              setSessionToDelete(session.id);
-                              setDeleteSessionOpen(true);
-                            }}>
+                            <DropdownMenuItem 
+                              className="text-red-600 dark:text-red-400"
+                              onClick={() => {
+                                setSessionToDelete(session.id);
+                                setDeleteSessionOpen(true);
+                              }}
+                            >
                               <X className="h-4 w-4 mr-2" />
                               <span>Delete Session</span>
                             </DropdownMenuItem>
@@ -610,9 +629,9 @@ export function StudySessions() {
                           onClick={() => handleStartSession(session.id)}
                           variant="default"
                           size="sm"
-                          className="h-8 text-xs md:text-sm py-0 bg-blue-500 hover:bg-blue-600 text-white"
+                          className="h-8 text-xs"
                         >
-                          <Timer className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                          <Play className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
                           Start
                         </Button>
                       </div>
@@ -903,40 +922,25 @@ export function StudySessions() {
     const isCompleted = session.status === "completed";
     
     if (isActive) return "bg-green-500 dark:bg-green-500";
-    if (isCompleted) return "bg-green-500 dark:bg-green-500";
-    if (session.priority === "High") return "bg-red-500 dark:bg-red-500";
+      if (isCompleted) return "bg-green-500 dark:bg-green-500";
+      if (session.priority === "High") return "bg-red-500 dark:bg-red-500";
     if (session.priority === "Medium") return "bg-[#F49D1A] dark:bg-[#F49D1A]";
     if (session.priority === "Low") return "bg-green-500 dark:bg-green-500";
-    return "bg-slate-500 dark:bg-slate-500";
-  };
-  
-  // Render a mobile-optimized study session card (updated to use the new getStatusColor function)
-  const renderMobileSessionCard = (session: StudySession) => {
-    const isExpanded = expandedSessionId === session.id;
-    const isActive = session.status === "in-progress";
-    const isCompleted = session.status === "completed";
+      return "bg-slate-500 dark:bg-slate-500";
+    };
     
-    // Check for active session in mobile view and always expand it
-    useEffect(() => {
-      if (isActive && session.id) {
-        setExpandedSessionId(session.id);
-      }
-    }, [isActive, session.id]);
+  // Render each study session card for mobile view
+  const renderMobileSessionCard = (session: StudySession) => {
+    const isActive = activeSession?.id === session.id;
+    const isCompleted = session.status === "completed";
+    const isExpanded = expandedSessionId === session.id;
 
     return (
       <div 
         key={session.id}
-        className={cn(
-          "border rounded-lg mb-3 overflow-hidden transition-all",
-          isExpanded ? "shadow-md" : "shadow-sm",
-          isActive && "border-0",
-          isCompleted && "border-t-4 border-t-green-500",
-          !isActive && !isCompleted && session.priority === "High" && "border-l-4 border-l-red-500",
-          !isActive && !isCompleted && session.priority === "Low" && "border-l-4 border-l-green-500",
-          !isActive && !isCompleted && session.isAIRecommended && "border-l-4 border-l-purple-500"
-        )}
+        className="mb-3 border rounded-lg overflow-hidden shadow-sm"
       >
-        {/* Clickable header that shows minimal info */}
+        {/* Card header with basic info */}
         <div
           className={cn(
             "flex items-center p-3 gap-3 cursor-pointer"
@@ -1004,8 +1008,19 @@ export function StudySessions() {
                   onPhaseChange={handlePhaseChange}
                   onComplete={() => handleEndSession(session.id)}
                   onSettings={() => {
+                    console.log("Opening edit dialog for mobile active session:", session.id);
                     setSessionToEdit(session);
                     setCreateSessionOpen(true);
+                  }}
+                  onPostpone={() => {
+                    console.log("Opening postpone dialog for mobile active session:", session.id);
+                    setSessionToPostpone(session.id);
+                    setPostponeSessionOpen(true);
+                  }}
+                  onDelete={() => {
+                    console.log("Opening delete dialog for mobile active session:", session.id);
+                    setSessionToDelete(session.id);
+                    setDeleteSessionOpen(true);
                   }}
                   onPause={(progress) => {
                     updateSession(session.id, { 
@@ -1028,7 +1043,7 @@ export function StudySessions() {
                   priority={session.priority || "Medium"}
                 />
               </div>
-            ) : (
+            ) :
               <div className="space-y-3 p-3">
                 <p className="text-xs text-muted-foreground">{session.goal}</p>
                 
@@ -1058,7 +1073,7 @@ export function StudySessions() {
                       />
                     </div>
                     
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex gap-2 pt-2">
                       <Button
                         variant="outline"
                         size="sm"
@@ -1098,20 +1113,21 @@ export function StudySessions() {
                       </div>
                     </div>
                     
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex justify-between items-center gap-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 h-7 text-xs"
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-xs p-2 md:p-2.5 border-muted-foreground/20"
                           >
-                            <MoreVertical className="h-3 w-3 mr-1" />
-                            More
+                            <MoreVertical className="h-3 w-3 md:h-4 md:w-4" />
+                            <span className="ml-1 md:ml-2">More</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-48">
                           <DropdownMenuItem onClick={() => {
+                            console.log("Opening edit dialog for session:", session.id);
                             setSessionToEdit(session);
                             setCreateSessionOpen(true);
                           }}>
@@ -1123,32 +1139,36 @@ export function StudySessions() {
                             setPostponeSessionOpen(true);
                           }}>
                             <CalendarDays className="h-4 w-4 mr-2" />
-                            <span>Postpone</span>
+                            <span>Postpone Session</span>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600" onClick={() => {
-                            setSessionToDelete(session.id);
-                            setDeleteSessionOpen(true);
-                          }}>
+                          <DropdownMenuItem 
+                            className="text-red-600 dark:text-red-400"
+                            onClick={() => {
+                              setSessionToDelete(session.id);
+                              setDeleteSessionOpen(true);
+                            }}
+                          >
                             <X className="h-4 w-4 mr-2" />
-                            <span>Delete</span>
+                            <span>Delete Session</span>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      
                       <Button
+                        onClick={() => handleStartSession(session.id)}
                         variant="default"
                         size="sm"
-                        className="flex-1 h-7 text-xs"
-                        onClick={() => handleStartSession(session.id)}
+                        className="h-8 text-xs"
                       >
-                        <Play className="h-3 w-3 mr-1" />
+                        <Play className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
                         Start
                       </Button>
                     </div>
                   </>
                 )}
               </div>
-            )}
+            }
           </div>
         )}
       </div>
@@ -1228,6 +1248,48 @@ export function StudySessions() {
     );
   };
 
+  // Now use the existing handleCreateSession function 
+  const handleCreateSession = async (sessionData: StudySession) => {
+    try {
+      let response;
+      
+      if (sessionData.id) {
+        // This is an update to an existing session
+        response = await updateSession(sessionData.id, sessionData);
+        
+        // If we're updating the active session, maintain it as active
+        if (activeSession && sessionData.id === activeSession.id) {
+          if (sessionData.status === 'in-progress') {
+            console.log('Updating active session:', sessionData);
+            if (response && response.session) {
+              setActiveSession(response.session);
+            }
+          }
+        }
+      } else {
+        // This is a new session
+        response = await addSession(sessionData);
+      }
+      
+      setCreateSessionOpen(false);
+      setSessionToEdit(null);
+      
+      toast({
+        title: "Success",
+        description: sessionData.id 
+          ? "Study session updated" 
+          : "Study session created",
+      });
+    } catch (error) {
+      console.error("Error saving session:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save study session",
+      });
+    }
+  };
+
   return (
     <>
       {isMobile ? renderMobileView() : renderDesktopView()}
@@ -1245,26 +1307,51 @@ export function StudySessions() {
           duration: sessionToEdit.duration,
           technique: sessionToEdit.technique,
           status: sessionToEdit.status,
-          startTime: sessionToEdit.scheduledFor,
+          startTime: sessionToEdit.startTime, // Pass active session start time
+          endTime: sessionToEdit.endTime,
           scheduledFor: sessionToEdit.scheduledFor,
           priority: sessionToEdit.priority || 'Medium',
-          notes: sessionToEdit.notes,
+          notes: sessionToEdit.notes || '',
           itemType: 'session',
           breakInterval: sessionToEdit.breakInterval,
           breakDuration: sessionToEdit.breakDuration,
-          materials: sessionToEdit.materials,
-          isFlexible: sessionToEdit.isFlexible,
+          materials: sessionToEdit.materials || '',
+          isFlexible: sessionToEdit.isFlexible || false,
+          completion: sessionToEdit.completion || 0,
           userId: 'current-user',
           createdAt: new Date().toISOString()
         } as UnifiedStudySession : undefined}
         mode={sessionToEdit ? "edit" : "create"}
-        onSave={(item) => {
-          const sessionData = convertFromUnified(item as SchedulableItem) as StudySession;
-          if (sessionToEdit) {
-            updateSession(sessionToEdit.id, sessionData);
-          } else {
-            addSession(sessionData);
+        onSave={(item: SchedulableItem) => {
+          // Convert back from UnifiedStudySession to StudySession
+          const sessionItem = item as UnifiedStudySession;
+          
+          // Determine if this is an edit of an active session
+          const isActiveEdit = sessionToEdit?.status === 'in-progress';
+          
+          const sessionData: Partial<StudySession> = {
+            ...(sessionItem.id ? { id: sessionItem.id } : {}),
+            subject: sessionItem.title || '',
+            goal: sessionItem.description || '',
+            duration: sessionItem.duration || 60,
+            technique: sessionItem.technique || 'pomodoro',
+            scheduledFor: sessionItem.scheduledFor || new Date().toISOString(),
+            status: isActiveEdit ? 'in-progress' : 'scheduled',
+            priority: (sessionItem.priority as 'High' | 'Medium' | 'Low') || 'Medium',
+            notes: sessionItem.notes || '',
+            breakInterval: sessionItem.breakInterval || 25,
+            breakDuration: sessionItem.breakDuration || 5,
+            materials: sessionItem.materials || '',
+            isFlexible: sessionItem.isFlexible || false,
+          };
+          
+          // Add these only for active sessions
+          if (isActiveEdit) {
+            sessionData.startTime = sessionToEdit.startTime;
+            sessionData.completion = sessionToEdit.completion || 0;
           }
+          
+          handleCreateSession(sessionData as StudySession);
         }}
       />
 
