@@ -432,7 +432,7 @@ export function StudySessions() {
     if (!activeSession) return null;
 
     return (
-      <Card className="shadow-md border-0 overflow-hidden bg-blue-950 dark:bg-blue-950 text-white">
+      <Card className="shadow-md overflow-hidden border-0">
         <CardContent className="p-0">
           <StudySessionTimer
             startTime={activeSession.startTime || activeSession.scheduledFor}
@@ -482,17 +482,17 @@ export function StudySessions() {
     if (upcomingSessions.length === 0) return null;
     
     return (
-      <Card className="border-t-4 border-t-blue-500 dark:border-t-blue-500 shadow-sm">
+      <Card className="border-t-4 border-t-blue-500 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
-            <CalendarDays className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+            <CalendarDays className="h-5 w-5 text-blue-500" />
             Upcoming Sessions
           </CardTitle>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsUpcomingOpen(!isUpcomingOpen)}
-            className="h-8 w-8 p-0 hover:bg-muted/50 dark:hover:bg-muted/20"
+            className="h-8 w-8 p-0"
           >
             {isUpcomingOpen ? (
               <ChevronUp className="h-4 w-4" />
@@ -513,7 +513,8 @@ export function StudySessions() {
                       session.isAIRecommended
                         ? "bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-950/30 dark:to-purple-950/30"
                         : "bg-card hover:bg-accent/5 dark:hover:bg-accent/5",
-                      session.priority === "High" && "border-l-4 border-l-red-400 dark:border-l-red-600"
+                      session.priority === "High" && "border-l-4 border-l-red-400 dark:border-l-red-600",
+                      session.priority === "Low" && "border-l-4 border-l-green-400 dark:border-l-green-600"
                     )}
                   >
                     <div className="flex flex-col space-y-3 md:space-y-5">
@@ -554,17 +555,17 @@ export function StudySessions() {
                       
                       {/* Session Details */}
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs md:text-sm">
-                        <div className="flex items-center gap-1 md:gap-2 bg-muted/30 dark:bg-muted/30 p-1.5 md:p-2 rounded-md">
-                          <Clock className="h-3 w-3 md:h-4 md:w-4 text-blue-500 dark:text-blue-400" />
+                        <div className="flex items-center gap-1 md:gap-2 bg-muted/30 p-1.5 md:p-2 rounded-md">
+                          <Clock className="h-3 w-3 md:h-4 md:w-4 text-blue-500" />
                           <span className="truncate">{format(new Date(session.scheduledFor), "MMM d, h:mm a")}</span>
                         </div>
-                        <div className="flex items-center gap-1 md:gap-2 bg-muted/30 dark:bg-muted/30 p-1.5 md:p-2 rounded-md">
-                          <Timer className="h-3 w-3 md:h-4 md:w-4 text-blue-500 dark:text-blue-400" />
+                        <div className="flex items-center gap-1 md:gap-2 bg-muted/30 p-1.5 md:p-2 rounded-md">
+                          <Timer className="h-3 w-3 md:h-4 md:w-4 text-blue-500" />
                           <span>{session.duration} min</span>
                         </div>
                         {session.technique && (
-                          <div className="flex items-center col-span-2 md:col-span-1 gap-1 md:gap-2 bg-muted/30 dark:bg-muted/30 p-1.5 md:p-2 rounded-md">
-                            <Settings className="h-3 w-3 md:h-4 md:w-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                          <div className="flex items-center col-span-2 md:col-span-1 gap-1 md:gap-2 bg-muted/30 p-1.5 md:p-2 rounded-md">
+                            <Settings className="h-3 w-3 md:h-4 md:w-4 text-blue-500 flex-shrink-0" />
                             <span className="truncate">{session.technique}</span>
                           </div>
                         )}
@@ -660,7 +661,7 @@ export function StudySessions() {
                   });
                 }
               }}
-              className="text-xs border-red-200 hover:border-red-300 hover:bg-red-50 text-red-600 dark:border-red-800 dark:hover:border-red-700 dark:hover:bg-red-950"
+              className="text-xs border-red-200 hover:border-red-300 hover:bg-red-50 text-red-600"
             >
               <X className="h-3.5 w-3.5 mr-1" />
               Clear All
@@ -726,7 +727,7 @@ export function StudySessions() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-xs py-1 h-8 border-red-200 hover:border-red-300 hover:bg-red-50 text-red-600 dark:border-red-800 dark:hover:border-red-700 dark:hover:bg-red-950"
+                        className="text-xs py-1 h-8 border-red-200 hover:border-red-300 hover:bg-red-50 text-red-600"
                         onClick={() => {
                           setSessionToDelete(session.id);
                           setDeleteSessionOpen(true);
@@ -738,7 +739,7 @@ export function StudySessions() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-xs py-1 h-8 border-blue-200 hover:border-blue-300 hover:bg-blue-50 text-blue-600 dark:border-blue-800 dark:hover:border-blue-700 dark:hover:bg-blue-950"
+                        className="text-xs py-1 h-8 border-blue-200 hover:border-blue-300 hover:bg-blue-50 text-blue-600"
                         onClick={() => {
                           setSessionToReschedule(session);
                           setRescheduleSessionOpen(true);
@@ -758,268 +759,6 @@ export function StudySessions() {
     );
   };
 
-  // Render a mobile-optimized study session card
-  const renderMobileSessionCard = (session: StudySession) => {
-    const isExpanded = expandedSessionId === session.id;
-    const isActive = session.status === "in-progress";
-    const isCompleted = session.status === "completed";
-    
-    // Function to get the appropriate status color
-    const getStatusColor = () => {
-      if (isActive) return "bg-blue-500 dark:bg-blue-500";
-      if (isCompleted) return "bg-green-500 dark:bg-green-500";
-      if (session.priority === "High") return "bg-red-500 dark:bg-red-500";
-      if (session.priority === "Medium") return "bg-amber-500 dark:bg-amber-500";
-      return "bg-slate-500 dark:bg-slate-500";
-    };
-    
-    // Check for active session in mobile view and always expand it
-    useEffect(() => {
-      if (isActive && session.id) {
-        setExpandedSessionId(session.id);
-      }
-    }, [isActive, session.id]);
-
-    return (
-      <div 
-        key={session.id}
-        className={cn(
-          "border rounded-lg mb-3 overflow-hidden transition-all",
-          isExpanded ? "shadow-md" : "shadow-sm",
-          isActive && "border-0 bg-gradient-to-r from-blue-950 to-slate-900 dark:from-blue-950 dark:to-slate-900 text-white",
-          isCompleted && "border-green-200 dark:border-green-800",
-          session.isAIRecommended && !isActive && !isCompleted && "bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20"
-        )}
-      >
-        {/* Clickable header that shows minimal info */}
-        <div
-          className={cn(
-            "flex items-center p-3 gap-3 cursor-pointer",
-            isActive && "text-white"
-          )}
-          onClick={() => {
-            if (isActive) {
-              // Always keep active session expanded
-              return;
-            }
-            setExpandedSessionId(expandedSessionId === session.id ? null : session.id);
-          }}
-        >
-          {/* Status dot */}
-          <div className={cn("w-3 h-3 rounded-full flex-shrink-0", getStatusColor())}></div>
-          
-          {/* Subject and time */}
-          <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-sm truncate">{session.subject}</h3>
-            <p className={cn(
-              "text-xs",
-              isActive ? "text-white/70" : "text-muted-foreground"
-            )}>
-              {isActive ? (
-                <span>In progress</span>
-              ) : isCompleted ? (
-                <span className="text-green-600 dark:text-green-400">Completed</span>
-              ) : (
-                <span>{format(new Date(session.scheduledFor), "MMM d, h:mm a")}</span>
-              )}
-            </p>
-          </div>
-          
-          {/* Duration and icon */}
-          <div className="flex items-center gap-1.5">
-            <div className={cn(
-              "text-xs",
-              isActive ? "text-white/70" : "text-muted-foreground"
-            )}>
-              {session.duration}m
-            </div>
-            {!isActive && (
-              <div className={cn(
-                "w-5 h-5 flex items-center justify-center",
-                isActive ? "text-white" : "text-muted-foreground"
-              )}>
-                {isExpanded ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Expanded content */}
-        {(isExpanded || isActive) && (
-          <div className={cn(
-            "px-0 pb-0",
-            isActive ? "" : "border-t border-border/30"
-          )}>
-            {/* If active session, show timer */}
-            {isActive ? (
-              <div>
-                <div className="px-3 pt-2">
-                  <p className="text-xs text-white/70 mb-2">{session.goal}</p>
-                </div>
-                
-                <StudySessionTimer
-                  startTime={session.startTime || session.scheduledFor}
-                  duration={session.duration}
-                  breakInterval={session.breakInterval || Math.min(25, Math.max(5, Math.floor(session.duration * 0.8)))}
-                  breakDuration={session.breakDuration || Math.min(5, Math.max(1, Math.floor(session.duration * 0.2)))}
-                  onPhaseChange={handlePhaseChange}
-                  onComplete={() => handleEndSession(session.id)}
-                  onSettings={() => {
-                    setSessionToEdit(session);
-                    setCreateSessionOpen(true);
-                  }}
-                  onPause={(progress) => {
-                    updateSession(session.id, { 
-                      completion: progress,
-                      status: 'in-progress' 
-                    });
-                    toast({
-                      title: "Session Paused",
-                      description: `Progress saved: ${Math.round(progress)}%`,
-                    });
-                  }}
-                  onResume={() => {
-                    toast({
-                      title: "Session Resumed",
-                      description: "Keep up the good work!",
-                    });
-                  }}
-                  initialProgress={session.completion || 0}
-                  subjectName={session.subject}
-                  priority={session.priority || "Medium"}
-                />
-              </div>
-            ) : (
-              <div className="space-y-3 p-3">
-                <p className="text-xs text-muted-foreground">{session.goal}</p>
-                
-                {isCompleted ? (
-                  <>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="flex items-center gap-1 bg-muted/30 dark:bg-muted/30 p-1.5 rounded-md">
-                        <CalendarDays className="h-3 w-3 text-green-500 dark:text-green-500" />
-                        <span>{format(new Date(session.scheduledFor), "MMM d, h:mm a")}</span>
-                      </div>
-                      <div className="flex items-center gap-1 bg-muted/30 dark:bg-muted/30 p-1.5 rounded-md">
-                        <Timer className="h-3 w-3 text-green-500 dark:text-green-500" />
-                        <span>{session.duration} min</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-xs font-medium">Session Notes:</p>
-                      <Textarea
-                        placeholder="Add session notes..."
-                        value={sessionNotes[session.id] || session.notes || ""}
-                        onChange={(e) => {
-                          const newNotes = e.target.value;
-                          handleNoteChange(session.id, newNotes);
-                        }}
-                        className="min-h-[80px] text-xs resize-none bg-muted/20 dark:bg-muted/20 border-muted"
-                      />
-                    </div>
-                    
-                    <div className="flex gap-2 mt-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 h-7 text-xs border-red-200 hover:bg-red-50 text-red-600 dark:border-red-800 dark:hover:bg-red-950/30 dark:text-red-400"
-                        onClick={() => {
-                          setSessionToDelete(session.id);
-                          setDeleteSessionOpen(true);
-                        }}
-                      >
-                        <X className="h-3 w-3 mr-1" />
-                        Delete
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 h-7 text-xs border-blue-200 hover:bg-blue-50 text-blue-600 dark:border-blue-800 dark:hover:bg-blue-950/30 dark:text-blue-400"
-                        onClick={() => {
-                          setSessionToReschedule(session);
-                          setRescheduleSessionOpen(true);
-                        }}
-                      >
-                        <CalendarDays className="h-3 w-3 mr-1" />
-                        Schedule Again
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="flex items-center gap-1 bg-muted/30 dark:bg-muted/30 p-1.5 rounded-md">
-                        <CalendarDays className="h-3 w-3 text-blue-500 dark:text-blue-400" />
-                        <span>{format(new Date(session.scheduledFor), "MMM d, h:mm a")}</span>
-                      </div>
-                      <div className="flex items-center gap-1 bg-muted/30 dark:bg-muted/30 p-1.5 rounded-md">
-                        <Timer className="h-3 w-3 text-blue-500 dark:text-blue-400" />
-                        <span>{session.duration} min</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2 mt-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 h-7 text-xs"
-                          >
-                            <MoreVertical className="h-3 w-3 mr-1" />
-                            More
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-48">
-                          <DropdownMenuItem onClick={() => {
-                            setSessionToEdit(session);
-                            setCreateSessionOpen(true);
-                          }}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            <span>Edit</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {
-                            setSessionToPostpone(session.id);
-                            setPostponeSessionOpen(true);
-                          }}>
-                            <CalendarDays className="h-4 w-4 mr-2" />
-                            <span>Postpone</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600 dark:text-red-400" onClick={() => {
-                            setSessionToDelete(session.id);
-                            setDeleteSessionOpen(true);
-                          }}>
-                            <X className="h-4 w-4 mr-2" />
-                            <span>Delete</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="flex-1 h-7 text-xs"
-                        onClick={() => handleStartSession(session.id)}
-                      >
-                        <Play className="h-3 w-3 mr-1" />
-                        Start
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // Render mobile view with tabs
   const renderMobileView = () => {
     const tabs = [
@@ -1031,7 +770,7 @@ export function StudySessions() {
     return (
       <div className="flex flex-col h-[100vh] pt-safe">
         {/* Fixed header */}
-        <div className="border-b px-3 py-2 flex items-center justify-between bg-background sticky top-0 z-10">
+        <div className="border-b px-3 py-2 flex items-center justify-between sticky top-0 z-10">
           <h1 className="font-semibold">Study Sessions</h1>
           <Button 
             variant="ghost"
@@ -1039,7 +778,7 @@ export function StudySessions() {
             className="h-8 w-8 p-0"
             onClick={handleCreateSessionClick}
           >
-            <Plus className="h-4 w-4 text-primary" />
+            <Plus className="h-4 w-4" />
           </Button>
         </div>
         
@@ -1158,16 +897,274 @@ export function StudySessions() {
     );
   };
 
+  // Fix for the linter error in renderMobileSessionCard function
+  const getStatusColor = (session: StudySession) => {
+    const isActive = session.status === "in-progress";
+    const isCompleted = session.status === "completed";
+    
+    if (isActive) return "bg-green-500 dark:bg-green-500";
+    if (isCompleted) return "bg-green-500 dark:bg-green-500";
+    if (session.priority === "High") return "bg-red-500 dark:bg-red-500";
+    if (session.priority === "Medium") return "bg-[#F49D1A] dark:bg-[#F49D1A]";
+    if (session.priority === "Low") return "bg-green-500 dark:bg-green-500";
+    return "bg-slate-500 dark:bg-slate-500";
+  };
+  
+  // Render a mobile-optimized study session card (updated to use the new getStatusColor function)
+  const renderMobileSessionCard = (session: StudySession) => {
+    const isExpanded = expandedSessionId === session.id;
+    const isActive = session.status === "in-progress";
+    const isCompleted = session.status === "completed";
+    
+    // Check for active session in mobile view and always expand it
+    useEffect(() => {
+      if (isActive && session.id) {
+        setExpandedSessionId(session.id);
+      }
+    }, [isActive, session.id]);
+
+    return (
+      <div 
+        key={session.id}
+        className={cn(
+          "border rounded-lg mb-3 overflow-hidden transition-all",
+          isExpanded ? "shadow-md" : "shadow-sm",
+          isActive && "border-0",
+          isCompleted && "border-t-4 border-t-green-500",
+          !isActive && !isCompleted && session.priority === "High" && "border-l-4 border-l-red-500",
+          !isActive && !isCompleted && session.priority === "Low" && "border-l-4 border-l-green-500",
+          !isActive && !isCompleted && session.isAIRecommended && "border-l-4 border-l-purple-500"
+        )}
+      >
+        {/* Clickable header that shows minimal info */}
+        <div
+          className={cn(
+            "flex items-center p-3 gap-3 cursor-pointer"
+          )}
+          onClick={() => {
+            if (isActive) {
+              // Always keep active session expanded
+              return;
+            }
+            setExpandedSessionId(expandedSessionId === session.id ? null : session.id);
+          }}
+        >
+          {/* Status dot */}
+          <div className={cn("w-3 h-3 rounded-full flex-shrink-0", getStatusColor(session))}></div>
+          
+          {/* Subject and time */}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-medium text-sm truncate">{session.subject}</h3>
+            <p className="text-xs text-muted-foreground">
+              {isActive ? (
+                <span>In progress</span>
+              ) : isCompleted ? (
+                <span className="text-green-600">Completed</span>
+              ) : (
+                <span>{format(new Date(session.scheduledFor), "MMM d, h:mm a")}</span>
+              )}
+            </p>
+          </div>
+          
+          {/* Duration and icon */}
+          <div className="flex items-center gap-1.5">
+            <div className="text-xs text-muted-foreground">
+              {session.duration}m
+            </div>
+            {!isActive && (
+              <div className="w-5 h-5 flex items-center justify-center text-muted-foreground">
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Expanded content */}
+        {(isExpanded || isActive) && (
+          <div className={cn(
+            "px-0 pb-0",
+            isActive ? "" : "border-t border-border/30"
+          )}>
+            {/* If active session, show timer */}
+            {isActive ? (
+              <div>
+                <div className="px-3 pt-2">
+                  <p className="text-xs text-muted-foreground mb-2">{session.goal}</p>
+                </div>
+                
+                <StudySessionTimer
+                  startTime={session.startTime || session.scheduledFor}
+                  duration={session.duration}
+                  breakInterval={session.breakInterval || Math.min(25, Math.max(5, Math.floor(session.duration * 0.8)))}
+                  breakDuration={session.breakDuration || Math.min(5, Math.max(1, Math.floor(session.duration * 0.2)))}
+                  onPhaseChange={handlePhaseChange}
+                  onComplete={() => handleEndSession(session.id)}
+                  onSettings={() => {
+                    setSessionToEdit(session);
+                    setCreateSessionOpen(true);
+                  }}
+                  onPause={(progress) => {
+                    updateSession(session.id, { 
+                      completion: progress,
+                      status: 'in-progress' 
+                    });
+                    toast({
+                      title: "Session Paused",
+                      description: `Progress saved: ${Math.round(progress)}%`,
+                    });
+                  }}
+                  onResume={() => {
+                    toast({
+                      title: "Session Resumed",
+                      description: "Keep up the good work!",
+                    });
+                  }}
+                  initialProgress={session.completion || 0}
+                  subjectName={session.subject}
+                  priority={session.priority || "Medium"}
+                />
+              </div>
+            ) : (
+              <div className="space-y-3 p-3">
+                <p className="text-xs text-muted-foreground">{session.goal}</p>
+                
+                {isCompleted ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="flex items-center gap-1 bg-muted/30 p-1.5 rounded-md">
+                        <CalendarDays className="h-3 w-3 text-green-500" />
+                        <span>{format(new Date(session.scheduledFor), "MMM d, h:mm a")}</span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-muted/30 p-1.5 rounded-md">
+                        <Timer className="h-3 w-3 text-green-500" />
+                        <span>{session.duration} min</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-xs font-medium">Session Notes:</p>
+                      <Textarea
+                        placeholder="Add session notes..."
+                        value={sessionNotes[session.id] || session.notes || ""}
+                        onChange={(e) => {
+                          const newNotes = e.target.value;
+                          handleNoteChange(session.id, newNotes);
+                        }}
+                        className="min-h-[80px] text-xs resize-none bg-muted/20 border-muted"
+                      />
+                    </div>
+                    
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-7 text-xs border-red-200 hover:bg-red-50 text-red-600"
+                        onClick={() => {
+                          setSessionToDelete(session.id);
+                          setDeleteSessionOpen(true);
+                        }}
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Delete
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-7 text-xs border-blue-200 hover:bg-blue-50 text-blue-600"
+                        onClick={() => {
+                          setSessionToReschedule(session);
+                          setRescheduleSessionOpen(true);
+                        }}
+                      >
+                        <CalendarDays className="h-3 w-3 mr-1" />
+                        Schedule Again
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="flex items-center gap-1 bg-muted/30 p-1.5 rounded-md">
+                        <CalendarDays className="h-3 w-3 text-blue-500" />
+                        <span>{format(new Date(session.scheduledFor), "MMM d, h:mm a")}</span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-muted/30 p-1.5 rounded-md">
+                        <Timer className="h-3 w-3 text-blue-500" />
+                        <span>{session.duration} min</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 mt-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 h-7 text-xs"
+                          >
+                            <MoreVertical className="h-3 w-3 mr-1" />
+                            More
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-48">
+                          <DropdownMenuItem onClick={() => {
+                            setSessionToEdit(session);
+                            setCreateSessionOpen(true);
+                          }}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setSessionToPostpone(session.id);
+                            setPostponeSessionOpen(true);
+                          }}>
+                            <CalendarDays className="h-4 w-4 mr-2" />
+                            <span>Postpone</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-red-600" onClick={() => {
+                            setSessionToDelete(session.id);
+                            setDeleteSessionOpen(true);
+                          }}>
+                            <X className="h-4 w-4 mr-2" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="flex-1 h-7 text-xs"
+                        onClick={() => handleStartSession(session.id)}
+                      >
+                        <Play className="h-3 w-3 mr-1" />
+                        Start
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Use the existing render functions for desktop
   const renderDesktopView = () => {
     return (
-      <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
+      <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto min-h-screen">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Study Sessions</h1>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
             <Select value={filter} onValueChange={(value: SessionFilter) => setFilter(value)}>
-              <SelectTrigger className="w-full sm:w-[180px] bg-background border-primary/20">
-                <Filter className="w-4 h-4 mr-2 text-primary/70" />
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <Filter className="w-4 h-4 mr-2" />
                 <SelectValue placeholder="Filter sessions" />
               </SelectTrigger>
               <SelectContent>
@@ -1178,7 +1175,7 @@ export function StudySessions() {
               </SelectContent>
             </Select>
             <Button 
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90" 
+              className="w-full sm:w-auto" 
               onClick={handleCreateSessionClick}
             >
               <Plus className="mr-2 h-4 w-4" />

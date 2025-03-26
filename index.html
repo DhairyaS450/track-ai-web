@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Schedule Visualizer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .schedule-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .timeline-container {
+            width: 100%;
+            height: 30px;
+            background-color: #eee;
+            margin: 20px 0;
+            border-radius: 4px;
+            position: relative;
+        }
+        .timeline {
+            display: flex;
+            height: 100%;
+            width: 100%;
+        }
+        .block {
+            height: 100%;
+            transition: width 0.5s;
+        }
+        .block.study {
+            background-color: #3498db; /* Blue */
+        }
+        .block.break {
+            background-color: #2ecc71; /* Green */
+        }
+        .block.active {
+            opacity: 1;
+        }
+        .block.inactive {
+            opacity: 0.5;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .stats {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+        }
+        .legend {
+            display: flex;
+            margin-top: 10px;
+            align-items: center;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            margin-right: 5px;
+        }
+        .legend-color.study {
+            background-color: #3498db;
+        }
+        .legend-color.break {
+            background-color: #2ecc71;
+        }
+    </style>
+</head>
+<body>
+    <div class="schedule-container">
+        <h1>Study Schedule Visualizer</h1>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color study"></div>
+                <span>Study</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color break"></div>
+                <span>Break</span>
+            </div>
+        </div>
+        
+        <div class="timeline-container">
+            <div class="timeline" id="timeline"></div>
+        </div>
+        
+        <div class="controls">
+            <button onclick="skipCurrentBlock()">Skip Current Block</button>
+            <button onclick="resetSchedule()">Reset Schedule</button>
+        </div>
+        
+        <div class="stats">
+            <p>Current Block: <span id="currentBlock">1</span>/<span id="totalBlocks">0</span></p>
+            <p>Total Time Remaining: <span id="remainingTime">0</span> minutes</p>
+            <p>Current Status: <span id="currentStatus">Study</span></p>
+        </div>
+    </div>
+
+    <script>
+        class ScheduleBlock {
+            constructor(duration, isStudy) {
+                this.duration = duration;
+                this.isStudy = isStudy;
+                this.isSkipped = false;
+            }
+        }
+
+        class ScheduleVisualizer {
+            constructor(studyDuration = 15, breakDuration = 5) {
+                this.studyDuration = studyDuration;
+                this.breakDuration = breakDuration;
+                this.blocks = [];
+                this.currentIndex = 0;
+                this.totalTime = 0;
+                this.originalTotalTime = 0;
+            }
+
+            createSchedule(totalStudySessions) {
+                this.blocks = [];
+                this.totalTime = 0;
+                this.currentIndex = 0;
+
+                for (let i = 0; i < totalStudySessions; i++) {
+                    // Add study block
+                    this.blocks.push(new ScheduleBlock(this.studyDuration, true));
+                    this.totalTime += this.studyDuration;
+
+                    // Add break block (except after the last study session)
+                    if (i < totalStudySessions - 1) {
+                        this.blocks.push(new ScheduleBlock(this.breakDuration, false));
+                        this.totalTime += this.breakDuration;
+                    }
+
+                }
+                
+                this.originalTotalTime = this.totalTime;
+                this.updateDisplay();
+            }
+
+            skipCurrentBlock() {
+                if (this.currentIndex < this.blocks.length) {
+                    const skippedBlock = this.blocks[this.currentIndex];
+                    skippedBlock.isSkipped = true;
+                    this.currentIndex++;
+                    
+                    // We don't reduce total time when skipping as per requirement
+                    // The time is still counted but the block is not shown
+                    
+                    this.updateDisplay();
+                    return true;
+                }
+                return false;
+            }
+
+            updateDisplay() {
+                // Reset timeline
+                const timeline = document.getElementById('timeline');
+                timeline.innerHTML = '';
+                
+                // Calculate total time for non-skipped blocks
+                let visibleTime = 0;
+                for (let i = 0; i < this.blocks.length; i++) {
+                    if (!this.blocks[i].isSkipped) {
+                        visibleTime += this.blocks[i].duration;
+                    }
+                }
+                
+                // Create blocks in timeline
+                for (let i = 0; i < this.blocks.length; i++) {
+                    const block = this.blocks[i];
+                    if (!block.isSkipped) {
+                        const blockElement = document.createElement('div');
+                        blockElement.className = `block ${block.isStudy ? 'study' : 'break'} ${i === this.currentIndex ? 'active' : 'inactive'}`;
+                        
+                        // Calculate percentage width based on duration
+                        const widthPercentage = (block.duration / visibleTime) * 100;
+                        blockElement.style.width = `${widthPercentage}%`;
+                        
+                        timeline.appendChild(blockElement);
+                    }
+                }
+
+                // Update statistics
+                document.getElementById('currentBlock').textContent = this.currentIndex + 1;
+                document.getElementById('totalBlocks').textContent = this.blocks.length;
+                document.getElementById('remainingTime').textContent = this.totalTime;
+                
+                // Update current status
+                if (this.currentIndex < this.blocks.length) {
+                    const currentBlock = this.blocks[this.currentIndex];
+                    document.getElementById('currentStatus').textContent = 
+                        currentBlock.isStudy ? 'Study' : 'Break';
+                } else {
+                    document.getElementById('currentStatus').textContent = 'Complete';
+                }
+            }
+        }
+
+        // Initialize the schedule visualizer
+        const visualizer = new ScheduleVisualizer(15, 5);
+        visualizer.createSchedule(4);
+
+        function skipCurrentBlock() {
+            if (!visualizer.skipCurrentBlock()) {
+                alert('No more blocks to skip! Schedule complete.');
+            }
+        }
+
+        function resetSchedule() {
+            visualizer.createSchedule(4);
+        }
+    </script>
+</body>
+</html> </html> 
