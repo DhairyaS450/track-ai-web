@@ -67,6 +67,18 @@ export interface UnifiedStudySession extends SchedulableItem {
   notes: string;
   currentPhase?: 'study' | 'break';
   progress?: number;
+  type: "studySession";
+  sessionMode?: 'basic' | 'sections';
+  sections?: Array<{
+    id?: string;
+    subject: string;
+    duration: number;
+    breakDuration: number;
+    notes?: string;
+    materials?: string;
+    completion?: number;
+    status?: 'pending' | 'in-progress' | 'completed';
+  }>;
 }
 
 export interface UnifiedReminder extends SchedulableItem {

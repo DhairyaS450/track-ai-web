@@ -52,6 +52,19 @@ export interface StudySession {
   totalPausedTime?: number;
   progress?: number;
   source?: 'google_calendar' | 'manual';
+  sections?: StudySessionSection[];
+  currentSectionIndex?: number;
+}
+
+export interface StudySessionSection {
+  id: string;
+  subject: string;
+  duration: number;
+  breakDuration: number;
+  notes?: string;
+  completion: number;
+  status: 'pending' | 'in-progress' | 'completed';
+  materials?: string;
 }
 
 export interface User {

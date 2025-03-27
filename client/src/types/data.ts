@@ -23,6 +23,7 @@ export interface DataContextType {
     deleteSession: (id: string) => Promise<{ success: boolean }>;
     startSession: (id: string) => Promise<{ session: StudySession }>;
     endSession: (id: string, notes?: string) => Promise<{ session: StudySession }>;
+    updateSessionSection: (id: string, sectionIndex: number) => Promise<{ success: boolean }>;
   
     addReminder: (reminder: Omit<Reminder, 'id' | 'userId' | 'createdAt'>) => Promise<{ reminder: Reminder }>;
     updateReminder: (id: string, updates: Partial<Reminder>) => Promise<{ reminder: Reminder }>;
