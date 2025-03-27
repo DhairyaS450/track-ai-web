@@ -138,11 +138,6 @@ export function CalendarGrid({
     console.log(`Searching for events on: ${targetDateStr}`);
     console.log(`Available events: ${effectiveEvents.length}, tasks: ${effectiveTasks.length}, sessions: ${effectiveSessions.length}`);
     
-    // Helper to normalize dates by comparing only year-month-day
-    const isSameDaySimple = (dateA: Date, dateB: Date) => {
-      return format(dateA, "yyyy-MM-dd") === format(dateB, "yyyy-MM-dd");
-    };
-    
     // Debug all events
     effectiveEvents.forEach(event => {
       const eventDate = new Date(event.startTime);
@@ -343,32 +338,39 @@ export function CalendarGrid({
   // Render the calendar view
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex space-x-2 items-center">
-          <Button variant="outline" size="sm" onClick={navigateToday}>
-            Today
-          </Button>
-          <Button variant="ghost" size="icon" onClick={navigatePrevious}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={navigateNext}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <h2 className="text-xl font-bold">
-            {viewType === "day" ? (
-              format(date, "MMMM d, yyyy")
-            ) : viewType === "week" ? (
-              `${format(viewDates[0], "MMM d")} - ${format(viewDates[viewDates.length - 1], "MMM d, yyyy")}`
-            ) : (
-              format(date, "MMMM yyyy")
-            )}
-          </h2>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          {isMobile ? (
+      {isMobile ? (
+        // Mobile optimized header
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={navigateToday}>
+              Today
+            </Button>
+            <h2 className="text-lg font-bold text-center">
+              {viewType === "day" ? (
+                format(date, "MMM d, yyyy")
+              ) : viewType === "week" ? (
+                `${format(viewDates[0], "MMM d")} - ${format(viewDates[viewDates.length - 1], "MMM d")}`
+              ) : (
+                format(date, "MMMM yyyy")
+              )}
+            </h2>
+            <Button size="sm" variant="outline" className="h-8 px-2" onClick={onAddItem}>
+              <CalendarIcon className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          
+          <div className="flex justify-between items-center">
+            <div className="flex space-x-1">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={navigatePrevious}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={navigateNext}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            
             <select 
-              className="border rounded p-1 text-xs"
+              className="h-7 border rounded px-1 text-xs bg-muted"
               value={viewType}
               onChange={(e) => setViewType(e.target.value as CalendarViewType)}
             >
@@ -377,7 +379,33 @@ export function CalendarGrid({
               <option value="month">Month</option>
               <option value="schedule">Schedule</option>
             </select>
-          ) : (
+          </div>
+        </div>
+      ) : (
+        // Desktop layout (unchanged)
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex space-x-2 items-center">
+            <Button variant="outline" size="sm" onClick={navigateToday}>
+              Today
+            </Button>
+            <Button variant="ghost" size="icon" onClick={navigatePrevious}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={navigateNext}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <h2 className="text-xl font-bold">
+              {viewType === "day" ? (
+                format(date, "MMMM d, yyyy")
+              ) : viewType === "week" ? (
+                `${format(viewDates[0], "MMM d")} - ${format(viewDates[viewDates.length - 1], "MMM d, yyyy")}`
+              ) : (
+                format(date, "MMMM yyyy")
+              )}
+            </h2>
+          </div>
+          
+          <div className="flex items-center space-x-2">
             <Tabs value={viewType} onValueChange={(val) => setViewType(val as CalendarViewType)}>
               <TabsList>
                 <TabsTrigger value="day" className="px-2 py-1 text-xs">Day</TabsTrigger>
@@ -386,14 +414,14 @@ export function CalendarGrid({
                 <TabsTrigger value="schedule" className="px-2 py-1 text-xs">Schedule</TabsTrigger>
               </TabsList>
             </Tabs>
-          )}
-          
-          <Button size="sm" variant="outline" onClick={onAddItem}>
-            <CalendarIcon className="h-4 w-4 mr-1" />
-            Add
-          </Button>
+            
+            <Button size="sm" variant="outline" onClick={onAddItem}>
+              <CalendarIcon className="h-4 w-4 mr-1" />
+              Add
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
       
       <div className="overflow-x-auto pb-4">
         {viewType === "day" && (
@@ -584,45 +612,59 @@ export function CalendarGrid({
         )}
         
         {viewType === "week" && (
-          <div className="min-w-[800px]">
-            <div className="grid grid-cols-7 gap-4">
+          <div className={cn("w-full", isMobile ? "min-w-full" : "min-w-[800px]")}>
+            <div className={cn(
+              "grid gap-1", 
+              isMobile ? "grid-cols-7" : "grid-cols-7 gap-4"
+            )}>
               {viewDates.map((day) => (
-                <Card key={day.toISOString()} className={cn(
-                  "overflow-hidden",
-                  isSameDay(day, new Date()) && "border-blue-500",
-                )}>
+                <Card 
+                  key={day.toISOString()} 
+                  className={cn(
+                    "overflow-hidden",
+                    isSameDay(day, new Date()) && "border-blue-500",
+                    isMobile && "border-[1px]"
+                  )}
+                >
                   <CardHeader 
                     className={cn(
-                      "p-2 text-center cursor-pointer",
-                      isSameMonth(day, date) ? "bg-muted" : "bg-muted/50"
+                      "cursor-pointer text-center",
+                      isSameMonth(day, date) ? "bg-muted" : "bg-muted/50",
+                      isMobile ? "p-1" : "p-2"
                     )}
                     onClick={() => {
                       onDateSelect(day);
                       setViewType("day");
                     }}
                   >
-                    <div className="font-medium">
+                    <div className={cn("font-medium", isMobile && "text-xs")}>
                       {format(day, "EEE")}
                     </div>
-                    <div className="text-2xl font-bold">
+                    <div className={cn("font-bold", isMobile ? "text-base" : "text-2xl")}>
                       {format(day, "d")}
                     </div>
                   </CardHeader>
-                  <CardContent className="p-0 h-[300px] overflow-y-auto">
+                  <CardContent className={cn(
+                    "p-0 overflow-y-auto", 
+                    isMobile ? "h-[120px]" : "h-[300px]"
+                  )}>
                     <ScrollArea className="h-full">
                       {getAllItemsForDate(day).map((event) => (
                         <div
                           key={event.id}
                           className={cn(
-                            "m-1 p-1 rounded border-l-2 text-xs cursor-pointer",
-                            getTypeStyles(event.type)
+                            "rounded border-l-2 cursor-pointer",
+                            getTypeStyles(event.type),
+                            isMobile ? "m-0.5 p-0.5 text-[10px]" : "m-1 p-1 text-xs"
                           )}
                           onClick={() => onItemClick(event.item)}
                         >
                           <div className="font-medium truncate">{event.title}</div>
-                          <div className="text-xs opacity-80">
-                            {format(event.start, "h:mm a")}
-                          </div>
+                          {!isMobile && (
+                            <div className="text-xs opacity-80">
+                              {format(event.start, "h:mm a")}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </ScrollArea>
@@ -634,10 +676,13 @@ export function CalendarGrid({
         )}
         
         {viewType === "month" && (
-          <div className="min-w-[800px]">
+          <div className={cn("w-full", isMobile ? "min-w-full" : "min-w-[800px]")}>
             <div className="grid grid-cols-7 gap-1">
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                <div key={day} className="text-center font-medium py-2 text-sm">
+              {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => (
+                <div key={index} className={cn(
+                  "text-center font-medium text-sm",
+                  isMobile ? "py-1 text-xs" : "py-2"
+                )}>
                   {day}
                 </div>
               ))}
@@ -646,31 +691,41 @@ export function CalendarGrid({
                 <Card 
                   key={day.toISOString()}
                   className={cn(
-                    "h-[120px] overflow-hidden border",
+                    "overflow-hidden border",
                     isSameDay(day, new Date()) && "border-blue-500",
-                    !isSameMonth(day, date) && "opacity-50"
+                    !isSameMonth(day, date) && "opacity-50",
+                    isMobile ? "h-[80px]" : "h-[120px]",
+                    isMobile && "border-[1px]"
                   )}
                   onClick={() => {
                     onDateSelect(day);
                     setViewType("day");
                   }}
                 >
-                  <div className="p-1 border-b text-right">
+                  <div className={cn(
+                    "border-b text-right",
+                    isMobile ? "p-0.5" : "p-1"
+                  )}>
                     <span className={cn(
-                      "inline-block w-6 h-6 rounded-full text-center leading-6 text-xs",
-                      isSameDay(day, new Date()) && "bg-blue-500 text-white"
+                      "inline-block rounded-full text-center",
+                      isSameDay(day, new Date()) && "bg-blue-500 text-white",
+                      isMobile ? "w-4 h-4 text-[10px] leading-4" : "w-6 h-6 text-xs leading-6"
                     )}>
                       {format(day, "d")}
                     </span>
                   </div>
-                  <ScrollArea className="h-[90px]">
-                    <div className="p-1 space-y-1">
-                      {getAllItemsForDate(day).slice(0, 3).map((event) => (
+                  <ScrollArea className={isMobile ? "h-[55px]" : "h-[90px]"}>
+                    <div className={cn(
+                      "space-y-1",
+                      isMobile ? "p-0.5" : "p-1"
+                    )}>
+                      {getAllItemsForDate(day).slice(0, isMobile ? 2 : 3).map((event) => (
                         <div
                           key={event.id}
                           className={cn(
-                            "px-1 text-xs truncate rounded border-l-2",
-                            getTypeStyles(event.type)
+                            "truncate rounded border-l-2",
+                            getTypeStyles(event.type),
+                            isMobile ? "px-0.5 text-[8px]" : "px-1 text-xs"
                           )}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -680,9 +735,12 @@ export function CalendarGrid({
                           {event.title}
                         </div>
                       ))}
-                      {getAllItemsForDate(day).length > 3 && (
-                        <div className="text-xs text-center text-muted-foreground">
-                          +{getAllItemsForDate(day).length - 3} more
+                      {getAllItemsForDate(day).length > (isMobile ? 2 : 3) && (
+                        <div className={cn(
+                          "text-center text-muted-foreground",
+                          isMobile ? "text-[8px]" : "text-xs"
+                        )}>
+                          +{getAllItemsForDate(day).length - (isMobile ? 2 : 3)} more
                         </div>
                       )}
                     </div>

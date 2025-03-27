@@ -50,6 +50,7 @@ export interface StudySession {
   pausedAt?: number;
   resumedAt?: number;
   totalPausedTime?: number;
+  sessionMode?: 'sections' | 'single';
   progress?: number;
   source?: 'google_calendar' | 'manual';
   sections?: StudySessionSection[];

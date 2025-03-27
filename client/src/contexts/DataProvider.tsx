@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, ReactNode, useRef, useContext } from 'react';
 import { db, auth } from '@/config/firebase';
 import { collection, query, where, onSnapshot, doc, deleteDoc, addDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';

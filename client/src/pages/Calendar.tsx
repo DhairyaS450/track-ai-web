@@ -17,7 +17,6 @@ import {
   Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { CalendarGrid } from "@/components/CalendarGrid";
 import { UnifiedItemDialog } from "@/components/UnifiedItemDialog";
 
@@ -34,11 +33,6 @@ export function Calendar() {
     sessions: allSessions,
     reminders: allReminders,
     loading,
-    deleteTask,
-    deleteEvent,
-    deleteSession,
-    markTaskComplete: markAsComplete,
-    dismissReminder,
     addReminder,
     updateReminder,
     addTask,
@@ -238,7 +232,7 @@ export function Calendar() {
         description: `Failed to save ${item.itemType}`,
       });
     }
-  }, [allTasks, addEvent, addReminder, addSession, addTask, toast, updateEvent, updateExternalTask, updateReminder, updateSession, updateTask]);
+  }, [allTasks, addEvent, addReminder, addSession, addTask, toast, updateEvent, updateReminder, updateSession, updateTask]);
 
   // Memoize CalendarGrid to prevent unnecessary re-renders
   const calendarGrid = useMemo(() => (
