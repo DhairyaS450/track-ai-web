@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { 
   format, 
   addDays, 
@@ -12,23 +12,18 @@ import {
   startOfMonth,
   endOfMonth,
   getDay,
-  getDate,
-  differenceInMinutes,
   addMinutes,
-  setHours,
-  setMinutes,
   isBefore,
   isAfter
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Task, Event, StudySession, Reminder } from "@/types";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { ScrollArea } from "./ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { Badge } from "./ui/badge";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 const TIME_SLOTS = Array.from({ length: 24 }, (_, i) => i);
 const HOUR_HEIGHT = 60; // pixels per hour
@@ -61,17 +56,19 @@ export function CalendarGrid({
   onItemClick,
 }: CalendarGridProps) {
   const [viewType, setViewType] = useState<CalendarViewType>("week");
+  const isMobile = useMediaQuery("(max-width: 768px)");
   
   // Get current view dates
   const viewDates = useMemo(() => {
     switch (viewType) {
       case "day":
         return [date];
-      case "week":
+      case "week": {
         const weekStart = startOfWeek(date, { weekStartsOn: 1 });
         const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
         return eachDayOfInterval({ start: weekStart, end: weekEnd });
-      case "month":
+      }
+      case "month": {
         const monthStart = startOfMonth(date);
         const monthEnd = endOfMonth(date);
         // Get day of week for month start (0 = Sunday, 1 = Monday, etc.)
@@ -82,6 +79,7 @@ export function CalendarGrid({
         const endDay = getDay(monthEnd);
         const calendarEnd = addDays(monthEnd, endDay === 0 ? 0 : 7 - endDay);
         return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+      }
       case "schedule":
         return [date];
       default:
@@ -89,21 +87,19 @@ export function CalendarGrid({
     }
   }, [date, viewType]);
 
-  // Calculate date range for the current view
-  useMemo(() => {
+  // Move the dateRange update to useEffect instead of during render
+  useEffect(() => {
     if (viewDates.length > 0) {
       onDateRangeChange(viewDates[0], viewDates[viewDates.length - 1]);
     }
   }, [viewDates, onDateRangeChange]);
 
-  // Format items for display
-  const formatTimeString = (timeString: string) => {
-    try {
-      return format(new Date(timeString), "HH:mm");
-    } catch {
-      return "00:00";
+  // Auto-switch to day view on mobile
+  useEffect(() => {
+    if (isMobile && viewType !== "day") {
+      setViewType("day");
     }
-  };
+  }, [isMobile, viewType]);
 
   const getAllItemsForDate = (date: Date) => {
     const dayEvents = events.filter(event => 
@@ -122,7 +118,8 @@ export function CalendarGrid({
     const dayTasks = tasks.filter(task => 
       task.timeSlots?.some(slot => isSameDay(new Date(slot.startDate), date))
     ).flatMap(task => 
-      task.timeSlots.filter(slot => isSameDay(new Date(slot.startDate), date))
+      task.timeSlots
+        .filter(slot => isSameDay(new Date(slot.startDate), date))
         .map(slot => ({
           id: `${task.id}-${slot.startDate}`,
           title: task.title,
@@ -162,7 +159,7 @@ export function CalendarGrid({
     }));
 
     const dayDeadlines = deadlines.filter(deadline => 
-      isSameDay(new Date(deadline.deadline), date)
+      deadline.deadline && isSameDay(new Date(deadline.deadline), date)
     ).map(deadline => ({
       id: deadline.id,
       title: deadline.title,
@@ -249,465 +246,296 @@ export function CalendarGrid({
     return isBefore(event1.start, event2.end) && isAfter(event1.end, event2.start);
   };
 
-  // Calculate columns for overlapping events
+  // Memoize event columns calculation
   const calculateEventColumns = (events: any[]) => {
-    if (events.length === 0) return events;
+    if (!events.length) return [];
     
-    const eventWithColumns = events.map(event => ({ ...event, column: 0, span: 1 }));
-    const columns: any[][] = [[]];
+    // Sort events by start time
+    const sortedEvents = [...events].sort((a, b) => a.start.getTime() - b.start.getTime());
     
-    eventWithColumns.forEach(event => {
+    // Assign columns to events
+    const eventColumns: any[] = [];
+    sortedEvents.forEach(event => {
       // Find the first column where the event doesn't overlap with existing events
-      let columnIndex = 0;
-      while (
-        columns[columnIndex]?.some(existingEvent => 
-          doEventsOverlap(existingEvent, event)
-        )
-      ) {
-        columnIndex++;
-        if (!columns[columnIndex]) columns[columnIndex] = [];
+      let column = 0;
+      while (eventColumns[column]?.some((existingEvent: any) => doEventsOverlap(existingEvent, event))) {
+        column++;
       }
       
-      event.column = columnIndex;
-      columns[columnIndex].push(event);
+      // Initialize the column if it doesn't exist
+      if (!eventColumns[column]) {
+        eventColumns[column] = [];
+      }
+      
+      // Add the event to the column
+      eventColumns[column].push(event);
     });
     
-    // Calculate total columns and spans
-    const totalColumns = columns.length;
-    eventWithColumns.forEach(event => {
-      event.span = 1;
-      event.totalColumns = totalColumns;
-    });
-    
-    return eventWithColumns;
+    return eventColumns;
   };
 
-  // Render different views
-  const renderDayView = () => {
-    const dayItems = getAllItemsForDate(date);
-    const itemsWithColumns = calculateEventColumns(dayItems);
-    
-    return (
-      <div className="relative h-[1440px]"> {/* 24 hours * 60px per hour */}
-        {/* Time labels */}
-        <div className="absolute left-0 w-16 h-full border-r border-gray-200 dark:border-gray-800 z-10 bg-background">
-          {TIME_SLOTS.map((hour) => (
-            <div 
-              key={hour} 
-              className="flex items-start justify-end pr-2 h-[60px] text-xs text-muted-foreground"
-              style={{ transform: 'translateY(-0.5rem)' }}
-            >
-              {format(setHours(date, hour), 'h a')}
-            </div>
-          ))}
+  // Render the calendar view
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex space-x-2 items-center">
+          <Button variant="outline" size="sm" onClick={navigateToday}>
+            Today
+          </Button>
+          <Button variant="ghost" size="icon" onClick={navigatePrevious}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={navigateNext}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <h2 className="text-xl font-bold">
+            {viewType === "day" ? (
+              format(date, "MMMM d, yyyy")
+            ) : viewType === "week" ? (
+              `${format(viewDates[0], "MMM d")} - ${format(viewDates[viewDates.length - 1], "MMM d, yyyy")}`
+            ) : (
+              format(date, "MMMM yyyy")
+            )}
+          </h2>
         </div>
         
-        {/* Current time indicator */}
-        <div 
-          className="absolute left-16 right-0 h-[1px] bg-red-500 z-20 pointer-events-none"
-          style={{ 
-            top: ((new Date().getHours() * 60 + new Date().getMinutes()) / 60) * HOUR_HEIGHT
-          }}
-        >
-          <div className="absolute -left-1 -top-[4px] w-2 h-2 rounded-full bg-red-500" />
-        </div>
-        
-        {/* Hour grid lines */}
-        <div className="absolute left-16 right-0 h-full">
-          {TIME_SLOTS.map((hour) => (
-            <div 
-              key={hour} 
-              className="h-[60px] border-t border-gray-200 dark:border-gray-800"
-            >
-              <div className="h-[30px] border-b border-dashed border-gray-200 dark:border-gray-800 opacity-50" />
-            </div>
-          ))}
-        </div>
-        
-        {/* Events */}
-        <div className="absolute left-16 right-0 h-full pointer-events-none">
-          {itemsWithColumns.map((item) => {
-            const { top, height } = calculateEventPosition(item.start, item.end);
-            const width = 100 / item.totalColumns;
-            const left = (item.column * width);
-            
-            return (
-              <div
-                key={item.id}
-                className={cn(
-                  "absolute rounded-md border p-2 overflow-hidden pointer-events-auto cursor-pointer",
-                  getTypeStyles(item.type)
-                )}
-                style={{
-                  top: `${top}px`,
-                  height: `${height}px`,
-                  left: `${left}%`,
-                  width: `${width}%`,
-                }}
-                onClick={() => onItemClick(item.item)}
-              >
-                <div className="font-medium text-xs truncate">{item.title}</div>
-                <div className="text-xs opacity-70">
-                  {format(item.start, 'h:mm a')} - {format(item.end, 'h:mm a')}
-                </div>
-              </div>
-            );
-          })}
+        <div className="flex items-center space-x-2">
+          <Tabs value={viewType} onValueChange={(val) => setViewType(val as CalendarViewType)}>
+            <TabsList>
+              <TabsTrigger value="day" className="px-2 py-1 text-xs">Day</TabsTrigger>
+              {!isMobile && <TabsTrigger value="week" className="px-2 py-1 text-xs">Week</TabsTrigger>}
+              {!isMobile && <TabsTrigger value="month" className="px-2 py-1 text-xs">Month</TabsTrigger>}
+              <TabsTrigger value="schedule" className="px-2 py-1 text-xs">Schedule</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
+          <Button size="sm" variant="outline" onClick={onAddItem}>
+            <CalendarIcon className="h-4 w-4 mr-1" />
+            Add
+          </Button>
         </div>
       </div>
-    );
-  };
-
-  const renderWeekView = () => {
-    return (
-      <div className="flex flex-col h-[80vh]">
-        {/* Day headers */}
-        <div className="flex border-b border-gray-200 dark:border-gray-800">
-          <div className="w-16 shrink-0 border-r border-gray-200 dark:border-gray-800"></div>
-          {viewDates.map((day) => (
-            <div 
-              key={day.toISOString()} 
-              className={cn(
-                "flex-1 text-center py-2 truncate",
-                isSameDay(day, new Date()) && "bg-blue-50 dark:bg-blue-950/20"
-              )}
-              onClick={() => onDateSelect(day)}
-            >
-              <div className={cn(
-                "font-medium cursor-pointer hover:text-blue-600 dark:hover:text-blue-400",
-                isSameDay(day, date) && "text-blue-600 dark:text-blue-400"
-              )}>
-                {format(day, 'EEE')}
-              </div>
-              <div className={cn(
-                "text-xl leading-none mt-1 cursor-pointer",
-                isSameDay(day, date) && "text-blue-600 dark:text-blue-400",
-                isSameDay(day, new Date()) && "inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white"
-              )}>
-                {format(day, 'd')}
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        {/* Scrollable time grid */}
-        <ScrollArea className="flex-1">
-          <div className="relative h-[1440px]"> {/* 24 hours * 60px per hour */}
-            <div className="flex h-full">
-              {/* Time labels */}
-              <div className="w-16 shrink-0 relative">
-                {TIME_SLOTS.map((hour) => (
-                  <div 
-                    key={hour} 
-                    className="flex items-start justify-end pr-2 h-[60px] text-xs text-muted-foreground"
-                    style={{ transform: 'translateY(-0.5rem)' }}
-                  >
-                    {format(setHours(date, hour), 'h a')}
+      
+      <div className="overflow-x-auto pb-4">
+        {viewType === "day" && (
+          <div className="min-w-full">
+            <div className="grid grid-cols-1 gap-4">
+              <Card className="overflow-hidden">
+                <CardHeader className="p-2 text-center bg-muted">
+                  <div className="font-medium">
+                    {format(date, "EEEE")}
                   </div>
-                ))}
-              </div>
-              
-              {/* Day columns */}
-              {viewDates.map((day) => {
-                const dayItems = getAllItemsForDate(day);
-                const itemsWithColumns = calculateEventColumns(dayItems);
-                
-                return (
-                  <div 
-                    key={day.toISOString()}
-                    className={cn(
-                      "flex-1 relative border-l border-gray-200 dark:border-gray-800",
-                      isSameDay(day, new Date()) && "bg-blue-50/50 dark:bg-blue-950/10"
-                    )}
-                  >
-                    {/* Hour grid lines */}
+                  <div className="text-2xl font-bold">
+                    {format(date, "d")}
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
+                    {/* Time slots */}
                     {TIME_SLOTS.map((hour) => (
                       <div 
                         key={hour} 
-                        className="h-[60px] border-t border-gray-200 dark:border-gray-800"
+                        className="absolute w-full border-t border-gray-200 dark:border-gray-800 flex"
+                        style={{ top: `${hour * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
                       >
-                        <div className="h-[30px] border-b border-dashed border-gray-200 dark:border-gray-800 opacity-50" />
+                        <div className="w-12 text-xs text-gray-500 pr-2 text-right">
+                          {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                        </div>
                       </div>
                     ))}
                     
-                    {/* Current time indicator (only shown for today) */}
-                    {isSameDay(day, new Date()) && (
-                      <div 
-                        className="absolute left-0 right-0 h-[1px] bg-red-500 z-20 pointer-events-none"
-                        style={{ 
-                          top: ((new Date().getHours() * 60 + new Date().getMinutes()) / 60) * HOUR_HEIGHT
-                        }}
-                      >
-                        <div className="absolute left-0 -top-[4px] w-2 h-2 rounded-full bg-red-500" />
-                      </div>
-                    )}
-                    
                     {/* Events */}
-                    {itemsWithColumns.map((item) => {
-                      const { top, height } = calculateEventPosition(item.start, item.end);
-                      const width = 100 / item.totalColumns;
-                      const left = (item.column * width);
+                    {(() => {
+                      const events = getAllItemsForDate(date);
+                      const columns = calculateEventColumns(events);
                       
-                      return (
-                        <div
-                          key={item.id}
-                          className={cn(
-                            "absolute rounded-md border p-1 overflow-hidden pointer-events-auto cursor-pointer",
-                            getTypeStyles(item.type)
-                          )}
-                          style={{
-                            top: `${top}px`,
-                            height: `${height}px`,
-                            left: `${left}%`,
-                            width: `${width}%`,
-                          }}
-                          onClick={() => onItemClick(item.item)}
-                        >
-                          <div className="font-medium text-xs truncate">{item.title}</div>
-                          {height > 40 && (
-                            <div className="text-xs opacity-70">
-                              {format(item.start, 'h:mm a')}
+                      return columns.map((column, colIndex) => 
+                        column.map((event: any) => {
+                          const { top, height } = calculateEventPosition(event.start, event.end);
+                          const colWidth = 100 / (columns.length || 1);
+                          
+                          return (
+                            <div
+                              key={event.id}
+                              className={cn(
+                                "absolute rounded-md border-l-4 p-1 overflow-hidden shadow-sm cursor-pointer",
+                                getTypeStyles(event.type)
+                              )}
+                              style={{
+                                top: `${top}px`,
+                                height: `${height}px`,
+                                left: `${12 + (colIndex * colWidth)}%`,
+                                width: `${colWidth - 1}%`,
+                              }}
+                              onClick={() => onItemClick(event.item)}
+                            >
+                              <div className="text-xs font-medium truncate">
+                                {event.title}
+                              </div>
+                              <div className="text-xs opacity-80">
+                                {format(event.start, "h:mm a")}
+                                {!isSameDay(event.start, event.end) && " - " + format(event.end, "h:mm a")}
+                              </div>
                             </div>
-                          )}
-                        </div>
+                          );
+                        })
                       );
-                    })}
+                    })()}
                   </div>
-                );
-              })}
+                </CardContent>
+              </Card>
             </div>
           </div>
-        </ScrollArea>
-      </div>
-    );
-  };
-
-  const renderMonthView = () => {
-    // Calculate weeks: array of arrays, each inner array represents a week
-    const weeks: Date[][] = [];
-    let currentWeek: Date[] = [];
-    
-    viewDates.forEach((day, index) => {
-      currentWeek.push(day);
-      
-      if (index % 7 === 6 || index === viewDates.length - 1) {
-        weeks.push(currentWeek);
-        currentWeek = [];
-      }
-    });
-    
-    return (
-      <div className="grid grid-cols-7 auto-rows-fr border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
-        {/* Day of week headers */}
-        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-          <div 
-            key={day} 
-            className="text-center py-2 border-b border-gray-200 dark:border-gray-800 font-medium text-sm"
-          >
-            {day}
-          </div>
-        ))}
+        )}
         
-        {/* Date grid */}
-        {weeks.map((week, weekIndex) => 
-          week.map((day, dayIndex) => {
-            const dayItems = getAllItemsForDate(day);
-            const isCurrentMonth = isSameMonth(day, date);
-            const isToday = isSameDay(day, new Date());
-            const isSelected = isSameDay(day, date);
-            
-            return (
-              <div 
-                key={`${weekIndex}-${dayIndex}`} 
-                className={cn(
-                  "min-h-[100px] p-1 border border-gray-200 dark:border-gray-800",
-                  !isCurrentMonth && "bg-gray-50 dark:bg-gray-900/20 text-gray-400 dark:text-gray-600",
-                  isToday && "bg-blue-50 dark:bg-blue-900/20",
-                  isSelected && "ring-2 ring-inset ring-blue-500 dark:ring-blue-400"
-                )}
-                onClick={() => onDateSelect(day)}
-              >
-                <div className="flex justify-between items-start mb-1">
-                  <span className={cn(
-                    "inline-flex h-6 w-6 items-center justify-center rounded-full text-sm",
-                    isToday && "bg-blue-600 text-white font-medium"
-                  )}>
-                    {getDate(day)}
-                  </span>
-                  
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:opacity-100"
+        {viewType === "week" && (
+          <div className="min-w-[800px]">
+            <div className="grid grid-cols-7 gap-4">
+              {viewDates.map((day) => (
+                <Card key={day.toISOString()} className={cn(
+                  "overflow-hidden",
+                  isSameDay(day, new Date()) && "border-blue-500",
+                )}>
+                  <CardHeader 
+                    className={cn(
+                      "p-2 text-center cursor-pointer",
+                      isSameMonth(day, date) ? "bg-muted" : "bg-muted/50"
+                    )}
+                    onClick={() => {
+                      onDateSelect(day);
+                      setViewType("day");
+                    }}
+                  >
+                    <div className="font-medium">
+                      {format(day, "EEE")}
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {format(day, "d")}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0 h-[300px] overflow-y-auto">
+                    <ScrollArea className="h-full">
+                      {getAllItemsForDate(day).map((event) => (
+                        <div
+                          key={event.id}
+                          className={cn(
+                            "m-1 p-1 rounded border-l-2 text-xs cursor-pointer",
+                            getTypeStyles(event.type)
+                          )}
+                          onClick={() => onItemClick(event.item)}
+                        >
+                          <div className="font-medium truncate">{event.title}</div>
+                          <div className="text-xs opacity-80">
+                            {format(event.start, "h:mm a")}
+                          </div>
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {viewType === "month" && (
+          <div className="min-w-[800px]">
+            <div className="grid grid-cols-7 gap-1">
+              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                <div key={day} className="text-center font-medium py-2 text-sm">
+                  {day}
+                </div>
+              ))}
+              
+              {viewDates.map((day) => (
+                <Card 
+                  key={day.toISOString()}
+                  className={cn(
+                    "h-[120px] overflow-hidden border",
+                    isSameDay(day, new Date()) && "border-blue-500",
+                    !isSameMonth(day, date) && "opacity-50"
+                  )}
+                  onClick={() => {
+                    onDateSelect(day);
+                    setViewType("day");
+                  }}
+                >
+                  <div className="p-1 border-b text-right">
+                    <span className={cn(
+                      "inline-block w-6 h-6 rounded-full text-center leading-6 text-xs",
+                      isSameDay(day, new Date()) && "bg-blue-500 text-white"
+                    )}>
+                      {format(day, "d")}
+                    </span>
+                  </div>
+                  <ScrollArea className="h-[90px]">
+                    <div className="p-1 space-y-1">
+                      {getAllItemsForDate(day).slice(0, 3).map((event) => (
+                        <div
+                          key={event.id}
+                          className={cn(
+                            "px-1 text-xs truncate rounded border-l-2",
+                            getTypeStyles(event.type)
+                          )}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onDateSelect(day); 
-                            onAddItem();
+                            onItemClick(event.item);
                           }}
                         >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Add item</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                
-                {/* Day events (limited display) */}
-                <div className="space-y-1 mt-1">
-                  {dayItems.slice(0, 3).map((item) => (
-                    <div
-                      key={item.id}
-                      className={cn(
-                        "px-1 py-0.5 rounded text-xs truncate cursor-pointer",
-                        getTypeStyles(item.type)
+                          {event.title}
+                        </div>
+                      ))}
+                      {getAllItemsForDate(day).length > 3 && (
+                        <div className="text-xs text-center text-muted-foreground">
+                          +{getAllItemsForDate(day).length - 3} more
+                        </div>
                       )}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onItemClick(item.item);
-                      }}
-                    >
-                      {item.isAllDay ? '· ' : `${format(item.start, 'h:mm a')} `}
-                      {item.title}
                     </div>
-                  ))}
-                  
-                  {dayItems.length > 3 && (
-                    <div className="text-xs text-muted-foreground">
-                      + {dayItems.length - 3} more
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })
+                  </ScrollArea>
+                </Card>
+              ))}
+            </div>
+          </div>
         )}
-      </div>
-    );
-  };
-
-  const renderScheduleView = () => {
-    // Get items for all visible dates
-    const allItems = viewDates.flatMap(day => 
-      getAllItemsForDate(day).map(item => ({
-        ...item,
-        date: day
-      }))
-    ).sort((a, b) => a.start.getTime() - b.start.getTime());
-    
-    // Group items by date
-    const itemsByDate: Record<string, any[]> = {};
-    allItems.forEach(item => {
-      const dateKey = format(item.date, 'yyyy-MM-dd');
-      if (!itemsByDate[dateKey]) {
-        itemsByDate[dateKey] = [];
-      }
-      itemsByDate[dateKey].push(item);
-    });
-    
-    return (
-      <ScrollArea className="h-[80vh]">
-        <div className="space-y-6 p-2">
-          {Object.entries(itemsByDate).length > 0 ? (
-            Object.entries(itemsByDate).map(([dateKey, items]) => (
-              <div key={dateKey} className="space-y-2">
-                <div 
-                  className={cn(
-                    "sticky top-0 z-10 py-1 font-medium bg-background",
-                    isSameDay(new Date(dateKey), new Date()) && "text-blue-600 dark:text-blue-400"
-                  )}
-                >
-                  {format(new Date(dateKey), 'EEEE, MMMM d, yyyy')}
-                </div>
-                <div className="space-y-1 pl-4">
-                  {items.map((item) => (
+        
+        {viewType === "schedule" && (
+          <Card className="w-full">
+            <CardContent className="p-4">
+              <h3 className="text-lg font-medium mb-4">Schedule - {format(date, "MMMM d, yyyy")}</h3>
+              <div className="space-y-3">
+                {getAllItemsForDate(date).length > 0 ? (
+                  getAllItemsForDate(date).map((event) => (
                     <div
-                      key={item.id}
+                      key={event.id}
                       className={cn(
-                        "flex items-center p-2 rounded border cursor-pointer",
-                        getTypeStyles(item.type)
+                        "p-2 rounded border-l-4 cursor-pointer",
+                        getTypeStyles(event.type)
                       )}
-                      onClick={() => onItemClick(item.item)}
+                      onClick={() => onItemClick(event.item)}
                     >
-                      <div className="ml-2">
-                        <div className="font-medium">{item.title}</div>
-                        <div className="text-xs">
-                          {item.isAllDay 
-                            ? 'All day' 
-                            : `${format(item.start, 'h:mm a')} - ${format(item.end, 'h:mm a')}`
-                          }
+                      <div className="flex justify-between items-center">
+                        <div className="font-medium">{event.title}</div>
+                        <div className="text-sm">
+                          {format(event.start, "h:mm a")}
+                          {" - "}
+                          {format(event.end, "h:mm a")}
                         </div>
                       </div>
+                      <div className="text-sm mt-1 capitalize">
+                        {event.type}
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    No scheduled items for today
+                  </div>
+                )}
               </div>
-            ))
-          ) : (
-            <div className="text-center text-muted-foreground py-12">
-              No events scheduled in this time range
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-    );
-  };
-
-  return (
-    <Card className="bg-card">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" onClick={navigateToday}>
-              Today
-            </Button>
-            <Button variant="ghost" size="icon" onClick={navigatePrevious}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={navigateNext}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <h3 className="font-semibold text-lg">
-              {viewType === "day" && format(date, "MMMM d, yyyy")}
-              {viewType === "week" && (
-                <>
-                  {format(viewDates[0], "MMM d")} - {format(viewDates[viewDates.length - 1], "MMM d, yyyy")}
-                </>
-              )}
-              {viewType === "month" && format(date, "MMMM yyyy")}
-              {viewType === "schedule" && format(date, "MMMM yyyy")}
-            </h3>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Tabs defaultValue={viewType} onValueChange={(v) => setViewType(v as CalendarViewType)}>
-              <TabsList>
-                <TabsTrigger value="day">Day</TabsTrigger>
-                <TabsTrigger value="week">Week</TabsTrigger>
-                <TabsTrigger value="month">Month</TabsTrigger>
-                <TabsTrigger value="schedule">Schedule</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            
-            <Button variant="outline" size="sm" onClick={onAddItem}>
-              <Plus className="h-4 w-4 mr-1" />
-              Add
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-4">
-        {/* Render the appropriate view based on viewType */}
-        {viewType === "day" && renderDayView()}
-        {viewType === "week" && renderWeekView()}
-        {viewType === "month" && renderMonthView()}
-        {viewType === "schedule" && renderScheduleView()}
-      </CardContent>
-    </Card>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
   );
 } 
