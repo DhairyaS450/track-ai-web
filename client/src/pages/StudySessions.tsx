@@ -18,6 +18,9 @@ import {
   Sparkles,
   Settings,
   Play,
+  Maximize2,
+  SendHorizontal as SendIcon,
+  Minimize2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -50,6 +53,7 @@ import { useData } from "@/contexts/DataProvider";
 import { UnifiedItemDialog } from "@/components/UnifiedItemDialog";
 import { SchedulableItem, UnifiedStudySession, convertFromUnified } from "@/types/unified";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { Input } from "@/components/ui/input";
 
 type SessionFilter = "all" | "ongoing" | "upcoming" | "completed";
 
@@ -62,7 +66,8 @@ export function StudySessions() {
     updateSession,
     deleteSession,
     startSession,
-    endSession
+    endSession,
+    updateSessionSection
   } = useData();
 
   const [activeSession, setActiveSession] = useState<StudySession | null>(null);
@@ -82,6 +87,21 @@ export function StudySessions() {
     activeSession ? "active" : "upcoming"
   );
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [chatMessage, setChatMessage] = useState("");
+  const [chatMessages, setChatMessages] = useState<Array<{
+    id: string;
+    text: string;
+    sender: "user" | "ai";
+    timestamp: Date;
+  }>>([
+    {
+      id: "initial",
+      text: "How can I help with your study session today?",
+      sender: "ai",
+      timestamp: new Date()
+    }
+  ]);
+  const [showChatExpanded, setShowChatExpanded] = useState(false);
 
   const { toast } = useToast();
 
@@ -427,62 +447,117 @@ export function StudySessions() {
   const upcomingSessions = filteredSessions.filter(s => s.status === "scheduled");
   const completedSessions = filteredSessions.filter(s => s.status === "completed");
 
-  // Component to render active session section
+  // Handle section change in the active session
+  const handleSectionChange = async (sessionId: string, sectionIndex: number) => {
+    try {
+      await updateSessionSection(sessionId, sectionIndex);
+      
+      toast({
+        title: "Section changed",
+        description: "Successfully moved to the next section of this study session.",
+      });
+    } catch (error) {
+      console.error("Error changing session section:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to change session section",
+      });
+    }
+  };
+  
+  // Modify the renderActiveSession function to handle sections
   const renderActiveSession = () => {
     if (!activeSession) return null;
-
+    
+    // Check if the session is using sections mode
+    const usingMultipleSections = 
+      activeSession.sessionMode === 'sections' && 
+      activeSession.sections && 
+      activeSession.sections.length > 0;
+    
+    // Set currentSection if appropriate
+    const currentSection = usingMultipleSections && activeSession.currentSectionIndex !== undefined 
+      ? activeSession.sections[activeSession.currentSectionIndex] 
+      : null;
+    
+    const startTimeObj = activeSession.startTime 
+      ? new Date(activeSession.startTime) 
+      : new Date();
+    
     return (
-      <Card className="shadow-md overflow-hidden border-0">
-        <CardContent className="p-0">
+      <Card className="mb-4">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center justify-between text-md">
+            <div className="flex items-center">
+              <Timer className="h-5 w-5 mr-2" />
+              Active Study Session
+            </div>
+            <div className="flex gap-2 items-center">
+              <Badge variant="outline" className="font-normal text-xs">
+                <Clock className="h-3 w-3 mr-1" />
+                Started {format(startTimeObj, "h:mm a")}
+              </Badge>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pb-5">
           <StudySessionTimer
-            startTime={activeSession.startTime || activeSession.scheduledFor}
+            startTime={activeSession.startTime || new Date().toISOString()}
             duration={activeSession.duration}
-            breakInterval={activeSession.breakInterval || Math.min(
-              activeSession.duration,  // Never exceed the total duration
-              Math.max(1, Math.floor(activeSession.duration * 0.5))
-            )}
-            breakDuration={activeSession.breakDuration || Math.min(
-              Math.floor(activeSession.duration * 0.2),
-              Math.max(1, Math.floor(activeSession.duration * 0.1))
-            )}
-            onPhaseChange={handlePhaseChange}
+            breakInterval={activeSession.breakInterval || 25}
+            breakDuration={activeSession.breakDuration || 5}
+            subjectName={usingMultipleSections ? currentSection?.subject : activeSession.subject}
+            priority={activeSession.priority}
+            onPhaseChange={(phase) => {
+              console.log("Phase changed to:", phase);
+              updateSession(activeSession.id, { currentPhase: phase });
+            }}
             onComplete={() => handleEndSession(activeSession.id)}
             onPause={(progress) => {
-              console.log('Session paused at progress:', progress);
+              console.log("Session paused at:", progress);
               updateSession(activeSession.id, { 
-                completion: progress,
-                status: 'in-progress' 
-              });
-              toast({
-                title: "Session Paused",
-                description: `Progress saved: ${Math.round(progress)}%`,
+                completion: progress, 
+                pausedAt: Date.now()
               });
             }}
             onResume={() => {
-              toast({
-                title: "Session Resumed",
-                description: "Keep up the good work!",
+              console.log("Session resumed");
+              updateSession(activeSession.id, { 
+                resumedAt: Date.now()
               });
             }}
-            initialProgress={activeSession.completion || 0}
             onSettings={() => {
-              console.log("Opening edit dialog for session:", activeSession.id);
               setSessionToEdit(activeSession);
-              setCreateSessionOpen(true);
             }}
             onPostpone={() => {
-              console.log("Opening postpone dialog for session:", activeSession.id);
               setSessionToPostpone(activeSession.id);
               setPostponeSessionOpen(true);
             }}
             onDelete={() => {
-              console.log("Opening delete dialog for session:", activeSession.id);
               setSessionToDelete(activeSession.id);
               setDeleteSessionOpen(true);
             }}
-            subjectName={activeSession.subject}
-            priority={activeSession.priority || "Medium"}
+            onSectionChange={usingMultipleSections ? 
+              (sectionIndex) => handleSectionChange(activeSession.id, sectionIndex) : 
+              undefined
+            }
+            sections={activeSession.sections}
+            currentSectionIndex={activeSession.currentSectionIndex}
+            sessionMode={activeSession.sessionMode}
           />
+          
+          <div className="mt-4">
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-sm font-medium">Session notes</label>
+            </div>
+            <Textarea
+              value={sessionNotes[activeSession.id] || ""}
+              onChange={(e) => handleNoteChange(activeSession.id, e.target.value)}
+              placeholder="Add notes about your progress, questions, or ideas..."
+              className="min-h-[100px] resize-none"
+            />
+          </div>
         </CardContent>
       </Card>
     );
@@ -1290,6 +1365,39 @@ export function StudySessions() {
     }
   };
 
+  // Handle sending a message to the AI assistant
+  const handleSendMessage = () => {
+    if (!chatMessage.trim()) return;
+    
+    // Add user message to chat
+    const userMessage = {
+      id: Date.now().toString(),
+      text: chatMessage,
+      sender: "user" as const,
+      timestamp: new Date()
+    };
+    
+    setChatMessages(prev => [...prev, userMessage]);
+    setChatMessage(""); // Clear input
+    
+    // TODO: Send to AI and get response
+    // For now, simulate a response
+    setTimeout(() => {
+      const aiResponse = {
+        id: (Date.now() + 1).toString(),
+        text: "I'm here to help! What specific topic are you studying?",
+        sender: "ai" as const,
+        timestamp: new Date()
+      };
+      
+      setChatMessages(prev => [...prev, aiResponse]);
+    }, 1000);
+  };
+
+  const toggleChatExpanded = () => {
+    setShowChatExpanded(prev => !prev);
+  };
+
   return (
     <>
       {isMobile ? renderMobileView() : renderDesktopView()}
@@ -1382,6 +1490,89 @@ export function StudySessions() {
           onReschedule={handleRescheduleSession}
         />
       )}
+
+      {/* Chatbot popup for study assistance */}
+      <Card className={cn(
+        "mt-4 border shadow-md transition-all duration-200",
+        showChatExpanded ? "fixed inset-4 top-auto z-50 h-[70vh]" : "h-auto"
+      )}>
+        <CardHeader className="pb-1">
+          <CardTitle className="flex items-center justify-between text-md font-medium">
+            <div className="flex items-center">
+              <Sparkles className="h-4 w-4 mr-2 text-blue-500" />
+              Study Assistant
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0"
+              onClick={toggleChatExpanded}
+            >
+              {showChatExpanded ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border bg-card p-3 flex flex-col">
+            <ScrollArea className={cn(
+              "mb-3 pr-4",
+              showChatExpanded ? "h-[calc(70vh-140px)]" : "max-h-[240px]"
+            )}>
+              <div className="space-y-3">
+                {chatMessages.map(message => (
+                  <div key={message.id} className={cn(
+                    "flex gap-2",
+                    message.sender === "user" && "justify-end"
+                  )}>
+                    {message.sender === "ai" && (
+                      <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white text-xs shrink-0">
+                        AI
+                      </div>
+                    )}
+                    
+                    <div className={cn(
+                      "rounded-lg p-2 text-sm max-w-[80%]",
+                      message.sender === "ai" 
+                        ? "bg-muted text-foreground" 
+                        : "bg-primary text-primary-foreground"
+                    )}>
+                      <p>{message.text}</p>
+                    </div>
+                    
+                    {message.sender === "user" && (
+                      <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs shrink-0">
+                        You
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+            
+            <div className="flex gap-2 mt-2">
+              <Input 
+                placeholder="Ask a question about your study material..." 
+                className="flex-1"
+                value={chatMessage}
+                onChange={(e) => setChatMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              />
+              <Button 
+                type="button" 
+                size="sm" 
+                onClick={handleSendMessage}
+                disabled={!chatMessage.trim()}
+              >
+                <SendIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </>
   );
 }

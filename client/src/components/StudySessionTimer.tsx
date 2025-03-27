@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "./ui/button";
 import { format } from "date-fns";
-import { Play, SkipForward, Pause, Clock, Check, Settings, MoreVertical, Edit, CalendarDays, X } from "lucide-react";
+import { Play, SkipForward, Pause, Clock, Check, Settings, MoreVertical, Edit, CalendarDays, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
+import { StudySessionSection } from "@/types";
 
 const breakSuggestions = [
   "Stretch for 5 minutes to reduce muscle tension",
@@ -37,9 +38,13 @@ interface StudySessionTimerProps {
   onSettings?: () => void;
   onPostpone?: () => void;
   onDelete?: () => void;
+  onSectionChange?: (sectionIndex: number) => void;
   initialProgress?: number;
   subjectName?: string;
   priority?: "High" | "Medium" | "Low";
+  sections?: StudySessionSection[];
+  currentSectionIndex?: number;
+  sessionMode?: 'basic' | 'sections';
 }
 
 export function StudySessionTimer({
@@ -54,9 +59,13 @@ export function StudySessionTimer({
   onSettings,
   onPostpone,
   onDelete,
+  onSectionChange,
   initialProgress = 0,
   subjectName,
   priority,
+  sections = [],
+  currentSectionIndex = 0,
+  sessionMode = 'basic',
 }: StudySessionTimerProps) {
   // Get the starting state from local storage if available
   const savedPhase = localStorage.getItem("currentPhase");
@@ -75,35 +84,71 @@ export function StudySessionTimer({
   });
   const _navigate = useNavigate();
   const _isMobile = useMediaQuery("(max-width: 640px)");
+  
+  // For sections mode
+  const [activeSection, setActiveSection] = useState<number>(
+    parseInt(localStorage.getItem("activeSection") || "0") || currentSectionIndex
+  );
+  
+  // Get the current section or fall back to basic mode settings
+  const getCurrentSection = useCallback(() => {
+    if (sessionMode === 'sections' && sections.length > activeSection) {
+      return sections[activeSection];
+    }
+    return null;
+  }, [sessionMode, sections, activeSection]);
+  
+  // Get current section subject or fallback to main subject
+  const getCurrentSubject = useCallback(() => {
+    const section = getCurrentSection();
+    return section?.subject || subjectName || "Study Session";
+  }, [getCurrentSection, subjectName]);
+  
+  // Get study and break duration for current section/mode
+  const getSessionDurations = useCallback(() => {
+    if (sessionMode === 'sections' && sections.length > activeSection) {
+      const section = sections[activeSection];
+      return {
+        studyDuration: section.duration,
+        breakDuration: section.breakDuration
+      };
+    }
+    return {
+      studyDuration: breakInterval,
+      breakDuration: breakDuration
+    };
+  }, [sessionMode, sections, activeSection, breakInterval, breakDuration]);
 
   // Function to initialize phase
   function initializePhase(isBreakPhase: boolean) {
     console.log("Initializing phase:", isBreakPhase ? "break" : "study", {
-      duration,
-      breakInterval,
-      breakDuration,
-      currentProgress: Math.round(progress)
+      sessionMode,
+      activeSection,
+      currentSection: getCurrentSection()
     });
     
     const now = new Date();
     
-    // Calculate how long this phase should be (in milliseconds)
-    const phaseLength = isBreakPhase ? breakDuration : breakInterval;
-    
-    // For the first study phase, ensure we use the full duration if no breakInterval is specified
-    const isFirstPhase = localStorage.getItem("isFirstPhase") === "true" || !localStorage.getItem("isFirstPhase");
-    
+    // Calculate phase length based on session mode and active section
     let phaseLengthMs;
+    const { studyDuration, breakDuration: sectionBreakDuration } = getSessionDurations();
     
-    if (!isBreakPhase && isFirstPhase) {
-      // First study phase should use the full duration or breakInterval if explicitly set
-      phaseLengthMs = (breakInterval !== duration) ? breakInterval * 60 * 1000 : duration * 60 * 1000;
-      localStorage.setItem("isFirstPhase", "false");
-      console.log("First study phase, duration set to:", phaseLengthMs / 60000, "minutes");
+    if (isBreakPhase) {
+      // Break phase
+      phaseLengthMs = sectionBreakDuration * 60 * 1000;
     } else {
-      // For subsequent phases, use the specified intervals
-      phaseLengthMs = phaseLength * 60 * 1000;
-      console.log(`Setting ${isBreakPhase ? "break" : "study"} phase length:`, phaseLengthMs / 60000, "minutes");
+      // Study phase
+      // For the first study phase, ensure we use the full duration if no breakInterval is specified
+      const isFirstPhase = localStorage.getItem("isFirstPhase") === "true" || !localStorage.getItem("isFirstPhase");
+      
+      if (isFirstPhase && sessionMode === 'basic') {
+        // First study phase in basic mode should use the full duration or breakInterval if explicitly set
+        phaseLengthMs = (breakInterval !== duration) ? breakInterval * 60 * 1000 : duration * 60 * 1000;
+        localStorage.setItem("isFirstPhase", "false");
+      } else {
+        // For subsequent phases or sections mode, use the specified intervals
+        phaseLengthMs = studyDuration * 60 * 1000;
+      }
     }
     
     // Set the end time and time left
@@ -126,6 +171,7 @@ export function StudySessionTimer({
     localStorage.setItem("timeLeft", phaseLengthMs.toString());
     localStorage.setItem("lastSavedTime", now.toISOString());
     localStorage.setItem("phaseStartPauseTime", totalPausedTime.toString());
+    localStorage.setItem("activeSection", activeSection.toString());
     
     // Notify parent about phase change
     onPhaseChange?.(isBreakPhase ? "break" : "study");
@@ -346,12 +392,11 @@ export function StudySessionTimer({
     const elapsedSincePhaseStartMs = Math.max(0, currentTimeMs - phaseStartMs - phaseTotalPausedTime);
     
     // Calculate phase progress percentage (0-100%)
-    const phaseProgress = Math.min(100, Math.max(0, (elapsedSincePhaseStartMs / phaseDurationMs) * 100));
-    
-    console.log(`Phase progress: ${phaseProgress.toFixed(1)}% (${isBreak ? 'break' : 'study'} phase)`);
+    // Ensure progress never exceeds 100% even with timing inconsistencies
+    const phaseProgress = Math.min(99.9, Math.max(0, (elapsedSincePhaseStartMs / phaseDurationMs) * 100));
     
     return phaseProgress;
-  }, [isInitialized, phaseEndTime, isPaused, pauseStartTime, totalPausedTime, isBreak, initialProgress]);
+  }, [isInitialized, phaseEndTime, isPaused, pauseStartTime, totalPausedTime, initialProgress]);
 
   // Effect to update progress regularly
   useEffect(() => {
@@ -367,8 +412,12 @@ export function StudySessionTimer({
     // Update immediately
     updateProgress();
     
-    // Then update more frequently (200ms) for smoother progress updates
-    const timer = !isPaused ? setInterval(updateProgress, 200) : null;
+    // Use a higher update frequency on desktop and lower on mobile for battery optimization
+    const isMobile = window.innerWidth < 768;
+    const updateFrequency = isMobile ? 400 : 200; // 400ms on mobile, 200ms on desktop
+    
+    // Then update at appropriate frequency for device
+    const timer = !isPaused ? setInterval(updateProgress, updateFrequency) : null;
     
     return () => {
       if (timer) clearInterval(timer);
@@ -387,7 +436,7 @@ export function StudySessionTimer({
       setTimeLeft(remainingMs);
       
       // Phase transition logic
-      if (remainingMs <= 0) {
+      if (remainingMs <= 10) {
         const wasBreak = isBreak;
         
         // Check if we should end the session
@@ -533,14 +582,14 @@ export function StudySessionTimer({
 
   // Render the progress bar with label indicating current phase
   const renderProgressBar = () => (
-    <div className="px-4 py-4">
-      <div className="flex justify-between items-center mb-1">
+    <div className="px-3 sm:px-4 py-3 sm:py-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
+      <div className="flex justify-between items-center mb-1.5">
         <div className="text-xs text-muted-foreground">
           {isBreak ? "Break Progress" : "Study Progress"}
         </div>
         <div className="text-xs font-medium">{Math.round(progress)}%</div>
       </div>
-      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+      <div className="w-full h-2.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
         <div 
           className={cn(
             "h-full rounded-full",
@@ -551,12 +600,21 @@ export function StudySessionTimer({
           )} 
           style={{ 
             width: `${Math.max(0, Math.min(100, progress))}%`,
-            transition: "width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)" 
+            transition: "width 0.6s cubic-bezier(0.22, 1, 0.36, 1)" 
           }}
         />
       </div>
     </div>
   );
+
+  // Handle the pause/resume button click
+  const handlePauseResume = useCallback(() => {
+    if (isPaused) {
+      handleResume();
+    } else {
+      handlePause();
+    }
+  }, [isPaused, handleResume, handlePause]);
 
   // Handle the "End" button click
   const handleEndSession = () => {
@@ -577,17 +635,89 @@ export function StudySessionTimer({
     onComplete?.();
   };
 
+  // Handle section navigation
+  const handlePreviousSection = () => {
+    if (activeSection > 0) {
+      const newSectionIndex = activeSection - 1;
+      setActiveSection(newSectionIndex);
+      localStorage.setItem("activeSection", newSectionIndex.toString());
+      
+      // Notify parent
+      onSectionChange?.(newSectionIndex);
+      
+      // Initialize new section with study phase
+      setIsBreak(false);
+      initializePhase(false);
+    }
+  };
+  
+  const handleNextSection = () => {
+    if (activeSection < sections.length - 1) {
+      const newSectionIndex = activeSection + 1;
+      setActiveSection(newSectionIndex);
+      localStorage.setItem("activeSection", newSectionIndex.toString());
+      
+      // Notify parent
+      onSectionChange?.(newSectionIndex);
+      
+      // Initialize new section with study phase
+      setIsBreak(false);
+      initializePhase(false);
+    } else {
+      // We're at the last section, complete the session
+      handleEndSession();
+    }
+  };
+
+  // Add new renderSectionIndicator function
+  const renderSectionIndicator = () => {
+    if (sessionMode !== 'sections' || sections.length <= 1) return null;
+    
+    return (
+      <div className="px-3 sm:px-4 py-2 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+        <button
+          className="text-sm flex items-center text-muted-foreground hover:text-foreground disabled:opacity-50"
+          onClick={handlePreviousSection}
+          disabled={activeSection === 0}
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Prev
+        </button>
+        
+        <div className="text-xs font-medium">
+          Section {activeSection + 1} of {sections.length}
+        </div>
+        
+        <button
+          className="text-sm flex items-center text-muted-foreground hover:text-foreground disabled:opacity-50"
+          onClick={handleNextSection}
+          disabled={activeSection === sections.length - 1}
+        >
+          Next
+          <ChevronRight className="h-4 w-4 ml-1" />
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className={cn(
-      "flex flex-col rounded-lg overflow-hidden border-t-4",
-      priority === "High" && "border-t-red-500",
-      priority === "Medium" && "border-t-[#F49D1A]",
-      priority === "Low" && "border-t-green-500",
-      !priority && "border-t-green-500" // Default to green if no priority set
+      "flex flex-col rounded-lg overflow-hidden border-t-4 shadow-md",
+      priority === "High" && "border-t-red-500 bg-red-50 dark:bg-red-900/20",
+      priority === "Medium" && "border-t-[#F49D1A] bg-amber-50 dark:bg-amber-900/20",
+      priority === "Low" && "border-t-green-500 bg-green-50 dark:bg-green-900/20",
+      !priority && "border-t-green-500 bg-green-50 dark:bg-green-900/20", // Default to green if no priority set
     )}>
       {/* Top section with name and priority */}
-      <div className="flex justify-between items-center p-4">
-        <h3 className="text-base font-normal">{subjectName || "Study Session"}</h3>
+      <div className="flex justify-between items-center p-3 sm:p-4 bg-white dark:bg-gray-900">
+        <h3 className="text-sm sm:text-base font-medium">
+          {getCurrentSubject()}
+          {sessionMode === 'sections' && (
+            <span className="text-xs text-muted-foreground ml-2">
+              ({activeSection + 1}/{sections.length})
+            </span>
+          )}
+        </h3>
         <div className={cn(
           "text-white font-medium rounded px-2 py-1 text-xs",
           priority === "High" && "bg-red-500",
@@ -598,14 +728,17 @@ export function StudySessionTimer({
         </div>
       </div>
       
+      {/* Render section indicator if in sections mode */}
+      {sessionMode === 'sections' && sections.length > 1 && renderSectionIndicator()}
+      
       {/* Big centered timer */}
       <div className="text-center py-8">
         <div className="font-['New_York'] text-7xl font-extrabold tracking-tight">
           {formatTimeLeft(timeLeft)}
         </div>
-        <div className="mt-4">
+        <div className="mt-3 sm:mt-4">
           <div className={cn(
-            "text-white font-medium rounded-full py-1 px-4 inline-block text-xs",
+            "text-white font-medium rounded-full py-1 px-3 sm:px-4 inline-block text-xs",
             priority === "High" && "bg-red-500",
             priority === "Medium" && "bg-[#F49D1A]",
             priority === "Low" && "bg-green-500",
@@ -617,9 +750,9 @@ export function StudySessionTimer({
       </div>
       
       {/* End time and next phase */}
-      <div className="flex justify-between items-center px-4 text-xs text-muted-foreground">
+      <div className="flex justify-between items-center px-3 sm:px-4 text-xs text-muted-foreground py-2 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
         <div className="flex items-center">
-          <Clock className="h-3.5 w-3.5 mr-1" />
+          <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
           <span>Ends: {format(phaseEndTime, "h:mm a")}</span>
         </div>
         <div>
@@ -631,61 +764,71 @@ export function StudySessionTimer({
       {renderProgressBar()}
       
       {/* Control buttons */}
-      <div className="grid grid-cols-2 gap-2 px-4 mb-2">
+      <div className="grid grid-cols-2 gap-2 px-3 sm:px-4 mb-2 mt-1 pt-2 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
         <button
-          className="bg-muted text-foreground border rounded text-xs py-3 flex items-center justify-center font-medium hover:bg-muted/80"
-          onClick={isPaused ? handleResume : handlePause}
+          className="bg-gray-100 dark:bg-gray-800 text-foreground border border-gray-200 dark:border-gray-700 rounded text-xs py-3 flex items-center justify-center font-medium hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
+          style={{ touchAction: 'manipulation' }}
+          onClick={handlePauseResume}
+          aria-label={isPaused ? "Resume" : "Pause"}
         >
           {isPaused ? (
             <>
-              <Play className="h-4 w-4 mr-1.5" />
+              <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" />
               Resume
             </>
           ) : (
             <>
-              <Pause className="h-4 w-4 mr-1.5" />
+              <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" />
               Pause
             </>
           )}
         </button>
         
         <button
-          className="bg-muted text-foreground border rounded text-xs py-3 flex items-center justify-center font-medium hover:bg-muted/80"
+          className="bg-gray-100 dark:bg-gray-800 text-foreground border border-gray-200 dark:border-gray-700 rounded text-xs py-3 flex items-center justify-center font-medium hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
+          style={{ touchAction: 'manipulation' }}
           onClick={handleSkipPhase}
+          aria-label={`Skip ${isBreak ? "Break" : "Study"}`}
         >
-          <SkipForward className="h-4 w-4 mr-1.5" />
+          <SkipForward className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" />
           Skip {isBreak ? "Break" : "Study"}
         </button>
       </div>
       
       {/* Bottom buttons */}
-      <div className="flex justify-between p-4">
+      <div className="flex justify-between p-3 sm:p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-8 text-xs p-2 md:p-2.5 border-muted-foreground/20"
+              className="h-8 text-xs p-1.5 sm:p-2 md:p-2.5 border-gray-200 dark:border-gray-700"
             >
               <MoreVertical className="h-3 w-3 md:h-4 md:w-4" />
               <span className="ml-1 md:ml-2">More</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuItem onClick={() => {
-              console.log("Settings button clicked");
-              if (onSettings) {
-                onSettings();
-              }
-            }}>
+            <DropdownMenuItem 
+              className="focus:bg-accent active:bg-accent/80 cursor-pointer"
+              onClick={() => {
+                console.log("Settings button clicked");
+                if (onSettings) {
+                  onSettings();
+                }
+              }}
+            >
               <Edit className="h-4 w-4 mr-2" />
               <span>Edit</span>
             </DropdownMenuItem>
             {onPostpone && (
-              <DropdownMenuItem onClick={() => {
-                console.log("Postpone button clicked");
-                onPostpone();
-              }}>
+              <DropdownMenuItem 
+                className="focus:bg-accent active:bg-accent/80 cursor-pointer"
+                onClick={() => {
+                  console.log("Postpone button clicked");
+                  onPostpone();
+                }}
+              >
                 <CalendarDays className="h-4 w-4 mr-2" />
                 <span>Postpone Session</span>
               </DropdownMenuItem>
@@ -694,7 +837,7 @@ export function StudySessionTimer({
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
-                  className="text-red-600 dark:text-red-400"
+                  className="text-red-600 dark:text-red-400 focus:bg-red-50 dark:focus:bg-red-950/20 active:bg-red-100 dark:active:bg-red-950/30 cursor-pointer"
                   onClick={() => {
                     console.log("Delete button clicked");
                     onDelete();
@@ -712,7 +855,14 @@ export function StudySessionTimer({
           onClick={handleEndSession}
           variant="default"
           size="sm"
-          className="h-8 text-xs"
+          className={cn(
+            "h-8 text-xs active:scale-[0.98] text-white",
+            priority === "High" && "bg-red-500 hover:bg-red-600", 
+            priority === "Medium" && "bg-[#F49D1A] hover:bg-amber-600",
+            priority === "Low" && "bg-green-500 hover:bg-green-600",
+            !priority && "bg-green-500 hover:bg-green-600"
+          )}
+          style={{ touchAction: 'manipulation' }}
         >
           <Check className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
           End

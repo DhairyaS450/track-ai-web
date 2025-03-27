@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { ScrollArea } from "./ui/scroll-area";
-import { CalendarIcon, ChevronDown, ChevronUp, Plus, Trash2, X } from "lucide-react";
+import { CalendarIcon, ChevronDown, ChevronUp, Plus, Trash2, X, Timer, LayoutGrid } from "lucide-react";
 import { 
   SchedulableItem, 
   ItemType, 
@@ -31,6 +31,7 @@ import { Checkbox } from "./ui/checkbox";
 import { cn } from "@/lib/utils";
 import { Slider } from "./ui/slider";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { BookOpen } from "lucide-react";
 
 interface UnifiedItemDialogProps {
   open: boolean;
@@ -81,6 +82,8 @@ export function UnifiedItemDialog({
   const [breakDuration, setBreakDuration] = useState(5);
   const [materials, setMaterials] = useState("");
   const [notes, setNotes] = useState("");
+  const [sessionMode, setSessionMode] = useState("basic");
+  const [sections, setSections] = useState<Array<{ id?: string; subject: string; duration: number; breakDuration: number; materials: string }>>([]);
   
   // Reminder-specific fields
   const [notificationMessage, setNotificationMessage] = useState("");
@@ -127,6 +130,8 @@ export function UnifiedItemDialog({
             setBreakDuration(session.breakDuration || 5);
             setMaterials(session.materials || "");
             setNotes(session.notes);
+            setSessionMode(session.sessionMode || "basic");
+            setSections(session.sections || []);
             break; }
           case 'reminder':
             { const reminder = initialItem as UnifiedReminder;
@@ -175,6 +180,8 @@ export function UnifiedItemDialog({
     setRecurrenceInterval(1);
     setRecurrenceEndDate(undefined);
     setShowAdvanced(false);
+    setSessionMode("basic");
+    setSections([]);
   };
 
   const handleTypeChange = (type: string) => {
@@ -278,6 +285,8 @@ export function UnifiedItemDialog({
             materials,
             notes,
             isFlexible,
+            sessionMode,
+            sections,
           } as UnifiedStudySession;
           break;
           
@@ -308,6 +317,24 @@ export function UnifiedItemDialog({
         description: "Failed to save item",
       });
     }
+  };
+
+  const handleAddSection = () => {
+    setSections([...sections, { subject: "", duration: 0, breakDuration: 0, materials: "" }]);
+  };
+
+  const handleRemoveSection = (index: number) => {
+    setSections(sections.filter((_, i) => i !== index));
+  };
+
+  const handleSectionChange = (index: number, field: keyof typeof sections[number], value: string | number) => {
+    const newSections = [...sections];
+    newSections[index][field] = value;
+    setSections(newSections);
+  };
+
+  const calculateTotalDuration = () => {
+    return sections.reduce((total, section) => total + section.duration, 0);
   };
 
   return (
@@ -637,115 +664,227 @@ export function UnifiedItemDialog({
             </TabsContent>
 
             <TabsContent value="session" className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="subject">Subject</Label>
-                <Input
-                  id="subject"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Enter subject"
-                />
+              <div className="grid gap-3 items-start md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="subject">Subject</Label>
+                  <Input
+                    id="subject"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="e.g. Mathematics"
+                    autoFocus
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="goal">Goal</Label>
+                  <Input
+                    id="goal"
+                    value={goal}
+                    onChange={(e) => setGoal(e.target.value)}
+                    placeholder="e.g. Complete chapter 5 exercises"
+                  />
+                </div>
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="goal">Goal</Label>
-                <Textarea
-                  id="goal"
-                  value={goal}
-                  onChange={(e) => setGoal(e.target.value)}
-                  placeholder="What do you want to achieve?"
-                  className="min-h-[80px]"
-                />
+              <div className="grid gap-3 items-start md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label>Mode</Label>
+                  <div className="flex space-x-2">
+                    <Button
+                      type="button"
+                      variant={sessionMode === "basic" ? "default" : "outline"}
+                      className="flex-1"
+                      onClick={() => setSessionMode("basic")}
+                    >
+                      <Timer className="h-4 w-4 mr-2" />
+                      Basic
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={sessionMode === "sections" ? "default" : "outline"}
+                      className="flex-1"
+                      onClick={() => setSessionMode("sections")}
+                    >
+                      <LayoutGrid className="h-4 w-4 mr-2" />
+                      Sections
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="priority">Priority</Label>
+                  <Select
+                    value={priority}
+                    onValueChange={(value) => setPriority(value as "High" | "Medium" | "Low")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="High">High</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="Low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  min="1"
-                  value={duration}
-                  onChange={(e) => setDuration(parseInt(e.target.value))}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="technique">Study Technique</Label>
-                <Select value={technique} onValueChange={setTechnique}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select technique" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pomodoro">Pomodoro</SelectItem>
-                    <SelectItem value="deepwork">Deep Work</SelectItem>
-                    <SelectItem value="spaced">Spaced Repetition</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Collapsible 
-                open={showAdvanced} 
-                onOpenChange={setShowAdvanced}
-                className="border rounded-md p-4"
-              >
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" className="flex w-full justify-between">
-                    Advanced Options
-                    {showAdvanced ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-4 pt-4">
-                  {technique === "pomodoro" && (
-                    <div className="grid gap-4 grid-cols-2">
-                      <div className="grid gap-2">
-                        <Label htmlFor="breakInterval">Break Interval (minutes)</Label>
-                        <Input
-                          id="breakInterval"
-                          type="number"
-                          min="1"
-                          value={breakInterval}
-                          onChange={(e) => setBreakInterval(parseInt(e.target.value))}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="breakDuration">Break Duration (minutes)</Label>
-                        <Input
-                          id="breakDuration"
-                          type="number"
-                          min="1"
-                          value={breakDuration}
-                          onChange={(e) => setBreakDuration(parseInt(e.target.value))}
-                        />
-                      </div>
+              {sessionMode === "basic" ? (
+                <>
+                  <div className="grid gap-3 items-start md:grid-cols-3">
+                    <div className="grid gap-2">
+                      <Label htmlFor="duration">Duration (minutes)</Label>
+                      <Input
+                        id="duration"
+                        type="number"
+                        min="1"
+                        max="240"
+                        value={duration}
+                        onChange={(e) => setDuration(parseInt(e.target.value))}
+                        placeholder="e.g. 60"
+                      />
                     </div>
-                  )}
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="materials">Study Materials</Label>
-                    <Input
-                      id="materials"
-                      value={materials}
-                      onChange={(e) => setMaterials(e.target.value)}
-                      placeholder="Enter study materials"
-                    />
+                    <div className="grid gap-2">
+                      <Label htmlFor="breakInterval">Study Interval (minutes)</Label>
+                      <Input
+                        id="breakInterval"
+                        type="number"
+                        min="5"
+                        max="90"
+                        value={breakInterval}
+                        onChange={(e) => setBreakInterval(parseInt(e.target.value))}
+                        placeholder="e.g. 25"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="breakDuration">Break Length (minutes)</Label>
+                      <Input
+                        id="breakDuration"
+                        type="number"
+                        min="1"
+                        max="30"
+                        value={breakDuration}
+                        onChange={(e) => setBreakDuration(parseInt(e.target.value))}
+                        placeholder="e.g. 5"
+                      />
+                    </div>
                   </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Add any notes about this session"
-                      className="min-h-[100px]"
-                    />
+                </>
+              ) : (
+                <>
+                  <div className="grid gap-3">
+                    <div className="flex justify-between items-center">
+                      <Label>Session Sections</Label>
+                      <Button 
+                        type="button" 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={handleAddSection}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Section
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-3 max-h-[250px] overflow-y-auto rounded-md border p-2">
+                      {sections.length > 0 ? (
+                        sections.map((section, index) => (
+                          <div 
+                            key={section.id || index} 
+                            className="rounded-md border p-3 bg-card/50"
+                          >
+                            <div className="flex justify-between items-center mb-2">
+                              <h4 className="text-sm font-medium">Section {index + 1}</h4>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveSection(index)}
+                                className="h-8 w-8 p-0 text-muted-foreground"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            
+                            <div className="grid gap-3 mb-2">
+                              <div className="grid gap-2">
+                                <Label htmlFor={`section-${index}-subject`} className="text-xs">
+                                  Subject
+                                </Label>
+                                <Input
+                                  id={`section-${index}-subject`}
+                                  value={section.subject}
+                                  onChange={(e) => handleSectionChange(index, "subject", e.target.value)}
+                                  placeholder="e.g. Algebra"
+                                  className="h-8"
+                                />
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="grid gap-1">
+                                  <Label htmlFor={`section-${index}-duration`} className="text-xs">
+                                    Duration (min)
+                                  </Label>
+                                  <Input
+                                    id={`section-${index}-duration`}
+                                    type="number"
+                                    min="5"
+                                    max="120"
+                                    value={section.duration}
+                                    onChange={(e) => handleSectionChange(index, "duration", parseInt(e.target.value))}
+                                    placeholder="e.g. 25"
+                                    className="h-8"
+                                  />
+                                </div>
+                                <div className="grid gap-1">
+                                  <Label htmlFor={`section-${index}-break`} className="text-xs">
+                                    Break (min)
+                                  </Label>
+                                  <Input
+                                    id={`section-${index}-break`}
+                                    type="number"
+                                    min="0"
+                                    max="30"
+                                    value={section.breakDuration}
+                                    onChange={(e) => handleSectionChange(index, "breakDuration", parseInt(e.target.value))}
+                                    placeholder="e.g. 5"
+                                    className="h-8"
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="grid gap-1">
+                                <Label htmlFor={`section-${index}-materials`} className="text-xs">
+                                  Materials (optional)
+                                </Label>
+                                <Input
+                                  id={`section-${index}-materials`}
+                                  value={section.materials}
+                                  onChange={(e) => handleSectionChange(index, "materials", e.target.value)}
+                                  placeholder="e.g. Textbook p.125-130"
+                                  className="h-8"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-8 text-center text-muted-foreground">
+                          <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                          <p>No sections added yet</p>
+                          <p className="text-xs mt-1">
+                            Add sections to break your study session into focused chunks
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="text-xs text-muted-foreground italic">
+                      Total duration: {calculateTotalDuration()} minutes
+                    </div>
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
+                </>
+              )}
             </TabsContent>
 
             <TabsContent value="reminder" className="space-y-4">
