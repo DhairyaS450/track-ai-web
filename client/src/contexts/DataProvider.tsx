@@ -242,12 +242,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       if (!auth.currentUser) throw new Error('User not authenticated');
 
-      const sessionWithMeta = {
+      // Add default values for any missing fields
+      const sessionWithMeta: any = {
         ...sessionData,
-        userId: auth.currentUser.uid,
+        completion: 0,
+        notes: sessionData.notes || '',
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        priority: sessionData.priority || 'Low',
+        userId: auth.currentUser.uid,
+        // Add support for sections
+        sessionMode: sessionData.sessionMode || 'basic',
+        sections: sessionData.sections || []
       };
 
       const docRef = await addDoc(collection(db, 'studySessions'), sessionWithMeta);
@@ -295,20 +299,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!auth.currentUser) throw new Error('User not authenticated');
 
       const sessionRef = doc(db, 'studySessions', id);
-      const startTime = new Date();
-      await updateDoc(sessionRef, {
-        status: 'in-progress',
-        startTime: startTime.toISOString(),
-        updatedAt: serverTimestamp()
-      });
-
+      
+      // Get the current session data
       const sessionSnapshot = await getDoc(sessionRef);
-      return {
-        session: {
-          id: sessionSnapshot.id,
-          ...sessionSnapshot.data()
-        } as StudySession
+      if (!sessionSnapshot.exists()) {
+        throw new Error('Session not found');
+      }
+      
+      const sessionData = sessionSnapshot.data() as StudySession;
+      
+      const updates: any = {
+        status: 'in-progress',
+        startTime: new Date().toISOString(),
+        completion: 0,
+        // Initialize with the first section if using sections mode
+        currentSectionIndex: sessionData.sessionMode === 'sections' ? 0 : undefined,
       };
+      
+      // If we have sections, update the first section to in-progress
+      if (sessionData.sections && sessionData.sections.length > 0) {
+        const updatedSections = [...sessionData.sections];
+        updatedSections[0] = { ...updatedSections[0], status: 'in-progress' };
+        updates.sections = updatedSections;
+      }
+      
+      await updateDoc(sessionRef, updates);
+      
+      return { session: { id, ...updates } as StudySession };
     } catch (error: any) {
       console.error('Error starting session:', error);
       throw new Error(`Failed to start session: ${error.message}`);
@@ -427,6 +444,60 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Add a new function to update a session's current section
+  const updateSessionSection = async (id: string, sectionIndex: number) => {
+    try {
+      if (!auth.currentUser) throw new Error('User not authenticated');
+      
+      const sessionRef = doc(db, 'studySessions', id);
+      
+      // Get the current session data
+      const sessionSnapshot = await getDoc(sessionRef);
+      if (!sessionSnapshot.exists()) {
+        throw new Error('Session not found');
+      }
+      
+      const sessionData = sessionSnapshot.data() as StudySession;
+      
+      // Validate section index
+      if (!sessionData.sections || sectionIndex < 0 || sectionIndex >= sessionData.sections.length) {
+        throw new Error('Invalid section index');
+      }
+      
+      // Update sections status
+      const updatedSections = [...sessionData.sections];
+      
+      // Mark previous sections as completed
+      for (let i = 0; i < sectionIndex; i++) {
+        updatedSections[i] = { ...updatedSections[i], status: 'completed', completion: 100 };
+      }
+      
+      // Mark current section as in-progress
+      updatedSections[sectionIndex] = { ...updatedSections[sectionIndex], status: 'in-progress', completion: 0 };
+      
+      // Mark future sections as pending
+      for (let i = sectionIndex + 1; i < updatedSections.length; i++) {
+        updatedSections[i] = { ...updatedSections[i], status: 'pending', completion: 0 };
+      }
+      
+      // Calculate overall completion based on completed sections
+      const sectionsCount = updatedSections.length;
+      const completedCount = sectionIndex;
+      const overallCompletion = Math.round((completedCount / sectionsCount) * 100);
+      
+      await updateDoc(sessionRef, {
+        currentSectionIndex: sectionIndex,
+        sections: updatedSections,
+        completion: overallCompletion
+      });
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error updating session section:', error);
+      throw new Error(`Failed to update session section: ${error.message}`);
+    }
+  };
+
   return (
     <DataContext.Provider value={{
       tasks,
@@ -452,6 +523,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       deleteReminder,
       dismissReminder,
       markTaskComplete,
+      updateSessionSection,
     }}>
       {children}
     </DataContext.Provider>
