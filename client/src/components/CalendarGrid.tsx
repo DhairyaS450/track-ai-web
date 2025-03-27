@@ -58,6 +58,32 @@ export function CalendarGrid({
   const [viewType, setViewType] = useState<CalendarViewType>("week");
   const isMobile = useMediaQuery("(max-width: 768px)");
   
+  // Store data in component state to prevent loss during re-renders
+  const [cachedEvents, setCachedEvents] = useState<Event[]>([]);
+  const [cachedTasks, setCachedTasks] = useState<Task[]>([]);
+  const [cachedSessions, setCachedSessions] = useState<StudySession[]>([]);
+  const [cachedReminders, setCachedReminders] = useState<Reminder[]>([]);
+  const [cachedDeadlines, setCachedDeadlines] = useState<Task[]>([]);
+  
+  // Update cached data when props change and are not empty
+  useEffect(() => {
+    if (events.length > 0) setCachedEvents(events);
+    if (tasks.length > 0) setCachedTasks(tasks);
+    if (sessions.length > 0) setCachedSessions(sessions);
+    if (reminders.length > 0) setCachedReminders(reminders);
+    if (deadlines.length > 0) setCachedDeadlines(deadlines);
+  }, [events, tasks, sessions, reminders, deadlines]);
+  
+  // Use cached data or prop data, whichever has content
+  const effectiveEvents = events.length > 0 ? events : cachedEvents;
+  const effectiveTasks = tasks.length > 0 ? tasks : cachedTasks;
+  const effectiveSessions = sessions.length > 0 ? sessions : cachedSessions;
+  const effectiveReminders = reminders.length > 0 ? reminders : cachedReminders;
+  const effectiveDeadlines = deadlines.length > 0 ? deadlines : cachedDeadlines;
+  
+  // Debug data at the component level
+  console.log(`CalendarGrid rendered with: ${effectiveEvents.length} events, ${effectiveTasks.length} tasks, ${effectiveSessions.length} sessions`);
+  
   // Get current view dates
   const viewDates = useMemo(() => {
     switch (viewType) {
@@ -94,17 +120,40 @@ export function CalendarGrid({
     }
   }, [viewDates, onDateRangeChange]);
 
-  // Auto-switch to day view on mobile
+  // Fix the useEffect hook that was resetting view to day on mobile
   useEffect(() => {
-    if (isMobile && viewType !== "day") {
-      setViewType("day");
+    // Only run this effect on initial load, not on subsequent renders
+    if (isMobile) {
+      const hasInitialized = localStorage.getItem('calendar-mobile-initialized');
+      if (!hasInitialized) {
+        setViewType("day");
+        localStorage.setItem('calendar-mobile-initialized', 'true');
+      }
     }
-  }, [isMobile, viewType]);
+  }, [isMobile]); // Only depend on isMobile, not viewType
 
   const getAllItemsForDate = (date: Date) => {
-    const dayEvents = events.filter(event => 
-      isSameDay(new Date(event.startTime), date)
-    ).map(event => ({
+    // Force input date to midnight in local timezone for consistent comparison
+    const targetDateStr = format(date, "yyyy-MM-dd");
+    console.log(`Searching for events on: ${targetDateStr}`);
+    console.log(`Available events: ${effectiveEvents.length}, tasks: ${effectiveTasks.length}, sessions: ${effectiveSessions.length}`);
+    
+    // Helper to normalize dates by comparing only year-month-day
+    const isSameDaySimple = (dateA: Date, dateB: Date) => {
+      return format(dateA, "yyyy-MM-dd") === format(dateB, "yyyy-MM-dd");
+    };
+    
+    // Debug all events
+    effectiveEvents.forEach(event => {
+      const eventDate = new Date(event.startTime);
+      console.log(`Event: ${event.name}, Date: ${format(eventDate, "yyyy-MM-dd")}, Matches: ${format(eventDate, "yyyy-MM-dd") === targetDateStr}`);
+    });
+    
+    // Get events for this day by comparing string dates (most reliable)
+    const dayEvents = effectiveEvents.filter(event => {
+      const eventDate = new Date(event.startTime);
+      return format(eventDate, "yyyy-MM-dd") === targetDateStr;
+    }).map(event => ({
       id: event.id,
       title: event.name,
       start: new Date(event.startTime),
@@ -115,11 +164,18 @@ export function CalendarGrid({
       item: event
     }));
 
-    const dayTasks = tasks.filter(task => 
-      task.timeSlots?.some(slot => isSameDay(new Date(slot.startDate), date))
+    // Use the same robust string comparison for tasks
+    const dayTasks = effectiveTasks.filter(task => 
+      task.timeSlots?.some(slot => {
+        const slotDate = new Date(slot.startDate);
+        return format(slotDate, "yyyy-MM-dd") === targetDateStr;
+      })
     ).flatMap(task => 
       task.timeSlots
-        .filter(slot => isSameDay(new Date(slot.startDate), date))
+        .filter(slot => {
+          const slotDate = new Date(slot.startDate);
+          return format(slotDate, "yyyy-MM-dd") === targetDateStr;
+        })
         .map(slot => ({
           id: `${task.id}-${slot.startDate}`,
           title: task.title,
@@ -132,9 +188,11 @@ export function CalendarGrid({
         }))
     );
 
-    const daySessions = sessions.filter(session => 
-      isSameDay(new Date(session.scheduledFor), date)
-    ).map(session => ({
+    // Use string comparison for sessions
+    const daySessions = effectiveSessions.filter(session => {
+      const sessionDate = new Date(session.scheduledFor);
+      return format(sessionDate, "yyyy-MM-dd") === targetDateStr;
+    }).map(session => ({
       id: session.id,
       title: session.subject,
       start: new Date(session.scheduledFor),
@@ -145,9 +203,11 @@ export function CalendarGrid({
       item: session
     }));
 
-    const dayReminders = reminders.filter(reminder => 
-      isSameDay(new Date(reminder.reminderTime), date)
-    ).map(reminder => ({
+    // Use string comparison for reminders
+    const dayReminders = effectiveReminders.filter(reminder => {
+      const reminderDate = new Date(reminder.reminderTime);
+      return format(reminderDate, "yyyy-MM-dd") === targetDateStr;
+    }).map(reminder => ({
       id: reminder.id,
       title: reminder.title,
       start: new Date(reminder.reminderTime),
@@ -158,9 +218,12 @@ export function CalendarGrid({
       item: reminder
     }));
 
-    const dayDeadlines = deadlines.filter(deadline => 
-      deadline.deadline && isSameDay(new Date(deadline.deadline), date)
-    ).map(deadline => ({
+    // Use string comparison for deadlines
+    const dayDeadlines = effectiveDeadlines.filter(deadline => {
+      if (!deadline.deadline) return false;
+      const deadlineDate = new Date(deadline.deadline);
+      return format(deadlineDate, "yyyy-MM-dd") === targetDateStr;
+    }).map(deadline => ({
       id: deadline.id,
       title: deadline.title,
       start: new Date(deadline.deadline),
@@ -171,8 +234,11 @@ export function CalendarGrid({
       item: deadline
     }));
 
-    return [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines]
+    const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines]
       .sort((a, b) => a.start.getTime() - b.start.getTime());
+    
+    console.log(`Total items found for ${targetDateStr}: ${allItems.length}`);
+    return allItems;
   };
 
   const getTypeStyles = (type: string) => {
@@ -300,14 +366,27 @@ export function CalendarGrid({
         </div>
         
         <div className="flex items-center space-x-2">
-          <Tabs value={viewType} onValueChange={(val) => setViewType(val as CalendarViewType)}>
-            <TabsList>
-              <TabsTrigger value="day" className="px-2 py-1 text-xs">Day</TabsTrigger>
-              {!isMobile && <TabsTrigger value="week" className="px-2 py-1 text-xs">Week</TabsTrigger>}
-              {!isMobile && <TabsTrigger value="month" className="px-2 py-1 text-xs">Month</TabsTrigger>}
-              <TabsTrigger value="schedule" className="px-2 py-1 text-xs">Schedule</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {isMobile ? (
+            <select 
+              className="border rounded p-1 text-xs"
+              value={viewType}
+              onChange={(e) => setViewType(e.target.value as CalendarViewType)}
+            >
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+              <option value="schedule">Schedule</option>
+            </select>
+          ) : (
+            <Tabs value={viewType} onValueChange={(val) => setViewType(val as CalendarViewType)}>
+              <TabsList>
+                <TabsTrigger value="day" className="px-2 py-1 text-xs">Day</TabsTrigger>
+                <TabsTrigger value="week" className="px-2 py-1 text-xs">Week</TabsTrigger>
+                <TabsTrigger value="month" className="px-2 py-1 text-xs">Month</TabsTrigger>
+                <TabsTrigger value="schedule" className="px-2 py-1 text-xs">Schedule</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
           
           <Button size="sm" variant="outline" onClick={onAddItem}>
             <CalendarIcon className="h-4 w-4 mr-1" />
@@ -346,8 +425,124 @@ export function CalendarGrid({
                     
                     {/* Events */}
                     {(() => {
-                      const events = getAllItemsForDate(date);
-                      const columns = calculateEventColumns(events);
+                      // Force a re-evaluation of the available events in this render context
+                      console.log(`Day view rendering with: ${effectiveEvents.length} events, ${effectiveTasks.length} tasks, ${effectiveSessions.length} sessions`);
+                      const targetDateStr = format(date, "yyyy-MM-dd");
+                      
+                      // Debug all events directly here
+                      const availableEvents = effectiveEvents.map(event => {
+                        const eventDate = new Date(event.startTime);
+                        const matches = format(eventDate, "yyyy-MM-dd") === targetDateStr;
+                        console.log(`Day view event check: ${event.name}, Date: ${format(eventDate, "yyyy-MM-dd")}, Matches: ${matches}`);
+                        return { ...event, matches };
+                      });
+                      
+                      // Get events with direct filtering to ensure data is processed
+                      const dayEvents = effectiveEvents
+                        .filter(event => {
+                          const eventDate = new Date(event.startTime);
+                          return format(eventDate, "yyyy-MM-dd") === targetDateStr;
+                        })
+                        .map(event => ({
+                          id: event.id,
+                          title: event.name,
+                          start: new Date(event.startTime),
+                          end: event.endTime ? new Date(event.endTime) : addMinutes(new Date(event.startTime), 60),
+                          type: "event" as const,
+                          isAllDay: event.isAllDay,
+                          color: "blue",
+                          item: event
+                        }));
+                      
+                      // Similar direct processing for other item types
+                      const dayTasks = effectiveTasks
+                        .filter(task => 
+                          task.timeSlots?.some(slot => {
+                            const slotDate = new Date(slot.startDate);
+                            return format(slotDate, "yyyy-MM-dd") === targetDateStr;
+                          })
+                        )
+                        .flatMap(task => 
+                          task.timeSlots
+                            .filter(slot => {
+                              const slotDate = new Date(slot.startDate);
+                              return format(slotDate, "yyyy-MM-dd") === targetDateStr;
+                            })
+                            .map(slot => ({
+                              id: `${task.id}-${slot.startDate}`,
+                              title: task.title,
+                              start: new Date(slot.startDate),
+                              end: slot.endDate ? new Date(slot.endDate) : addMinutes(new Date(slot.startDate), 60),
+                              type: "task" as const,
+                              isAllDay: false,
+                              color: "green",
+                              item: task
+                            }))
+                        );
+                      
+                      const daySessions = effectiveSessions
+                        .filter(session => {
+                          const sessionDate = new Date(session.scheduledFor);
+                          return format(sessionDate, "yyyy-MM-dd") === targetDateStr;
+                        })
+                        .map(session => ({
+                          id: session.id,
+                          title: session.subject,
+                          start: new Date(session.scheduledFor),
+                          end: addMinutes(new Date(session.scheduledFor), session.duration),
+                          type: "session" as const,
+                          isAllDay: false,
+                          color: "purple",
+                          item: session
+                        }));
+                      
+                      const dayReminders = effectiveReminders
+                        .filter(reminder => {
+                          const reminderDate = new Date(reminder.reminderTime);
+                          return format(reminderDate, "yyyy-MM-dd") === targetDateStr;
+                        })
+                        .map(reminder => ({
+                          id: reminder.id,
+                          title: reminder.title,
+                          start: new Date(reminder.reminderTime),
+                          end: addMinutes(new Date(reminder.reminderTime), 30),
+                          type: "reminder" as const,
+                          isAllDay: false,
+                          color: "yellow",
+                          item: reminder
+                        }));
+                      
+                      const dayDeadlines = effectiveDeadlines
+                        .filter(deadline => {
+                          if (!deadline.deadline) return false;
+                          const deadlineDate = new Date(deadline.deadline);
+                          return format(deadlineDate, "yyyy-MM-dd") === targetDateStr;
+                        })
+                        .map(deadline => ({
+                          id: deadline.id,
+                          title: deadline.title,
+                          start: new Date(deadline.deadline),
+                          end: addMinutes(new Date(deadline.deadline), 30),
+                          type: "deadline" as const,
+                          isAllDay: false,
+                          color: "red",
+                          item: deadline
+                        }));
+                      
+                      const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines]
+                        .sort((a, b) => a.start.getTime() - b.start.getTime());
+                      
+                      console.log(`Day view direct calculation - items found for ${targetDateStr}: ${allItems.length}`);
+                      
+                      if (allItems.length === 0) {
+                        return (
+                          <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-muted-foreground">
+                            No events for this day
+                          </div>
+                        );
+                      }
+                      
+                      const columns = calculateEventColumns(allItems);
                       
                       return columns.map((column, colIndex) => 
                         column.map((event: any) => {
@@ -503,34 +698,139 @@ export function CalendarGrid({
             <CardContent className="p-4">
               <h3 className="text-lg font-medium mb-4">Schedule - {format(date, "MMMM d, yyyy")}</h3>
               <div className="space-y-3">
-                {getAllItemsForDate(date).length > 0 ? (
-                  getAllItemsForDate(date).map((event) => (
-                    <div
-                      key={event.id}
-                      className={cn(
-                        "p-2 rounded border-l-4 cursor-pointer",
-                        getTypeStyles(event.type)
-                      )}
-                      onClick={() => onItemClick(event.item)}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div className="font-medium">{event.title}</div>
-                        <div className="text-sm">
-                          {format(event.start, "h:mm a")}
-                          {" - "}
-                          {format(event.end, "h:mm a")}
+                {(() => {
+                  // Force a re-evaluation of the available events in this render context
+                  console.log(`Schedule view rendering with: ${effectiveEvents.length} events, ${effectiveTasks.length} tasks, ${effectiveSessions.length} sessions`);
+                  const targetDateStr = format(date, "yyyy-MM-dd");
+                  
+                  // Get events with direct filtering to ensure data is processed
+                  const dayEvents = effectiveEvents
+                    .filter(event => {
+                      const eventDate = new Date(event.startTime);
+                      const matches = format(eventDate, "yyyy-MM-dd") === targetDateStr;
+                      console.log(`Schedule view event check: ${event.name}, Date: ${format(eventDate, "yyyy-MM-dd")}, Matches: ${matches}`);
+                      return matches;
+                    })
+                    .map(event => ({
+                      id: event.id,
+                      title: event.name,
+                      start: new Date(event.startTime),
+                      end: event.endTime ? new Date(event.endTime) : addMinutes(new Date(event.startTime), 60),
+                      type: "event" as const,
+                      isAllDay: event.isAllDay,
+                      color: "blue",
+                      item: event
+                    }));
+                  
+                  // Similar direct processing for other item types
+                  const dayTasks = effectiveTasks
+                    .filter(task => 
+                      task.timeSlots?.some(slot => {
+                        const slotDate = new Date(slot.startDate);
+                        return format(slotDate, "yyyy-MM-dd") === targetDateStr;
+                      })
+                    )
+                    .flatMap(task => 
+                      task.timeSlots
+                        .filter(slot => {
+                          const slotDate = new Date(slot.startDate);
+                          return format(slotDate, "yyyy-MM-dd") === targetDateStr;
+                        })
+                        .map(slot => ({
+                          id: `${task.id}-${slot.startDate}`,
+                          title: task.title,
+                          start: new Date(slot.startDate),
+                          end: slot.endDate ? new Date(slot.endDate) : addMinutes(new Date(slot.startDate), 60),
+                          type: "task" as const,
+                          isAllDay: false,
+                          color: "green",
+                          item: task
+                        }))
+                    );
+                  
+                  const daySessions = effectiveSessions
+                    .filter(session => {
+                      const sessionDate = new Date(session.scheduledFor);
+                      return format(sessionDate, "yyyy-MM-dd") === targetDateStr;
+                    })
+                    .map(session => ({
+                      id: session.id,
+                      title: session.subject,
+                      start: new Date(session.scheduledFor),
+                      end: addMinutes(new Date(session.scheduledFor), session.duration),
+                      type: "session" as const,
+                      isAllDay: false,
+                      color: "purple",
+                      item: session
+                    }));
+                  
+                  const dayReminders = effectiveReminders
+                    .filter(reminder => {
+                      const reminderDate = new Date(reminder.reminderTime);
+                      return format(reminderDate, "yyyy-MM-dd") === targetDateStr;
+                    })
+                    .map(reminder => ({
+                      id: reminder.id,
+                      title: reminder.title,
+                      start: new Date(reminder.reminderTime),
+                      end: addMinutes(new Date(reminder.reminderTime), 30),
+                      type: "reminder" as const,
+                      isAllDay: false,
+                      color: "yellow",
+                      item: reminder
+                    }));
+                  
+                  const dayDeadlines = effectiveDeadlines
+                    .filter(deadline => {
+                      if (!deadline.deadline) return false;
+                      const deadlineDate = new Date(deadline.deadline);
+                      return format(deadlineDate, "yyyy-MM-dd") === targetDateStr;
+                    })
+                    .map(deadline => ({
+                      id: deadline.id,
+                      title: deadline.title,
+                      start: new Date(deadline.deadline),
+                      end: addMinutes(new Date(deadline.deadline), 30),
+                      type: "deadline" as const,
+                      isAllDay: false,
+                      color: "red",
+                      item: deadline
+                    }));
+                  
+                  const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines]
+                    .sort((a, b) => a.start.getTime() - b.start.getTime());
+                  
+                  console.log(`Schedule view direct calculation - items found for ${targetDateStr}: ${allItems.length}`);
+                  
+                  return allItems.length > 0 ? (
+                    allItems.map((event) => (
+                      <div
+                        key={event.id}
+                        className={cn(
+                          "p-2 rounded border-l-4 cursor-pointer",
+                          getTypeStyles(event.type)
+                        )}
+                        onClick={() => onItemClick(event.item)}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="font-medium">{event.title}</div>
+                          <div className="text-sm">
+                            {format(event.start, "h:mm a")}
+                            {" - "}
+                            {format(event.end, "h:mm a")}
+                          </div>
+                        </div>
+                        <div className="text-sm mt-1 capitalize">
+                          {event.type}
                         </div>
                       </div>
-                      <div className="text-sm mt-1 capitalize">
-                        {event.type}
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      No scheduled items for today
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center text-muted-foreground py-8">
-                    No scheduled items for today
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
