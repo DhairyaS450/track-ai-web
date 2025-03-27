@@ -732,8 +732,8 @@ export function StudySessionTimer({
       {sessionMode === 'sections' && sections.length > 1 && renderSectionIndicator()}
       
       {/* Big centered timer */}
-      <div className="text-center py-5 sm:py-8 bg-white dark:bg-gray-900">
-        <div className="font-mono text-5xl sm:text-6xl md:text-7xl font-bold">
+      <div className="text-center py-8">
+        <div className="font-['New_York'] text-7xl font-extrabold tracking-tight">
           {formatTimeLeft(timeLeft)}
         </div>
         <div className="mt-3 sm:mt-4">
