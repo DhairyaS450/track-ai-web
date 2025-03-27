@@ -1,4 +1,70 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Montserrat:wght@500&family=Poppins:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Montserrat:wght@500&family=Poppins:wght@400;500;600;700&display=swap');
+
+/* SF Pro Display Font */
+@font-face {
+  font-family: 'SF Pro';
+  src: url('https://applesocial.s3.amazonaws.com/assets/styles/fonts/sanfrancisco/sanfranciscodisplay-regular-webfont.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SF Pro';
+  src: url('https://applesocial.s3.amazonaws.com/assets/styles/fonts/sanfrancisco/sanfranciscodisplay-medium-webfont.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SF Pro';
+  src: url('https://applesocial.s3.amazonaws.com/assets/styles/fonts/sanfrancisco/sanfranciscodisplay-bold-webfont.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+}
+
+/* SF Mono Font */
+@font-face {
+  font-family: 'SF Mono';
+  src: url('https://sf.abarba.me/SFMono-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SF Mono';
+  src: url('https://sf.abarba.me/SFMono-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SF Mono';
+  src: url('https://sf.abarba.me/SFMono-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+/* New York Font */
+@font-face {
+  font-family: 'New York';
+  src: url('https://sf.abarba.me/NewYork.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'New York';
+  src: url('https://sf.abarba.me/NewYorkMedium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'New York';
+  src: url('https://sf.abarba.me/NewYorkBold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
 
 @tailwind base;
 @tailwind components;

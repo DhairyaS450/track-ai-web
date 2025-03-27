@@ -600,7 +600,7 @@ export function StudySessionTimer({
       
       {/* Big centered timer */}
       <div className="text-center py-8">
-        <div className="font-mono text-7xl font-bold">
+        <div className="font-['New_York'] text-7xl font-extrabold tracking-tight">
           {formatTimeLeft(timeLeft)}
         </div>
         <div className="mt-4">
