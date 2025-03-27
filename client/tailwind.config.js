@@ -16,13 +16,13 @@ module.exports = {
   		},
   		colors: {
   			brand: {
-  				primary: '#0088cc',
-  				secondary: '#00b4d8',
-  				tertiary: '#ff6b6b',
+  				primary: '#0077cc',
+  				secondary: '#00a8d4',
+  				tertiary: '#ff5050',
   				background: '#f8f9fa',
-  				'dark-bg': '#181818',
-  				text: '#222831',
-  				'text-secondary': '#495057',
+  				'dark-bg': '#121620',
+  				text: '#1a1a2e',
+  				'text-secondary': '#444a54',
   			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
@@ -75,6 +75,38 @@ module.exports = {
   				ring: 'hsl(var(--sidebar-ring))'
   			}
   		},
+      // Add a utility class for the modern background
+      utilities: {
+        '.modern-bg': {
+          position: 'relative',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            zIndex: -10,
+            backgroundImage: `
+              linear-gradient(to right, rgba(30, 144, 255, 0.05) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(30, 144, 255, 0.05) 1px, transparent 1px)
+            `,
+            backgroundSize: '24px 24px',
+            opacity: 0.5,
+            pointerEvents: 'none',
+          },
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            zIndex: -5,
+            backgroundImage: `
+              radial-gradient(circle at top right, 
+              rgba(0, 119, 204, 0.03) 0%, 
+              rgba(0, 168, 212, 0.02) 30%, 
+              transparent 70%)
+            `,
+            pointerEvents: 'none',
+          },
+        },
+      },
   		keyframes: {
   			'accordion-down': {
   				from: {

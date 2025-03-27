@@ -2,12 +2,13 @@ import { Outlet } from "react-router-dom"
 import { Header } from "./Header"
 import { Sidebar } from "./Sidebar"
 import { useState, memo } from "react"
+import { ModernBackground } from "./ModernBackground"
 
 const LayoutComponent = memo(() => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary">
+    <ModernBackground>
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <div className="flex h-[calc(100vh-4rem)]">
         <Sidebar open={sidebarOpen} onOpenChange={setSidebarOpen} />
@@ -17,7 +18,7 @@ const LayoutComponent = memo(() => {
           </div>
         </main>
       </div>
-    </div>
+    </ModernBackground>
   )
 });
 

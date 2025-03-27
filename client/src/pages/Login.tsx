@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/useToast"
 import { LogIn } from "lucide-react"
 import { login, signInWithGoogle } from "@/api/auth"
 import { getAuth } from "firebase/auth"
+import { ModernBackground } from "@/components/ModernBackground"
 
 type LoginForm = {
   email: string
@@ -91,7 +92,7 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary p-4">
+    <ModernBackground className="flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Welcome back</CardTitle>
@@ -186,6 +187,6 @@ export function Login() {
           </Button>
         </CardFooter>
       </Card>
-    </div>
+    </ModernBackground>
   )
 }

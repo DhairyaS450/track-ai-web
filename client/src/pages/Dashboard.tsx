@@ -644,12 +644,12 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="pb-2 border-b border-brand-primary">
-        <h1 className="text-4xl font-bold text-foreground">Welcome back!</h1>
+      <div className="pb-2 border-b border-brand-primary/40">
+        <h1 className="text-4xl font-bold text-brand-primary">Welcome back!</h1>
       </div>
 
       {/* Priority Items Card - Full Width */}
-      <Card className="bg-gradient-to-br from-brand-primary/10 to-brand-secondary/10 border-brand-primary/20">
+      <Card className="border-brand-primary/30 bg-white dark:bg-gray-900">
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-brand-primary">
             Priority Items
@@ -661,7 +661,7 @@ export function Dashboard() {
             onOpenChange={setIsOverdueOpen}
             className="space-y-2"
           >
-            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg bg-brand-primary/5 p-4 font-medium text-brand-primary hover:bg-brand-primary/10 transition-colors">
+            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg bg-destructive/10 p-4 font-medium text-destructive hover:bg-destructive/15 transition-colors">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
                 <span>Overdue Deadlines ({overdueTasks.length})</span>
@@ -711,7 +711,7 @@ export function Dashboard() {
             onOpenChange={setIsTodayOpen}
             className="space-y-2"
           >
-            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg bg-brand-secondary/5 p-4 font-medium text-brand-secondary hover:bg-brand-secondary/10 transition-colors">
+            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg bg-primary/10 p-4 font-medium text-primary hover:bg-primary/15 transition-colors">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 <span>Due Today ({todayTasks.length})</span>
@@ -762,7 +762,7 @@ export function Dashboard() {
             onOpenChange={setIsHighPriorityOpen}
             className="space-y-2"
           >
-            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg bg-brand-primary/5 p-4 font-medium text-brand-primary hover:bg-brand-primary/10 transition-colors">
+            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg bg-secondary/10 p-4 font-medium text-secondary hover:bg-secondary/15 transition-colors">
               <div className="flex items-center gap-2">
                 <Bell className="h-4 w-4" />
                 <span>High Priority Items ({highPriorityItems.length})</span>
@@ -810,9 +810,9 @@ export function Dashboard() {
       </Card>
 
       {/* Three Column Grid */}
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Tasks Card */}
-        <Card>
+        <Card className="border-brand-primary/20 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Pending Tasks
@@ -863,15 +863,15 @@ export function Dashboard() {
               {tasks.map((task) => (
                 <div
                   key={task.id}
-                  className={`rounded-lg border p-4 transition-colors
+                  className={`rounded-lg border p-4 transition-colors shadow-sm
                     ${
                       task.status === "completed"
-                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900"
-                        : ""
+                        ? "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-900"
+                        : "bg-white dark:bg-gray-800"
                     }
                     ${
-                      task.source === "google_calendar"
-                        ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+                      task.source === "google_calendar" || task.source === "google_tasks"
+                        ? "border-l-4 border-l-green-500 dark:border-l-green-400"
                         : ""
                     }
                     `}
@@ -976,7 +976,7 @@ export function Dashboard() {
         </Card>
 
         {/* Study Sessions Card */}
-        <Card>
+        <Card className="border-brand-primary/20 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Today's Study Sessions
@@ -1000,8 +1000,8 @@ export function Dashboard() {
                   className={`relative rounded-lg border p-4 transition-all hover:shadow-md
                     ${
                       session.isAIRecommended
-                        ? "bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950"
-                        : ""
+                        ? "border-l-4 border-l-purple-500 dark:border-l-purple-400 bg-white dark:bg-gray-800"
+                        : "bg-white dark:bg-gray-800"
                     }`}
                 >
                   {session.isAIRecommended && (
@@ -1086,13 +1086,22 @@ export function Dashboard() {
         </Card>
 
         {/* Events Timeline Card */}
-        <EventsTimeline
-          onEventClick={(event) => {
-            setEventToEdit(event);
-            setCreateEventOpen(true);
-          }}
-          events={events}
-        />
+        <Card className="border-brand-primary/20 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Events Timeline
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EventsTimeline
+              events={events}
+              onEventClick={(event) => {
+                setEventToEdit(event);
+                setCreateEventOpen(true);
+              }}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
