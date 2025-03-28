@@ -311,9 +311,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         status: 'in-progress',
         startTime: new Date().toISOString(),
         completion: 0,
-        // Initialize with the first section if using sections mode
-        currentSectionIndex: sessionData.sessionMode === 'sections' ? 0 : undefined,
       };
+      
+      // Add currentSectionIndex only if using sections mode
+      if (sessionData.sessionMode === 'sections') {
+        updates.currentSectionIndex = 0;
+      }
       
       // If we have sections, update the first section to in-progress
       if (sessionData.sections && sessionData.sections.length > 0) {
