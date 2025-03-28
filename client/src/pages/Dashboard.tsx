@@ -24,6 +24,8 @@ import {
   MoreVertical,
   Sparkles,
   Check,
+  CheckCircle,
+  CircleX,
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { CreateTaskDialog } from "@/components/CreateTaskDialog";
@@ -120,6 +122,8 @@ export function Dashboard() {
     return isPast(new Date(dateStr as string));
   };
 
+  const [showCompleted, setShowCompleted] = useState(false);
+
   useEffect(() => {
     if (!loading) {
       const todayTasks = allTasks.filter(task => 
@@ -130,11 +134,13 @@ export function Dashboard() {
         task.timeSlots.length === 0 ||
         task.timeSlots.every(slot => !slot.startDate)) &&
         // And exclude archived tasks
-        task.status !== 'archived'
+        task.status !== 'archived' &&
+        // Filter based on showCompleted state
+        (showCompleted || task.status !== 'completed')
       );
       setTasks(todayTasks);
     }
-  }, [allTasks, loading]);
+  }, [allTasks, loading, showCompleted]);
 
   useEffect(() => {
     if (!loading) {
@@ -817,16 +823,26 @@ export function Dashboard() {
             <CardTitle className="text-sm font-medium">
               Pending Tasks
             </CardTitle>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                setEditTask(null);
-                setCreateTaskOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCompleted(!showCompleted)}
+                className="text-xs"
+              >
+                {showCompleted ? <CircleX className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  setEditTask(null);
+                  setCreateTaskOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center justify-center space-y-2 pb-4">
