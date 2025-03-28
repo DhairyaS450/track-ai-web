@@ -39,6 +39,7 @@ interface CalendarGridProps {
   deadlines: Task[];
   onAddItem: () => void;
   onItemClick: (item: Task | Event | StudySession | Reminder) => void;
+  onConflictClick?: (items: (Task | Event | StudySession)[]) => void;
 }
 
 type CalendarViewType = "day" | "week" | "month" | "schedule";
@@ -54,6 +55,7 @@ export function CalendarGrid({
   deadlines,
   onAddItem,
   onItemClick,
+  onConflictClick,
 }: CalendarGridProps) {
   const [viewType, setViewType] = useState<CalendarViewType>("week");
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -307,11 +309,12 @@ export function CalendarGrid({
     return isBefore(event1.start, event2.end) && isAfter(event1.end, event2.start);
   };
 
-  // Detect conflicts between calendar items
+  // Detect conflicts between calendar items with conflict groups
   const detectConflicts = (items: any[]) => {
-    if (!items.length) return new Map<string, boolean>();
+    if (!items.length) return { conflictMap: new Map<string, boolean>(), conflictPairs: new Map<string, any[]>() };
     
     const conflictMap = new Map<string, boolean>();
+    const conflictPairs = new Map<string, any[]>();
     
     // Check each item against all others for overlaps
     for (let i = 0; i < items.length; i++) {
@@ -330,11 +333,32 @@ export function CalendarGrid({
         if (doEventsOverlap(item1, item2)) {
           conflictMap.set(item1.id, true);
           conflictMap.set(item2.id, true);
+          
+          // Track which items are in conflict with each other
+          if (!conflictPairs.has(item1.id)) {
+            conflictPairs.set(item1.id, [item1, item2]);
+          } else {
+            const existing = conflictPairs.get(item1.id) || [];
+            if (!existing.some(item => item.id === item2.id)) {
+              existing.push(item2);
+              conflictPairs.set(item1.id, existing);
+            }
+          }
+          
+          if (!conflictPairs.has(item2.id)) {
+            conflictPairs.set(item2.id, [item1, item2]);
+          } else {
+            const existing = conflictPairs.get(item2.id) || [];
+            if (!existing.some(item => item.id === item1.id)) {
+              existing.push(item1);
+              conflictPairs.set(item2.id, existing);
+            }
+          }
         }
       }
     }
     
-    return conflictMap;
+    return { conflictMap, conflictPairs };
   };
 
   // Memoize event columns calculation
@@ -487,8 +511,6 @@ export function CalendarGrid({
                       console.log(`Day view rendering with: ${effectiveEvents.length} events, ${effectiveTasks.length} tasks, ${effectiveSessions.length} sessions`);
                       const targetDateStr = format(date, "yyyy-MM-dd");
                       
-                      
-                      
                       // Get events with direct filtering to ensure data is processed
                       const dayEvents = effectiveEvents
                         .filter(event => {
@@ -597,7 +619,7 @@ export function CalendarGrid({
                       const columns = calculateEventColumns(allItems);
                       
                       // Detect conflicts for visual indication
-                      const conflictMap = detectConflicts(allItems);
+                      const { conflictMap, conflictPairs } = detectConflicts(allItems);
                       
                       return columns.map((column, colIndex) => 
                         column.map((event: any) => {
@@ -621,7 +643,22 @@ export function CalendarGrid({
                               onClick={() => onItemClick(event.item)}
                             >
                               <div className="text-xs font-medium truncate">
-                                {event.title} {hasConflict && <span className="ml-1">⚠️</span>}
+                                {event.title} 
+                                {hasConflict && onConflictClick && (
+                                  <span 
+                                    className="ml-1 cursor-pointer" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const conflicts = conflictPairs.get(event.id) || [];
+                                      const items = conflicts.map(item => item.item).filter(
+                                        item => item.type !== 'deadline' && item.type !== 'reminder'
+                                      );
+                                      onConflictClick(items);
+                                    }}
+                                  >
+                                    ⚠️
+                                  </span>
+                                )}
                               </div>
                               <div className="text-xs opacity-80">
                                 {format(event.start, "h:mm a")}
@@ -679,7 +716,7 @@ export function CalendarGrid({
                     <ScrollArea className="h-full">
                       {(() => {
                         const items = getAllItemsForDate(day);
-                        const conflictMap = detectConflicts(items);
+                        const { conflictMap, conflictPairs } = detectConflicts(items);
                         return items.map((event) => (
                           <div
                             key={event.id}
@@ -691,7 +728,22 @@ export function CalendarGrid({
                             onClick={() => onItemClick(event.item)}
                           >
                             <div className="font-medium truncate">
-                              {event.title} {conflictMap.get(event.id) && <span className="ml-1">⚠️</span>}
+                              {event.title} 
+                              {conflictMap.get(event.id) && onConflictClick && (
+                                <span 
+                                  className="ml-1 cursor-pointer" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const conflicts = conflictPairs.get(event.id) || [];
+                                    const items = conflicts.map(item => item.item).filter(
+                                      item => item.type !== 'deadline' && item.type !== 'reminder'
+                                    );
+                                    onConflictClick(items);
+                                  }}
+                                >
+                                  ⚠️
+                                </span>
+                              )}
                             </div>
                             {!isMobile && (
                               <div className="text-xs opacity-80">
@@ -755,7 +807,7 @@ export function CalendarGrid({
                     )}>
                       {(() => {
                         const items = getAllItemsForDate(day);
-                        const conflictMap = detectConflicts(items);
+                        const { conflictMap, conflictPairs } = detectConflicts(items);
                         return items.slice(0, isMobile ? 2 : 3).map((event) => (
                           <div
                             key={event.id}
@@ -769,7 +821,22 @@ export function CalendarGrid({
                               onItemClick(event.item);
                             }}
                           >
-                            {event.title} {conflictMap.get(event.id) && <span className="ml-1">⚠️</span>}
+                            {event.title} 
+                            {conflictMap.get(event.id) && onConflictClick && (
+                              <span 
+                                className="ml-1 cursor-pointer" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const conflicts = conflictPairs.get(event.id) || [];
+                                  const items = conflicts.map(item => item.item).filter(
+                                    item => item.type !== 'deadline' && item.type !== 'reminder'
+                                  );
+                                  onConflictClick(items);
+                                }}
+                              >
+                                ⚠️
+                              </span>
+                            )}
                           </div>
                         ));
                       })()}
@@ -804,6 +871,7 @@ export function CalendarGrid({
                   onItemClick={onItemClick}
                   getTypeStyles={getTypeStyles}
                   detectConflicts={detectConflicts}
+                  onConflictClick={onConflictClick}
                 />
               </div>
             </CardContent>
@@ -824,7 +892,8 @@ function ScheduleView({
   deadlines,
   onItemClick,
   getTypeStyles,
-  detectConflicts
+  detectConflicts,
+  onConflictClick
 }: {
   date: Date;
   events: Event[];
@@ -834,7 +903,8 @@ function ScheduleView({
   deadlines: Task[];
   onItemClick: (item: any) => void;
   getTypeStyles: (type: string) => string;
-  detectConflicts: (items: any[]) => Map<string, boolean>;
+  detectConflicts: (items: any[]) => { conflictMap: Map<string, boolean>; conflictPairs: Map<string, any[]> };
+  onConflictClick?: (items: (Task | Event | StudySession)[]) => void;
 }) {
   // Force a re-evaluation of the available events in this render context
   console.log(`Schedule view rendering with: ${events.length} events, ${tasks.length} tasks, ${sessions.length} sessions`);
@@ -948,7 +1018,7 @@ function ScheduleView({
   }
   
   // Detect conflicts for schedule view
-  const conflictMap = detectConflicts(allItems);
+  const { conflictMap, conflictPairs } = detectConflicts(allItems);
   
   return (
     <>
@@ -964,8 +1034,20 @@ function ScheduleView({
           <div className="flex-1">
             <div className="flex items-center">
               <div className="font-medium">{item.title}</div>
-              {conflictMap.get(item.id) && (
-                <div className="ml-2 text-amber-500">⚠️</div>
+              {conflictMap.get(item.id) && onConflictClick && (
+                <div 
+                  className="ml-2 text-amber-500 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const conflicts = conflictPairs.get(item.id) || [];
+                    const items = conflicts.map(i => i.item).filter(
+                      i => i.type !== 'deadline' && i.type !== 'reminder'
+                    );
+                    onConflictClick(items);
+                  }}
+                >
+                  ⚠️
+                </div>
               )}
             </div>
             <div className="text-muted-foreground text-sm">
