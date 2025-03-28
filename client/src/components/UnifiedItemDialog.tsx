@@ -346,7 +346,7 @@ export function UnifiedItemDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue={itemType} onValueChange={handleTypeChange} className="mt-4">
+        <Tabs value={itemType} onValueChange={handleTypeChange} className="mt-4">
           <TabsList className="grid grid-cols-4 mb-4">
             <TabsTrigger value="task">Task</TabsTrigger>
             <TabsTrigger value="event">Event</TabsTrigger>
@@ -968,7 +968,7 @@ export function UnifiedItemDialog({
                           mode="single"
                           selected={recurrenceEndDate}
                           onSelect={setRecurrenceEndDate}
-                          disabled={(date) =>
+                          disabled={(date: Date) =>
                             date < new Date(new Date().setHours(0, 0, 0, 0))
                           }
                           initialFocus

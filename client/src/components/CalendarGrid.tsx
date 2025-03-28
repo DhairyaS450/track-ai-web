@@ -307,6 +307,36 @@ export function CalendarGrid({
     return isBefore(event1.start, event2.end) && isAfter(event1.end, event2.start);
   };
 
+  // Detect conflicts between calendar items
+  const detectConflicts = (items: any[]) => {
+    if (!items.length) return new Map<string, boolean>();
+    
+    const conflictMap = new Map<string, boolean>();
+    
+    // Check each item against all others for overlaps
+    for (let i = 0; i < items.length; i++) {
+      const item1 = items[i];
+      
+      // Skip all-day events and non-conflicting item types (deadlines and reminders)
+      if (item1.isAllDay || item1.type === "deadline" || item1.type === "reminder") continue;
+      
+      for (let j = i + 1; j < items.length; j++) {
+        const item2 = items[j];
+        
+        // Skip all-day events and non-conflicting item types (deadlines and reminders)
+        if (item2.isAllDay || item2.type === "deadline" || item2.type === "reminder") continue;
+        
+        // Check if the items overlap
+        if (doEventsOverlap(item1, item2)) {
+          conflictMap.set(item1.id, true);
+          conflictMap.set(item2.id, true);
+        }
+      }
+    }
+    
+    return conflictMap;
+  };
+
   // Memoize event columns calculation
   const calculateEventColumns = (events: any[]) => {
     if (!events.length) return [];
@@ -457,13 +487,7 @@ export function CalendarGrid({
                       console.log(`Day view rendering with: ${effectiveEvents.length} events, ${effectiveTasks.length} tasks, ${effectiveSessions.length} sessions`);
                       const targetDateStr = format(date, "yyyy-MM-dd");
                       
-                      // Debug all events directly here
-                      const availableEvents = effectiveEvents.map(event => {
-                        const eventDate = new Date(event.startTime);
-                        const matches = format(eventDate, "yyyy-MM-dd") === targetDateStr;
-                        console.log(`Day view event check: ${event.name}, Date: ${format(eventDate, "yyyy-MM-dd")}, Matches: ${matches}`);
-                        return { ...event, matches };
-                      });
+                      
                       
                       // Get events with direct filtering to ensure data is processed
                       const dayEvents = effectiveEvents
@@ -572,10 +596,14 @@ export function CalendarGrid({
                       
                       const columns = calculateEventColumns(allItems);
                       
+                      // Detect conflicts for visual indication
+                      const conflictMap = detectConflicts(allItems);
+                      
                       return columns.map((column, colIndex) => 
                         column.map((event: any) => {
                           const { top, height } = calculateEventPosition(event.start, event.end);
                           const colWidth = 100 / (columns.length || 1);
+                          const hasConflict = conflictMap.get(event.id);
                           
                           return (
                             <div
@@ -593,7 +621,7 @@ export function CalendarGrid({
                               onClick={() => onItemClick(event.item)}
                             >
                               <div className="text-xs font-medium truncate">
-                                {event.title}
+                                {event.title} {hasConflict && <span className="ml-1">⚠️</span>}
                               </div>
                               <div className="text-xs opacity-80">
                                 {format(event.start, "h:mm a")}
@@ -649,24 +677,30 @@ export function CalendarGrid({
                     isMobile ? "h-[120px]" : "h-[300px]"
                   )}>
                     <ScrollArea className="h-full">
-                      {getAllItemsForDate(day).map((event) => (
-                        <div
-                          key={event.id}
-                          className={cn(
-                            "rounded border-l-2 cursor-pointer",
-                            getTypeStyles(event.type),
-                            isMobile ? "m-0.5 p-0.5 text-[10px]" : "m-1 p-1 text-xs"
-                          )}
-                          onClick={() => onItemClick(event.item)}
-                        >
-                          <div className="font-medium truncate">{event.title}</div>
-                          {!isMobile && (
-                            <div className="text-xs opacity-80">
-                              {format(event.start, "h:mm a")}
+                      {(() => {
+                        const items = getAllItemsForDate(day);
+                        const conflictMap = detectConflicts(items);
+                        return items.map((event) => (
+                          <div
+                            key={event.id}
+                            className={cn(
+                              "rounded border-l-2 cursor-pointer",
+                              getTypeStyles(event.type),
+                              isMobile ? "m-0.5 p-0.5 text-[10px]" : "m-1 p-1 text-xs"
+                            )}
+                            onClick={() => onItemClick(event.item)}
+                          >
+                            <div className="font-medium truncate">
+                              {event.title} {conflictMap.get(event.id) && <span className="ml-1">⚠️</span>}
                             </div>
-                          )}
-                        </div>
-                      ))}
+                            {!isMobile && (
+                              <div className="text-xs opacity-80">
+                                {format(event.start, "h:mm a")}
+                              </div>
+                            )}
+                          </div>
+                        ));
+                      })()}
                     </ScrollArea>
                   </CardContent>
                 </Card>
@@ -719,22 +753,26 @@ export function CalendarGrid({
                       "space-y-1",
                       isMobile ? "p-0.5" : "p-1"
                     )}>
-                      {getAllItemsForDate(day).slice(0, isMobile ? 2 : 3).map((event) => (
-                        <div
-                          key={event.id}
-                          className={cn(
-                            "truncate rounded border-l-2",
-                            getTypeStyles(event.type),
-                            isMobile ? "px-0.5 text-[8px]" : "px-1 text-xs"
-                          )}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onItemClick(event.item);
-                          }}
-                        >
-                          {event.title}
-                        </div>
-                      ))}
+                      {(() => {
+                        const items = getAllItemsForDate(day);
+                        const conflictMap = detectConflicts(items);
+                        return items.slice(0, isMobile ? 2 : 3).map((event) => (
+                          <div
+                            key={event.id}
+                            className={cn(
+                              "truncate rounded border-l-2",
+                              getTypeStyles(event.type),
+                              isMobile ? "px-0.5 text-[8px]" : "px-1 text-xs"
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onItemClick(event.item);
+                            }}
+                          >
+                            {event.title} {conflictMap.get(event.id) && <span className="ml-1">⚠️</span>}
+                          </div>
+                        ));
+                      })()}
                       {getAllItemsForDate(day).length > (isMobile ? 2 : 3) && (
                         <div className={cn(
                           "text-center text-muted-foreground",
@@ -756,144 +794,186 @@ export function CalendarGrid({
             <CardContent className="p-4">
               <h3 className="text-lg font-medium mb-4">Schedule - {format(date, "MMMM d, yyyy")}</h3>
               <div className="space-y-3">
-                {(() => {
-                  // Force a re-evaluation of the available events in this render context
-                  console.log(`Schedule view rendering with: ${effectiveEvents.length} events, ${effectiveTasks.length} tasks, ${effectiveSessions.length} sessions`);
-                  const targetDateStr = format(date, "yyyy-MM-dd");
-                  
-                  // Get events with direct filtering to ensure data is processed
-                  const dayEvents = effectiveEvents
-                    .filter(event => {
-                      const eventDate = new Date(event.startTime);
-                      const matches = format(eventDate, "yyyy-MM-dd") === targetDateStr;
-                      console.log(`Schedule view event check: ${event.name}, Date: ${format(eventDate, "yyyy-MM-dd")}, Matches: ${matches}`);
-                      return matches;
-                    })
-                    .map(event => ({
-                      id: event.id,
-                      title: event.name,
-                      start: new Date(event.startTime),
-                      end: event.endTime ? new Date(event.endTime) : addMinutes(new Date(event.startTime), 60),
-                      type: "event" as const,
-                      isAllDay: event.isAllDay,
-                      color: "blue",
-                      item: event
-                    }));
-                  
-                  // Similar direct processing for other item types
-                  const dayTasks = effectiveTasks
-                    .filter(task => 
-                      task.timeSlots?.some(slot => {
-                        const slotDate = new Date(slot.startDate);
-                        return format(slotDate, "yyyy-MM-dd") === targetDateStr;
-                      })
-                    )
-                    .flatMap(task => 
-                      task.timeSlots
-                        .filter(slot => {
-                          const slotDate = new Date(slot.startDate);
-                          return format(slotDate, "yyyy-MM-dd") === targetDateStr;
-                        })
-                        .map(slot => ({
-                          id: `${task.id}-${slot.startDate}`,
-                          title: task.title,
-                          start: new Date(slot.startDate),
-                          end: slot.endDate ? new Date(slot.endDate) : addMinutes(new Date(slot.startDate), 60),
-                          type: "task" as const,
-                          isAllDay: false,
-                          color: "green",
-                          item: task
-                        }))
-                    );
-                  
-                  const daySessions = effectiveSessions
-                    .filter(session => {
-                      const sessionDate = new Date(session.scheduledFor);
-                      return format(sessionDate, "yyyy-MM-dd") === targetDateStr;
-                    })
-                    .map(session => ({
-                      id: session.id,
-                      title: session.subject,
-                      start: new Date(session.scheduledFor),
-                      end: addMinutes(new Date(session.scheduledFor), session.duration),
-                      type: "session" as const,
-                      isAllDay: false,
-                      color: "purple",
-                      item: session
-                    }));
-                  
-                  const dayReminders = effectiveReminders
-                    .filter(reminder => {
-                      const reminderDate = new Date(reminder.reminderTime);
-                      return format(reminderDate, "yyyy-MM-dd") === targetDateStr;
-                    })
-                    .map(reminder => ({
-                      id: reminder.id,
-                      title: reminder.title,
-                      start: new Date(reminder.reminderTime),
-                      end: addMinutes(new Date(reminder.reminderTime), 30),
-                      type: "reminder" as const,
-                      isAllDay: false,
-                      color: "yellow",
-                      item: reminder
-                    }));
-                  
-                  const dayDeadlines = effectiveDeadlines
-                    .filter(deadline => {
-                      if (!deadline.deadline) return false;
-                      const deadlineDate = new Date(deadline.deadline);
-                      return format(deadlineDate, "yyyy-MM-dd") === targetDateStr;
-                    })
-                    .map(deadline => ({
-                      id: deadline.id,
-                      title: deadline.title,
-                      start: new Date(deadline.deadline),
-                      end: addMinutes(new Date(deadline.deadline), 30),
-                      type: "deadline" as const,
-                      isAllDay: false,
-                      color: "red",
-                      item: deadline
-                    }));
-                  
-                  const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines]
-                    .sort((a, b) => a.start.getTime() - b.start.getTime());
-                  
-                  console.log(`Schedule view direct calculation - items found for ${targetDateStr}: ${allItems.length}`);
-                  
-                  return allItems.length > 0 ? (
-                    allItems.map((event) => (
-                      <div
-                        key={event.id}
-                        className={cn(
-                          "p-2 rounded border-l-4 cursor-pointer",
-                          getTypeStyles(event.type)
-                        )}
-                        onClick={() => onItemClick(event.item)}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div className="font-medium">{event.title}</div>
-                          <div className="text-sm">
-                            {format(event.start, "h:mm a")}
-                            {" - "}
-                            {format(event.end, "h:mm a")}
-                          </div>
-                        </div>
-                        <div className="text-sm mt-1 capitalize">
-                          {event.type}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-muted-foreground py-8">
-                      No scheduled items for today
-                    </div>
-                  );
-                })()}
+                <ScheduleView 
+                  date={date}
+                  events={effectiveEvents}
+                  tasks={effectiveTasks}
+                  sessions={effectiveSessions}
+                  reminders={effectiveReminders}
+                  deadlines={effectiveDeadlines}
+                  onItemClick={onItemClick}
+                  getTypeStyles={getTypeStyles}
+                  detectConflicts={detectConflicts}
+                />
               </div>
             </CardContent>
           </Card>
         )}
       </div>
     </div>
+  );
+}
+
+// Separate component for Schedule view to avoid IIFE type issues
+function ScheduleView({
+  date,
+  events,
+  tasks,
+  sessions,
+  reminders,
+  deadlines,
+  onItemClick,
+  getTypeStyles,
+  detectConflicts
+}: {
+  date: Date;
+  events: Event[];
+  tasks: Task[];
+  sessions: StudySession[];
+  reminders: Reminder[];
+  deadlines: Task[];
+  onItemClick: (item: any) => void;
+  getTypeStyles: (type: string) => string;
+  detectConflicts: (items: any[]) => Map<string, boolean>;
+}) {
+  // Force a re-evaluation of the available events in this render context
+  console.log(`Schedule view rendering with: ${events.length} events, ${tasks.length} tasks, ${sessions.length} sessions`);
+  const targetDateStr = format(date, "yyyy-MM-dd");
+  
+  // Get events with direct filtering to ensure data is processed
+  const dayEvents = events
+    .filter(event => {
+      const eventDate = new Date(event.startTime);
+      const matches = format(eventDate, "yyyy-MM-dd") === targetDateStr;
+      console.log(`Schedule view event check: ${event.name}, Date: ${format(eventDate, "yyyy-MM-dd")}, Matches: ${matches}`);
+      return matches;
+    })
+    .map(event => ({
+      id: event.id,
+      title: event.name,
+      start: new Date(event.startTime),
+      end: event.endTime ? new Date(event.endTime) : addMinutes(new Date(event.startTime), 60),
+      type: "event" as const,
+      isAllDay: event.isAllDay,
+      color: "blue",
+      item: event
+    }));
+  
+  // Similar direct processing for other item types
+  const dayTasks = tasks
+    .filter(task => 
+      task.timeSlots?.some(slot => {
+        const slotDate = new Date(slot.startDate);
+        return format(slotDate, "yyyy-MM-dd") === targetDateStr;
+      })
+    )
+    .flatMap(task => 
+      task.timeSlots
+        .filter(slot => {
+          const slotDate = new Date(slot.startDate);
+          return format(slotDate, "yyyy-MM-dd") === targetDateStr;
+        })
+        .map(slot => ({
+          id: `${task.id}-${slot.startDate}`,
+          title: task.title,
+          start: new Date(slot.startDate),
+          end: slot.endDate ? new Date(slot.endDate) : addMinutes(new Date(slot.startDate), 60),
+          type: "task" as const,
+          isAllDay: false,
+          color: "green",
+          item: task
+        }))
+    );
+  
+  const daySessions = sessions
+    .filter(session => {
+      const sessionDate = new Date(session.scheduledFor);
+      return format(sessionDate, "yyyy-MM-dd") === targetDateStr;
+    })
+    .map(session => ({
+      id: session.id,
+      title: session.subject,
+      start: new Date(session.scheduledFor),
+      end: addMinutes(new Date(session.scheduledFor), session.duration),
+      type: "session" as const,
+      isAllDay: false,
+      color: "purple",
+      item: session
+    }));
+  
+  const dayReminders = reminders
+    .filter(reminder => {
+      const reminderDate = new Date(reminder.reminderTime);
+      return format(reminderDate, "yyyy-MM-dd") === targetDateStr;
+    })
+    .map(reminder => ({
+      id: reminder.id,
+      title: reminder.title,
+      start: new Date(reminder.reminderTime),
+      end: addMinutes(new Date(reminder.reminderTime), 30),
+      type: "reminder" as const,
+      isAllDay: false,
+      color: "yellow",
+      item: reminder
+    }));
+  
+  const dayDeadlines = deadlines
+    .filter(deadline => {
+      if (!deadline.deadline) return false;
+      const deadlineDate = new Date(deadline.deadline);
+      return format(deadlineDate, "yyyy-MM-dd") === targetDateStr;
+    })
+    .map(deadline => ({
+      id: deadline.id,
+      title: deadline.title,
+      start: new Date(deadline.deadline),
+      end: addMinutes(new Date(deadline.deadline), 30),
+      type: "deadline" as const,
+      isAllDay: false,
+      color: "red",
+      item: deadline
+    }));
+  
+  const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines]
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+  
+  console.log(`Schedule view direct calculation - items found for ${targetDateStr}: ${allItems.length}`);
+  
+  if (allItems.length === 0) {
+    return (
+      <div className="text-muted-foreground text-center py-4">
+        No items scheduled for this day
+      </div>
+    );
+  }
+  
+  // Detect conflicts for schedule view
+  const conflictMap = detectConflicts(allItems);
+  
+  return (
+    <>
+      {allItems.map(item => (
+        <div
+          key={item.id}
+          className={cn(
+            "flex items-center border-l-4 rounded-md p-3 cursor-pointer",
+            getTypeStyles(item.type)
+          )}
+          onClick={() => onItemClick(item.item)}
+        >
+          <div className="flex-1">
+            <div className="flex items-center">
+              <div className="font-medium">{item.title}</div>
+              {conflictMap.get(item.id) && (
+                <div className="ml-2 text-amber-500">⚠️</div>
+              )}
+            </div>
+            <div className="text-muted-foreground text-sm">
+              {format(item.start, "h:mm a")} - {format(item.end, "h:mm a")}
+            </div>
+          </div>
+        </div>
+      ))}
+    </>
   );
 } 
