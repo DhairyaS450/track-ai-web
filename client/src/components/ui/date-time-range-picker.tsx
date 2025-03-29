@@ -124,6 +124,7 @@ export function DateTimeRangePicker({
                       onChange={handleStartTimeChange}
                       className="pl-9"
                       disabled={disabled}
+                      step={600}
                     />
                   </div>
                   <div className="flex gap-1">
@@ -156,6 +157,7 @@ export function DateTimeRangePicker({
                         onChange={handleEndTimeChange}
                         className="pl-9"
                         disabled={disabled}
+                        step={600}
                       />
                     </div>
                     <div className="flex gap-1">

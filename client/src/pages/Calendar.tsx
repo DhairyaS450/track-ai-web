@@ -11,6 +11,7 @@ import {
   UnifiedStudySession,
   convertToUnified,
   convertFromUnified,
+  ItemType
 } from "@/types/unified";
 
 import {
@@ -55,7 +56,7 @@ export function Calendar() {
   
   // State for conflict handling
   const [conflictPopupOpen, setConflictPopupOpen] = useState(false);
-  const [conflictingItems, setConflictingItems] = useState<(Task | Event | StudySession)[]>([]);
+  const [conflictingItems, setConflictingItems] = useState<SchedulableItem[]>([]);
   
   const { toast } = useToast();
 
@@ -248,193 +249,98 @@ export function Calendar() {
     // Log the items to see what we're dealing with
     console.log("Conflict items received from grid:", items);
     
-    // Make sure items are valid
-    const validItems = items.filter(item => item && typeof item === 'object' && 'id' in item);
-    
-    if (validItems.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No valid conflicting items found",
-      });
-      return;
+    // Ensure we have at least two items to have a conflict
+    if (items.length < 2) {
+        console.warn("Conflict click triggered with less than 2 items:", items);
+        return; // No conflict if fewer than 2 items
     }
-    
-    setConflictingItems(validItems);
-    setConflictPopupOpen(true);
-  }, [toast]);
 
-  const handleRescheduleConflict = useCallback(async (itemId: string, newStartTime: string, newEndTime?: string) => {
-    try {
-      const item = conflictingItems.find(i => i.id === itemId);
-      if (!item) return;
-      
-      console.log("Item to reschedule:", item, "New Start:", newStartTime, "New End:", newEndTime);
-      
-      if ('name' in item && 'startTime' in item) {
-        // It's an Event
-        // Ensure newEndTime is calculated if possible
-        let calculatedEndTime = newEndTime;
-        if (!calculatedEndTime && item.endTime) {
-          try {
-            const start = new Date(item.startTime);
-            const end = new Date(item.endTime);
-            const duration = end.getTime() - start.getTime();
-            calculatedEndTime = new Date(new Date(newStartTime).getTime() + duration).toISOString();
-          } catch (e) {
-            console.error("Error calculating event end time:", e);
-            // Fallback to original end time if calculation fails
-            calculatedEndTime = item.endTime;
-          }
-        }
-        
-        await updateEvent(itemId, { 
-          startTime: newStartTime,
-          endTime: calculatedEndTime 
-        });
-        toast({
-          title: "Success",
-          description: "Event rescheduled successfully",
-        });
-
-      } else if ('subject' in item && 'scheduledFor' in item) {
-        // It's a StudySession - Duration is fixed, only scheduledFor changes
-        await updateSession(itemId, { 
-          scheduledFor: newStartTime 
-        });
-        toast({
-          title: "Success",
-          description: "Study session rescheduled successfully",
-        });
-
-      } else if ('title' in item && 'timeSlots' in item) {
-        // It's a Task
-        const timeSlots = item.timeSlots || [];
-        if (timeSlots.length > 0) {
-          // Assume we are rescheduling the first time slot for simplicity
-          // Ideally, we'd know which specific slot caused the conflict
-          const firstSlot = timeSlots[0];
-          let calculatedEndDate = newEndTime; 
-
-          // Calculate the end date based on duration if not provided or if it's invalid
-          if (!calculatedEndDate && firstSlot.endDate) {
-             try {
-                const start = new Date(firstSlot.startDate);
-                const end = new Date(firstSlot.endDate);
-                const duration = end.getTime() - start.getTime();
-                calculatedEndDate = new Date(new Date(newStartTime).getTime() + duration).toISOString();
-             } catch (e) {
-                console.error("Error calculating task end time:", e);
-                calculatedEndDate = firstSlot.endDate; // fallback
-             }
-          }
-          
-          const updatedTimeSlots = timeSlots.map((slot, index) => {
-            if (index === 0) { // Update the first slot
-              return {
-                ...slot,
-                startDate: newStartTime,
-                endDate: calculatedEndDate || slot.endDate // Use calculated or original end date
-              };
-            }
-            return slot; // Keep other slots unchanged
-          });
-          
-          await updateTask(itemId, { 
-            timeSlots: updatedTimeSlots 
-          });
-          toast({
-            title: "Success",
-            description: "Task rescheduled successfully",
-          });
+    // Convert items to unified format before setting state
+    const unifiedItems = items.map(item => {
+        let itemType: "task" | "event" | "session"; // Reminders shouldn't cause scheduling conflicts
+        if ('name' in item) {
+            itemType = "event";
+        } else if ('subject' in item && 'scheduledFor' in item) {
+            itemType = "session";
         } else {
-          // Handle tasks with no time slots - maybe just update a general field if applicable?
-          console.warn("Attempted to reschedule task with no time slots:", item);
-          toast({
-            variant: "default",
-            title: "Info",
-            description: "Task has no time slots to reschedule.",
-          });
+            itemType = "task";
         }
-
-      } else {
-        console.error("Unknown item type for rescheduling:", item);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Could not identify item type for rescheduling",
-        });
-      }
-      
-      setConflictPopupOpen(false);
-    } catch (error) {
-      console.error("Error rescheduling item:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: `Failed to reschedule item: ${error instanceof Error ? error.message : String(error)}`,
-      });
-    }
-  }, [conflictingItems, toast, updateEvent, updateSession, updateTask]);
-
-  const handleDeleteConflict = useCallback(async (itemId: string) => {
-    try {
-      const item = conflictingItems.find(i => i.id === itemId);
-      if (!item) return;
-      
-      // Debug log to see the item structure
-      console.log("Item to delete:", item);
-      
-      // Determine the type based on specific properties unique to each type
-      if ('name' in item && 'startTime' in item) {
-        // It's an Event
-        await deleteEvent(itemId);
-        toast({
-          title: "Success",
-          description: "Event deleted successfully",
-        });
-      } else if ('subject' in item && 'scheduledFor' in item) {
-        // It's a StudySession
-        await deleteSession(itemId);
-        toast({
-          title: "Success",
-          description: "Study session deleted successfully",
-        });
-      } else if ('title' in item && 'timeSlots' in item) {
-        // It's a Task
-        await deleteTask(itemId);
-        toast({
-          title: "Success",
-          description: "Task deleted successfully",
-        });
-      } else {
-        // Unknown type
-        console.error("Unknown item type", item);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Could not identify item type",
-        });
-      }
-      
-      setConflictPopupOpen(false);
-    } catch (error) {
-      console.error("Error deleting item:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to delete item",
-      });
-    }
-  }, [conflictingItems, deleteEvent, deleteSession, deleteTask, toast]);
-
-  const handleIgnoreConflict = useCallback(() => {
-    setConflictPopupOpen(false);
-    toast({
-      title: "Conflict ignored",
-      description: "You can always manage this conflict later",
+        return convertToUnified(item, itemType);
     });
-  }, [toast]);
+
+    console.log("Unified conflict items:", unifiedItems);
+    setConflictingItems(unifiedItems);
+    setConflictPopupOpen(true);
+  }, [convertToUnified, setConflictingItems, setConflictPopupOpen]); // Add dependencies
+  
+  const handleConflictResolved = useCallback(() => {
+    setConflictPopupOpen(false);
+    setConflictingItems([]);
+    // Optionally trigger a data refresh if needed, though DataProvider might handle it
+    toast({
+        title: "Success",
+        description: "Conflict resolved successfully.",
+    });
+  }, [setConflictPopupOpen, setConflictingItems, toast]);
+
+  // Handlers for manual actions in the conflict popup
+  const handleRescheduleConflict = useCallback(async (itemId: string, itemType: ItemType, newStartTime: string, newEndTime?: string) => {
+    try {
+      console.log(`Manual Reschedule - ID: ${itemId}, Type: ${itemType}, Start: ${newStartTime}, End: ${newEndTime}`);
+      switch (itemType) {
+        case 'task': {
+          // Assuming we update the first timeslot if it exists
+          const task = allTasks.find(t => t.id === itemId);
+          if (task?.timeSlots?.[0]) {
+            const updatedTimeSlots = [...task.timeSlots];
+            updatedTimeSlots[0] = { ...updatedTimeSlots[0], startDate: newStartTime, endDate: newEndTime || updatedTimeSlots[0].endDate };
+            await updateTask(itemId, { timeSlots: updatedTimeSlots });
+          } else {
+             // Handle tasks without timeslots or find a better way?
+             await updateTask(itemId, { /* Update appropriate field if no timeslot */ }); 
+          }
+          break;
+        }
+        case 'event':
+          await updateEvent(itemId, { startTime: newStartTime, endTime: newEndTime });
+          break;
+        case 'session':
+          await updateSession(itemId, { scheduledFor: newStartTime }); // Duration is usually fixed
+          break;
+        default:
+          throw new Error(`Unknown item type for reschedule: ${itemType}`);
+      }
+      toast({ title: "Success", description: `${itemType} manually rescheduled.` });
+      handleConflictResolved(); // Close popup on success
+    } catch (error) {
+      console.error("Error manually rescheduling item:", error);
+      toast({ variant: "destructive", title: "Error", description: `Failed to reschedule ${itemType}` });
+    }
+  }, [allTasks, updateTask, updateEvent, updateSession, toast, handleConflictResolved]);
+
+  const handleDeleteConflict = useCallback(async (itemId: string, itemType: ItemType) => {
+    try {
+      console.log(`Manual Delete - ID: ${itemId}, Type: ${itemType}`);
+       switch (itemType) {
+        case 'task':
+          await deleteTask(itemId);
+          break;
+        case 'event':
+          await deleteEvent(itemId);
+          break;
+        case 'session':
+          await deleteSession(itemId);
+          break;
+        default:
+          throw new Error(`Unknown item type for delete: ${itemType}`);
+      }
+      toast({ title: "Success", description: `${itemType} manually deleted.` });
+      handleConflictResolved(); // Close popup on success
+    } catch (error) {
+      console.error("Error manually deleting item:", error);
+      toast({ variant: "destructive", title: "Error", description: `Failed to delete ${itemType}` });
+    }
+  }, [deleteTask, deleteEvent, deleteSession, toast, handleConflictResolved]);
 
   // Memoize CalendarGrid to prevent unnecessary re-renders
   const calendarGrid = useMemo(() => (
@@ -479,14 +385,14 @@ export function Calendar() {
         mode={selectedItem ? "edit" : "create"}
       />
       
-      {/* Conflict popup dialog */}
+      {/* Conflict Popup */}
       <CalendarConflictPopup
         open={conflictPopupOpen}
         onOpenChange={setConflictPopupOpen}
         conflictingItems={conflictingItems}
+        onResolve={handleConflictResolved}
         onReschedule={handleRescheduleConflict}
         onDelete={handleDeleteConflict}
-        onIgnore={handleIgnoreConflict}
       />
     </div>
   );
