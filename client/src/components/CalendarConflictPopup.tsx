@@ -18,6 +18,9 @@ import { getConflictSuggestion, ChatbotAction, ConflictSuggestionResponse } from
 import { updateTask, deleteTask } from "@/api/tasks";
 import { updateEvent, deleteEvent } from "@/api/events";
 import { updateStudySession, deleteStudySession } from "@/api/sessions";
+// Import conflict API functions and auth
+import { saveConflictResolution, saveAiSuggestion, getSavedAiSuggestion } from "@/api/conflicts";
+import { auth } from '@/config/firebase'; // <-- Make sure this path is correct
 
 import { useToast } from "@/hooks/useToast";
 import { Spinner } from "./ui/spinner";
@@ -71,40 +74,88 @@ export function CalendarConflictPopup({
     }
   }, [open, conflictingItems]);
 
-  // Fetch AI Suggestion
+  // Fetch AI Suggestion (or load from Firestore)
   useEffect(() => {
-    if (open && conflictingItems && conflictingItems.length >= 2) {
-      const fetchSuggestion = async () => {
+    // Ensure user is logged in
+    const userId = auth.currentUser?.uid;
+    if (!open || !userId) {
+      setSuggestionText("");
+      setSuggestedAction(null);
+      setSuggestionError("");
+      setIsLoadingSuggestion(false);
+      return;
+    }
+
+    if (conflictingItems && conflictingItems.length >= 2) {
+      const fetchOrLoadSuggestion = async () => {
         setIsLoadingSuggestion(true);
         setSuggestionError("");
         setSuggestionText("");
         setSuggestedAction(null);
+
+        const item1 = conflictingItems[0];
+        const item2 = conflictingItems[1];
+
+        if (!item1?.id || !item2?.id || !item1?.itemType || !item2?.itemType) {
+            setSuggestionError("Invalid conflicting item data.");
+            setIsLoadingSuggestion(false);
+            return;
+        }
+
         try {
-          const item1 = conflictingItems[0];
-          const item2 = conflictingItems[1];
-          if (!item1 || !item2 || !item1.id || !item2.id) {
-             throw new Error("Invalid conflicting item data provided.");
+          // 1. Try fetching saved suggestion first
+          const savedSuggestion = await getSavedAiSuggestion(userId, item1.id, item2.id);
+
+          if (savedSuggestion) {
+            console.log("Loaded suggestion from Firestore");
+            setSuggestionText(savedSuggestion.suggestion || "Suggestion loaded."); // Handle potentially empty suggestion string
+            setSuggestedAction(savedSuggestion.action || null);
+            if (savedSuggestion.error) {
+                setSuggestionError(`AI Error (cached): ${savedSuggestion.error}`);
+            }
+            setIsLoadingSuggestion(false);
+            return; // Don't fetch from AI if found in cache
           }
+
+          // 2. If not found, fetch from AI
+          console.log("Fetching fresh suggestion from AI");
           const response = await getConflictSuggestion(item1, item2);
           setSuggestionText(response.suggestion);
           setSuggestedAction(response.action);
           if (response.error) {
             setSuggestionError(`AI Error: ${response.error}`);
           }
+
+          // 3. Save the newly fetched suggestion (even if there was an error)
+          try {
+            await saveAiSuggestion(
+              userId,
+              item1,
+              item2,
+              response.suggestion,
+              response.action,
+              response.error
+            );
+          } catch (saveError: any) {
+            console.error("Failed to save AI suggestion to Firestore:", saveError);
+            // Non-critical error, maybe show a small warning or just log
+          }
+
         } catch (error: any) {
-          console.error("Error fetching conflict suggestion:", error);
+          console.error("Error fetching/loading conflict suggestion:", error);
           setSuggestionError(`Error fetching suggestion: ${error.message || 'Unknown error'}`);
         } finally {
           setIsLoadingSuggestion(false);
         }
       };
-      fetchSuggestion();
+      fetchOrLoadSuggestion();
     }
     else if (open) {
         setSuggestionText("Need at least two items for an AI suggestion.");
         setSuggestedAction(null);
+        setIsLoadingSuggestion(false); // Ensure loading stops
     }
-  }, [open, conflictingItems]);
+  }, [open, conflictingItems]); // Dependency on userId implicitly via auth.currentUser
 
   // Get the type of the selected item
   const getSelectedItemType = useCallback((): ItemType | null => {
@@ -189,7 +240,14 @@ export function CalendarConflictPopup({
 
   // --- Apply AI Suggestion ---
   const handleApplySuggestion = async () => {
-    if (!suggestedAction || isApplyingAction) return;
+    const userId = auth.currentUser?.uid;
+    if (!suggestedAction || isApplyingAction || !userId) return;
+    if (!conflictingItems || conflictingItems.length < 2 || !conflictingItems[0]?.id || !conflictingItems[1]?.id) {
+        toast({ title: "Error", description: "Cannot apply suggestion, conflict data missing.", variant: "destructive" });
+        return;
+    }
+    const item1 = conflictingItems[0];
+    const item2 = conflictingItems[1];
 
     setIsApplyingAction(true);
     setSuggestionError(""); 
@@ -243,6 +301,20 @@ export function CalendarConflictPopup({
           description: message,
           variant: "default",
         });
+
+        // Save the resolution status
+        try {
+            await saveConflictResolution(userId, item1, item2, 'ai_applied', suggestionText, suggestedAction);
+        } catch (saveError: any) {
+            console.warn("Failed to save AI conflict resolution status:", saveError);
+             toast({
+                title: "Warning",
+                description: "Could not save resolution status.",
+                variant: "default", // Use default or a less intrusive variant
+                duration: 3000,
+            });
+        }
+
         onResolve();
         onOpenChange(false);
       }
@@ -351,7 +423,7 @@ export function CalendarConflictPopup({
         </DialogHeader>
 
         {conflictingItems && conflictingItems.length > 0 ? (
-          <div className="py-4 space-y-4">
+          <div className="py-4 space-y-4 max-h-[80vh] overflow-y-auto">
             <div className="text-sm text-muted-foreground">
               The following items overlap in your schedule:
             </div>
@@ -519,14 +591,39 @@ export function CalendarConflictPopup({
               {activeTab === "ignore" && (
                 <div className="space-y-4 p-3 border rounded-md bg-background">
                   <p className="text-sm text-muted-foreground mb-4">
-                      Choosing ignore will close this popup without making changes.
+                      Choosing ignore will close this popup without making changes, and this specific conflict won't be shown again.
                   </p>
                   <Button
                     className="w-full"
                     variant="outline"
-                    onClick={() => {
-                        onResolve();
-                        onOpenChange(false);
+                    onClick={async () => { // Made async
+                        const currentUserId = auth.currentUser?.uid;
+                        if (currentUserId && conflictingItems && conflictingItems.length >= 2 && conflictingItems[0]?.id && conflictingItems[1]?.id) {
+                            const item1 = conflictingItems[0];
+                            const item2 = conflictingItems[1];
+                            try {
+                                await saveConflictResolution(currentUserId, item1, item2, 'ignored');
+                                toast({
+                                    title: "Conflict Ignored",
+                                    description: "This specific conflict pair will be ignored.",
+                                    variant: "default"
+                                });
+                            } catch (error) {
+                                console.error("Failed to save ignore status:", error);
+                                toast({
+                                    title: "Error",
+                                    description: "Could not save ignore status.",
+                                    variant: "destructive"
+                                });
+                                // Decide if we should still close the popup on error
+                                // return; // Maybe don't close if saving failed?
+                            }
+                        } else {
+                             console.warn("Could not save ignore status: Missing user ID or conflict items.");
+                             // Don't prevent closing, just couldn't save state.
+                        }
+                        onResolve(); // Notify parent about resolution attempt
+                        onOpenChange(false); // Close popup
                     }}
                   >
                     Ignore & Close
