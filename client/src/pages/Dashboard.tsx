@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { postponeStudySession } from "@/api/sessions";
@@ -28,7 +28,6 @@ import {
   CircleX,
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
-import { CreateTaskDialog } from "@/components/CreateTaskDialog";
 import { ViewAllTasksDialog } from "@/components/ViewAllTasksDialog";
 import { DeleteTaskDialog } from "@/components/DeleteTaskDialog";
 import { PostponeSessionDialog } from "@/components/PostponeSessionDialog";
@@ -39,7 +38,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { EventsTimeline } from "@/components/EventsTimeline";
-import { CreateEventDialog } from "@/components/CreateEventDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,8 +46,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DeleteStudySessionDialog } from "@/components/DeleteStudySessionDialog";
-import { CreateStudySessionDialog } from "@/components/CreateStudySessionDialog";
 import { useData } from "@/contexts/DataProvider";
+import { UnifiedItemDialog } from "@/components/UnifiedItemDialog";
+import {
+  SchedulableItem,
+  ItemType,
+  UnifiedTask,
+  UnifiedEvent,
+  UnifiedStudySession,
+  convertToUnified,
+  convertFromUnified
+} from "@/types/unified";
 
 export function Dashboard() {
   console.log('Dashboard');
@@ -75,18 +82,12 @@ export function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [viewAllTasksOpen, setViewAllTasksOpen] = useState(false);
   const [deleteTaskOpen, setDeleteTaskOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-  const [editTask, setEditTask] = useState<Task | null>(null);
-  const [eventToEdit, setEventToEdit] = useState<Event | null>(null);
-  const [createEventOpen, setCreateEventOpen] = useState(false);
   const [isOverdueOpen, setIsOverdueOpen] = useState(false);
   const [isTodayOpen, setIsTodayOpen] = useState(false);
   const [isHighPriorityOpen, setIsHighPriorityOpen] = useState(false);
-  const [createSessionOpen, setCreateSessionOpen] = useState(false);
-  const [sessionToEdit, setSessionToEdit] = useState<StudySession | null>(null);
   const [deleteSessionOpen, setDeleteSessionOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [postponeSessionOpen, setPostponeSessionOpen] = useState(false);
@@ -97,30 +98,35 @@ export function Dashboard() {
   const setReminders = useState<Reminder[]>([])[1];
   const { toast } = useToast();
   
+  // State for UnifiedItemDialog
+  const [itemDialogOpen, setItemDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<SchedulableItem | null>(null);
+  const [initialItemType, setInitialItemType] = useState<ItemType>("task");
+
   // Store motivational quote in state so it doesn't change on re-renders
   const [motivationalQuote, setMotivationalQuote] = useState<string>('');
 
   // Helper functions for safe date handling
-  const isValidDate = (dateStr: string | null | undefined): boolean => {
+  const isValidDate = useCallback((dateStr: string | null | undefined): boolean => {
     if (!dateStr) return false;
     const date = new Date(dateStr);
     return isValid(date);
-  };
+  }, []);
 
-  const isTodaySafe = (dateStr: string | null | undefined): boolean => {
+  const isTodaySafe = useCallback((dateStr: string | null | undefined): boolean => {
     if (!isValidDate(dateStr)) return false;
     return isToday(new Date(dateStr as string));
-  };
+  }, [isValidDate]);
 
-  const isTomorrowSafe = (dateStr: string | null | undefined): boolean => {
+  const isTomorrowSafe = useCallback((dateStr: string | null | undefined): boolean => {
     if (!isValidDate(dateStr)) return false;
     return isTomorrow(new Date(dateStr as string));
-  };
+  }, [isValidDate]);
 
-  const isPastSafe = (dateStr: string | null | undefined): boolean => {
+  const isPastSafe = useCallback((dateStr: string | null | undefined): boolean => {
     if (!isValidDate(dateStr)) return false;
     return isPast(new Date(dateStr as string));
-  };
+  }, [isValidDate]);
 
   const [showCompleted, setShowCompleted] = useState(false);
 
@@ -140,7 +146,7 @@ export function Dashboard() {
       );
       setTasks(todayTasks);
     }
-  }, [allTasks, loading, showCompleted]);
+  }, [allTasks, loading, showCompleted, isTodaySafe]);
 
   useEffect(() => {
     if (!loading) {
@@ -149,7 +155,7 @@ export function Dashboard() {
       );
       setEvents(todayEvents);
     }
-  }, [allEvents, loading]);
+  }, [allEvents, loading, isTodaySafe, isTomorrowSafe]);
 
   useEffect(() => {
     if (!loading) {
@@ -159,7 +165,7 @@ export function Dashboard() {
       );
       setSessions(todaySessions);
     }
-  }, [allSessions, loading]);
+  }, [allSessions, loading, isTodaySafe]);
 
   useEffect(() => {
     if (!loading) {
@@ -170,7 +176,7 @@ export function Dashboard() {
       );
       setDeadlines(todayDeadlines);
     }
-  }, [allTasks, loading, setDeadlines]);
+  }, [allTasks, loading, setDeadlines, isTodaySafe, isTomorrowSafe]);
 
   useEffect(() => {
     if (!loading) {
@@ -180,49 +186,13 @@ export function Dashboard() {
       );
       setReminders(todayReminders);
     }
-  }, [allReminders, loading, setReminders]);
+  }, [allReminders, loading, setReminders, isTodaySafe, isTomorrowSafe]);
 
   // Initialize the quote only once when component mounts
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * motivationalQuotes.length);
     setMotivationalQuote(motivationalQuotes[randomIndex]);
   }, []);
-
-  const handleCreateTask = async (taskData: Task) => {
-    try {
-      if (editTask) {
-        await updateTask(editTask.id, taskData);
-        toast({
-          title: "Success",
-          description: "Task updated successfully",
-        });
-      } else {
-        const { task: newTask } = await addTask(taskData);
-        // Add the new task to the current tasks list if it's not archived
-        if (newTask && newTask.status !== 'archived') {
-          setTasks(prevTasks => [...prevTasks, newTask]);
-        }
-        toast({
-          title: "Success",
-          description: "Task created successfully",
-        });
-      }
-      setCreateTaskOpen(false);
-      setEditTask(null);
-    } catch (error) {
-      console.error("Error handling task:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: editTask ? "Failed to update task" : "Failed to create task",
-      });
-    }
-  };
-
-  const handleEditTask = (task: Task) => {
-    setEditTask(task);
-    setCreateTaskOpen(true);
-  };
 
   const handleDeleteTask = async () => {
     if (!taskToDelete) return;
@@ -532,60 +502,6 @@ export function Dashboard() {
       (isTodaySafe(reminder.reminderTime) || isTomorrowSafe(reminder.reminderTime))
   );
 
-  const handleCreateEvent = async (eventData: Event) => {
-    try {
-      if (eventToEdit) {
-        await updateEvent(eventToEdit.id, eventData);
-        toast({
-          title: "Success",
-          description: "Event updated successfully",
-        });
-      } else {
-        await addEvent(eventData);
-        toast({
-          title: "Success",
-          description: "Event created successfully",
-        });
-      }
-      setCreateEventOpen(false);
-      setEventToEdit(null);
-    } catch (error) {
-      console.error("Error handling event:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: eventToEdit ? "Failed to update event" : "Failed to create event",
-      });
-    }
-  };
-
-  const handleCreateSession = async (sessionData: StudySession) => {
-    try {
-      if (sessionToEdit) {
-        await updateSession(sessionToEdit.id, sessionData);
-        toast({
-          title: "Success",
-          description: "Study session updated successfully",
-        });
-      } else {
-        await addSession(sessionData);
-        toast({
-          title: "Success",
-          description: "Study session created successfully",
-        });
-      }
-      setCreateSessionOpen(false);
-      setSessionToEdit(null);
-    } catch (error) {
-      console.error("Error handling session:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: sessionToEdit ? "Failed to update session" : "Failed to create session",
-      });
-    }
-  };
-
   const handleMarkDeadlineComplete = async (deadlineId: string) => {
     try {
       await markAsComplete(deadlineId);
@@ -647,6 +563,86 @@ export function Dashboard() {
       });
     }
   };
+
+  // New handlers for UnifiedItemDialog
+  const handleOpenCreateDialog = useCallback((type: ItemType) => {
+    setSelectedItem(null);
+    setInitialItemType(type);
+    setItemDialogOpen(true);
+  }, []);
+
+  const handleEditItem = useCallback((item: Task | Event | StudySession) => {
+    let itemType: ItemType;
+    if ('deadline' in item) {
+      itemType = 'task';
+    } else if ('isAllDay' in item) {
+      itemType = 'event';
+    } else if ('scheduledFor' in item) {
+      itemType = 'session';
+    } else {
+      console.warn("Unknown item type for editing:", item);
+      // Default or throw error? For now, default to task.
+      itemType = 'task'; 
+    }
+    const unifiedItem = convertToUnified(item, itemType);
+    setSelectedItem(unifiedItem);
+    setInitialItemType(itemType); // Set type in case conversion misses it
+    setItemDialogOpen(true);
+  }, []);
+
+  const handleSaveItem = useCallback(async (item: SchedulableItem) => {
+    try {
+      const originalItem = convertFromUnified(item);
+      
+      switch (item.itemType) {
+        case 'task': {
+          const task = item as UnifiedTask;
+          if (task.id) {
+            await updateTask(task.id, originalItem);
+            toast({ title: "Success", description: "Task updated successfully" });
+          } else {
+            await addTask(originalItem);
+            toast({ title: "Success", description: "Task created successfully" });
+          }
+          break;
+        }
+        case 'event': {
+          const event = item as UnifiedEvent;
+          if (event.id) {
+            await updateEvent(event.id, originalItem);
+            toast({ title: "Success", description: "Event updated successfully" });
+          } else {
+            await addEvent(originalItem);
+            toast({ title: "Success", description: "Event created successfully" });
+          }
+          break;
+        }
+        case 'session': {
+          const session = item as UnifiedStudySession;
+          if (session.id) {
+            await updateSession(session.id, originalItem);
+            toast({ title: "Success", description: "Study session updated successfully" });
+          } else {
+            await addSession(originalItem);
+            toast({ title: "Success", description: "Study session created successfully" });
+          }
+          break;
+        }
+        // Reminder case if needed in the future
+        // case 'reminder': { ... }
+      }
+      // Close dialog after saving
+      setItemDialogOpen(false);
+      setSelectedItem(null);
+    } catch (error) {
+      console.error("Error saving item:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to save ${item.itemType}`,
+      });
+    }
+  }, [addTask, updateTask, addEvent, updateEvent, addSession, updateSession, toast]);
 
   return (
     <div className="space-y-6">
@@ -836,8 +832,7 @@ export function Dashboard() {
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  setEditTask(null);
-                  setCreateTaskOpen(true);
+                  handleOpenCreateDialog('task');
                 }}
               >
                 <Plus className="h-4 w-4" />
@@ -924,7 +919,7 @@ export function Dashboard() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleEditTask(task)}
+                        onClick={() => handleEditItem(task)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -1001,8 +996,7 @@ export function Dashboard() {
               variant="outline"
               size="icon"
               onClick={() => {
-                setSessionToEdit(null);
-                setCreateSessionOpen(true);
+                handleOpenCreateDialog('session');
               }}
             >
               <Plus className="h-4 w-4" />
@@ -1054,8 +1048,7 @@ export function Dashboard() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           onClick={() => {
-                            setSessionToEdit(session);
-                            setCreateSessionOpen(true);
+                            handleEditItem(session);
                           }}
                         >
                           <Edit className="mr-2 h-4 w-4" />
@@ -1111,10 +1104,7 @@ export function Dashboard() {
           <CardContent>
             <EventsTimeline
               events={events}
-              onEventClick={(event) => {
-                setEventToEdit(event);
-                setCreateEventOpen(true);
-              }}
+              onEventClick={handleEditItem}
             />
           </CardContent>
         </Card>
@@ -1200,14 +1190,6 @@ export function Dashboard() {
         </p>
       </div>
 
-      <CreateTaskDialog
-        open={createTaskOpen}
-        onOpenChange={setCreateTaskOpen}
-        onTaskCreated={handleCreateTask}
-        initialTask={editTask}
-        mode={editTask ? "edit" : "create"}
-      />
-
       <ViewAllTasksDialog
         open={viewAllTasksOpen}
         onOpenChange={setViewAllTasksOpen}
@@ -1217,25 +1199,6 @@ export function Dashboard() {
         open={deleteTaskOpen}
         onOpenChange={setDeleteTaskOpen}
         onConfirm={handleDeleteTask}
-      />
-
-      <CreateEventDialog
-        open={createEventOpen}
-        onOpenChange={setCreateEventOpen}
-        onEventCreated={handleCreateEvent}
-        initialEvent={eventToEdit}
-        mode={eventToEdit ? "edit" : "create"}
-        tasks={tasks}
-      />
-
-      <CreateStudySessionDialog
-        open={createSessionOpen}
-        onOpenChange={setCreateSessionOpen}
-        onSessionCreated={handleCreateSession}
-        initialSession={sessionToEdit}
-        mode={sessionToEdit ? "edit" : "create"}
-        tasks={tasks}
-        events={events}
       />
 
       <DeleteStudySessionDialog
@@ -1248,6 +1211,16 @@ export function Dashboard() {
         open={postponeSessionOpen}
         onOpenChange={setPostponeSessionOpen}
         onConfirm={handlePostponeSession}
+      />
+
+      {/* Add Unified Item Dialog */}
+      <UnifiedItemDialog
+        open={itemDialogOpen}
+        onOpenChange={setItemDialogOpen}
+        initialItem={selectedItem}
+        initialType={initialItemType}
+        onSave={handleSaveItem}
+        mode={selectedItem ? "edit" : "create"}
       />
     </div>
   );
