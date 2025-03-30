@@ -1,8 +1,10 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Task, StudySession, Event, Deadline, Reminder } from "@/types";
 import { addDays, startOfWeek } from "date-fns";
 import { useData } from '@/contexts/DataProvider';
 import { updateExternalTask } from "@/api/tasks";
+import { getIgnoredConflicts, getConflictCheckId } from "@/api/conflicts";
+import { auth } from '@/config/firebase';
 import {
   SchedulableItem,
   UnifiedTask,
@@ -57,8 +59,26 @@ export function Calendar() {
   // State for conflict handling
   const [conflictPopupOpen, setConflictPopupOpen] = useState(false);
   const [conflictingItems, setConflictingItems] = useState<SchedulableItem[]>([]);
+  const [ignoredConflictIds, setIgnoredConflictIds] = useState<Set<string>>(new Set());
   
   const { toast } = useToast();
+
+  // Fetch ignored conflicts on mount/user change
+  useEffect(() => {
+    const userId = auth.currentUser?.uid;
+    if (userId) {
+        getIgnoredConflicts(userId)
+            .then(ids => {
+                console.log("Fetched ignored conflict IDs:", ids);
+                setIgnoredConflictIds(ids);
+            })
+            .catch(error => {
+                console.error("Error fetching ignored conflicts:", error);
+                // Optionally show a toast
+            });
+    }
+    // Consider adding a listener for auth state changes if not handled by DataProvider
+  }, [auth.currentUser]);
 
   // Optimize data filtering with proper memoization
   const filteredData = useMemo(() => {
@@ -356,8 +376,9 @@ export function Calendar() {
       onAddItem={() => handleAddItem()}
       onItemClick={handleItemClick}
       onConflictClick={handleConflictClick}
+      ignoredConflictIds={ignoredConflictIds}
     />
-  ), [date, deadlines, events, handleAddItem, handleConflictClick, handleDateRangeChange, handleDateSelect, handleItemClick, reminders, sessions, tasks]);
+  ), [date, deadlines, events, handleAddItem, handleConflictClick, handleDateRangeChange, handleDateSelect, handleItemClick, reminders, sessions, tasks, ignoredConflictIds]);
 
   return (
     <div className="space-y-6">

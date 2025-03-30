@@ -24,6 +24,8 @@ import { Task, Event, StudySession, Reminder } from "@/types";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { ScrollArea } from "./ui/scroll-area";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { getConflictCheckId } from "@/api/conflicts";
+import { auth } from "@/config/firebase";
 
 const TIME_SLOTS = Array.from({ length: 24 }, (_, i) => i);
 const HOUR_HEIGHT = 60; // pixels per hour
@@ -40,6 +42,7 @@ interface CalendarGridProps {
   onAddItem: () => void;
   onItemClick: (item: Task | Event | StudySession | Reminder) => void;
   onConflictClick?: (items: (Task | Event | StudySession)[]) => void;
+  ignoredConflictIds: Set<string>;
 }
 
 type CalendarViewType = "day" | "week" | "month" | "schedule";
@@ -56,6 +59,7 @@ export function CalendarGrid({
   onAddItem,
   onItemClick,
   onConflictClick,
+  ignoredConflictIds,
 }: CalendarGridProps) {
   const [viewType, setViewType] = useState<CalendarViewType>("week");
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -309,26 +313,34 @@ export function CalendarGrid({
     return isBefore(event1.start, event2.end) && isAfter(event1.end, event2.start);
   };
 
-  // Detect conflicts between calendar items with conflict groups
-  const detectConflicts = (items: any[]) => {
-    if (!items.length) return { conflictMap: new Map<string, boolean>(), conflictPairs: new Map<string, any[]>() };
-    
+  // Detect conflicts between calendar items, respecting ignored pairs
+  const detectConflicts = (items: any[], ignoredIds: Set<string>) => {
+    const userId = auth.currentUser?.uid; // Get current user ID
+    if (!items.length || !userId) return { conflictMap: new Map<string, boolean>(), conflictPairs: new Map<string, any[]>() };
+
     const conflictMap = new Map<string, boolean>();
     const conflictPairs = new Map<string, any[]>();
-    
+
     // Check each item against all others for overlaps
     for (let i = 0; i < items.length; i++) {
       const item1 = items[i];
-      
+
       // Skip all-day events and non-conflicting item types (deadlines and reminders)
-      if (item1.isAllDay || item1.type === "deadline" || item1.type === "reminder") continue;
-      
+      if (item1.isAllDay || item1.type === "deadline" || item1.type === "reminder" || !item1.id) continue;
+
       for (let j = i + 1; j < items.length; j++) {
         const item2 = items[j];
-        
+
         // Skip all-day events and non-conflicting item types (deadlines and reminders)
-        if (item2.isAllDay || item2.type === "deadline" || item2.type === "reminder") continue;
-        
+        if (item2.isAllDay || item2.type === "deadline" || item2.type === "reminder" || !item2.id) continue;
+
+        // ** Check if this specific pair is ignored **
+        const conflictCheckId = getConflictCheckId(item1.id, item2.id, userId);
+        if (ignoredIds.has(conflictCheckId)) {
+           console.log(`Conflict ignored between ${item1.id} and ${item2.id}`);
+           continue; // Skip this pair
+        }
+
         // Check if the items overlap
         if (doEventsOverlap(item1, item2)) {
           conflictMap.set(item1.id, true);
@@ -619,7 +631,7 @@ export function CalendarGrid({
                       const columns = calculateEventColumns(allItems);
                       
                       // Detect conflicts for visual indication
-                      const { conflictMap, conflictPairs } = detectConflicts(allItems);
+                      const { conflictMap, conflictPairs } = detectConflicts(allItems, ignoredConflictIds);
                       
                       return columns.map((column, colIndex) => 
                         column.map((event: any) => {
@@ -716,7 +728,7 @@ export function CalendarGrid({
                     <ScrollArea className="h-full">
                       {(() => {
                         const items = getAllItemsForDate(day);
-                        const { conflictMap, conflictPairs } = detectConflicts(items);
+                        const { conflictMap, conflictPairs } = detectConflicts(items, ignoredConflictIds);
                         return items.map((event) => (
                           <div
                             key={event.id}
@@ -807,7 +819,7 @@ export function CalendarGrid({
                     )}>
                       {(() => {
                         const items = getAllItemsForDate(day);
-                        const { conflictMap, conflictPairs } = detectConflicts(items);
+                        const { conflictMap, conflictPairs } = detectConflicts(items, ignoredConflictIds);
                         return items.slice(0, isMobile ? 2 : 3).map((event) => (
                           <div
                             key={event.id}
@@ -816,10 +828,7 @@ export function CalendarGrid({
                               getTypeStyles(event.type),
                               isMobile ? "px-0.5 text-[8px]" : "px-1 text-xs"
                             )}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onItemClick(event.item);
-                            }}
+                            onClick={() => onItemClick(event.item)}
                           >
                             {event.title} 
                             {conflictMap.get(event.id) && onConflictClick && (
@@ -872,6 +881,7 @@ export function CalendarGrid({
                   getTypeStyles={getTypeStyles}
                   detectConflicts={detectConflicts}
                   onConflictClick={onConflictClick}
+                  ignoredConflictIds={ignoredConflictIds}
                 />
               </div>
             </CardContent>
@@ -893,7 +903,8 @@ function ScheduleView({
   onItemClick,
   getTypeStyles,
   detectConflicts,
-  onConflictClick
+  onConflictClick,
+  ignoredConflictIds
 }: {
   date: Date;
   events: Event[];
@@ -903,8 +914,9 @@ function ScheduleView({
   deadlines: Task[];
   onItemClick: (item: any) => void;
   getTypeStyles: (type: string) => string;
-  detectConflicts: (items: any[]) => { conflictMap: Map<string, boolean>; conflictPairs: Map<string, any[]> };
+  detectConflicts: (items: any[], ignoredIds: Set<string>) => { conflictMap: Map<string, boolean>; conflictPairs: Map<string, any[]> };
   onConflictClick?: (items: (Task | Event | StudySession)[]) => void;
+  ignoredConflictIds: Set<string>;
 }) {
   // Force a re-evaluation of the available events in this render context
   console.log(`Schedule view rendering with: ${events.length} events, ${tasks.length} tasks, ${sessions.length} sessions`);
@@ -1017,8 +1029,8 @@ function ScheduleView({
     );
   }
   
-  // Detect conflicts for schedule view
-  const { conflictMap, conflictPairs } = detectConflicts(allItems);
+  // Detect conflicts for schedule view, passing ignored IDs
+  const { conflictMap, conflictPairs } = detectConflicts(allItems, ignoredConflictIds);
   
   return (
     <>
