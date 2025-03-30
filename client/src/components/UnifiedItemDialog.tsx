@@ -83,7 +83,7 @@ export function UnifiedItemDialog({
   const [materials, setMaterials] = useState("");
   const [notes, setNotes] = useState("");
   const [sessionMode, setSessionMode] = useState("basic");
-  const [sections, setSections] = useState<Array<{ id?: string; subject: string; duration: number; breakDuration: number; materials: string }>>([]);
+  const [sections, setSections] = useState<Array<{ id?: string; subject: string; duration: number; breakDuration: number; materials?: string }>>([]);
   
   // Reminder-specific fields
   const [notificationMessage, setNotificationMessage] = useState("");
@@ -329,7 +329,17 @@ export function UnifiedItemDialog({
 
   const handleSectionChange = (index: number, field: keyof typeof sections[number], value: string | number) => {
     const newSections = [...sections];
-    newSections[index][field] = value;
+    const sectionToUpdate = newSections[index];
+
+    if ((field === 'duration' || field === 'breakDuration') && typeof value === 'number') {
+      sectionToUpdate[field] = value;
+    } else if ((field === 'subject' || field === 'materials' || field === 'id') && typeof value === 'string') {
+      // Ensure 'id' doesn't get assigned a number, though it's less likely from input
+      sectionToUpdate[field] = value;
+    }
+    // If type mismatch, potentially log an error or handle gracefully, 
+    // but for now, we'll just prevent incorrect assignment.
+
     setSections(newSections);
   };
 
@@ -346,7 +356,7 @@ export function UnifiedItemDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue={itemType} onValueChange={handleTypeChange} className="mt-4">
+        <Tabs value={itemType} onValueChange={handleTypeChange} className="mt-4">
           <TabsList className="grid grid-cols-4 mb-4">
             <TabsTrigger value="task">Task</TabsTrigger>
             <TabsTrigger value="event">Event</TabsTrigger>
@@ -400,6 +410,7 @@ export function UnifiedItemDialog({
                     type="datetime-local"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
+                    step={600}
                   />
                 </div>
 
@@ -411,6 +422,7 @@ export function UnifiedItemDialog({
                       type="datetime-local"
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
+                      step={600}
                     />
                   </div>
                 )}
@@ -423,6 +435,7 @@ export function UnifiedItemDialog({
                       type="datetime-local"
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
+                      step={600}
                     />
                   </div>
                 )}
@@ -492,6 +505,7 @@ export function UnifiedItemDialog({
                               type="datetime-local"
                               value={slot.startDate}
                               onChange={(e) => updateTimeSlot(index, 'startDate', e.target.value)}
+                              step={600}
                             />
                           </div>
                           <div className="w-full sm:flex-1">
@@ -500,6 +514,7 @@ export function UnifiedItemDialog({
                               type="datetime-local"
                               value={slot.endDate}
                               onChange={(e) => updateTimeSlot(index, 'endDate', e.target.value)}
+                              step={600}
                             />
                           </div>
                           <Button
@@ -968,7 +983,7 @@ export function UnifiedItemDialog({
                           mode="single"
                           selected={recurrenceEndDate}
                           onSelect={setRecurrenceEndDate}
-                          disabled={(date) =>
+                          disabled={(date: Date) =>
                             date < new Date(new Date().setHours(0, 0, 0, 0))
                           }
                           initialFocus

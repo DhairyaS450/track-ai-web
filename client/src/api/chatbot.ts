@@ -4,20 +4,27 @@ import { getTasks } from './tasks';
 import { getEvents } from './events';
 import { getStudySessions } from './sessions';
 import { getUserProfile } from './settings';
+import { SchedulableItem } from '@/types/unified'; // Import SchedulableItem type
 
 // Define action interface
-interface ChatbotAction {
+export interface ChatbotAction {
   type: string;
   data: any;
 }
 
-// Define response interface
-interface ChatbotResponse {
+// Define response interface for regular chat
+interface ChatbotApiResponse {
   response: {
     response?: string;
-    action?: ChatbotAction;
     actions?: ChatbotAction[];
   };
+}
+
+// Define response interface for conflict suggestion
+export interface ConflictSuggestionResponse {
+  suggestion: string;
+  action: ChatbotAction | null;
+  error?: string; // Include optional error message from backend
 }
 
 interface FilteredTask {
@@ -105,8 +112,8 @@ const filterSessionData = (session: any): FilteredSession => ({
   priority: session.priority
 });
 
-// Validate response data
-const validateResponse = (responseData: any): ChatbotResponse => {
+// Validate response data for regular chat
+const validateChatResponse = (responseData: any): ChatbotApiResponse => {
   // If the response is not in expected format, transform it to match the expected structure
   if (!responseData) {
     throw new Error('Empty response received from server');
@@ -135,7 +142,8 @@ const validateResponse = (responseData: any): ChatbotResponse => {
   return responseData;
 };
 
-export const processChatMessage = async (message: string, chatHistory: { type: 'user' | 'bot', content: string }[]): Promise<ChatbotResponse> => {
+// Regular chat message processing (keep existing)
+export const processChatMessage = async (message: string, chatHistory: { type: 'user' | 'bot', content: string }[]): Promise<ChatbotApiResponse> => {
   try {
     // Gather context data
     const [tasksResponse, eventsResponse, sessionsResponse, profileResponse] = await Promise.all([
@@ -173,7 +181,7 @@ export const processChatMessage = async (message: string, chatHistory: { type: '
     console.log("API response from server:", response.data);
     
     // Validate and normalize the response
-    const validatedResponse = validateResponse(response.data);
+    const validatedResponse = validateChatResponse(response.data);
     console.log("Validated response:", validatedResponse);
     
     return validatedResponse;
@@ -189,5 +197,45 @@ export const processChatMessage = async (message: string, chatHistory: { type: '
     
     // Throw a user-friendly error
     throw new Error(`Failed to process your message: ${errorMessage}`);
+  }
+};
+
+// *** NEW FUNCTION for conflict resolution suggestion ***
+export const getConflictSuggestion = async (
+  item1: SchedulableItem,
+  item2: SchedulableItem
+): Promise<ConflictSuggestionResponse> => {
+  try {
+    // We might pass minimal context or let the backend fetch if needed based on user
+    // For now, sending just the items.
+    const response = await api.post('/api/chatbot/suggest-resolution', {
+      item1,
+      item2,
+      // context: {} // Optionally add profile/constraints if readily available
+    });
+
+    console.log("Conflict suggestion API response:", response.data);
+
+    // Basic validation for the expected structure
+    if (response.data && typeof response.data.suggestion === 'string') {
+      return response.data as ConflictSuggestionResponse;
+    } else {
+      console.error("Invalid conflict suggestion response structure:", response.data);
+      return {
+        suggestion: "Received an unexpected response format from the server.",
+        action: null,
+      };
+    }
+  } catch (error: any) {
+    console.error('Error getting conflict suggestion:', error);
+    const errorMessage = error?.response?.data?.suggestion || // Check if backend sent suggestion in error
+                         error?.response?.data?.error || 
+                         error.message || 
+                         "Failed to connect to the suggestion service.";
+    return {
+      suggestion: `Error: ${errorMessage}`,
+      action: null,
+      error: errorMessage // Pass the error message back
+    };
   }
 };

@@ -1,8 +1,10 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Task, StudySession, Event, Deadline, Reminder } from "@/types";
 import { addDays, startOfWeek } from "date-fns";
 import { useData } from '@/contexts/DataProvider';
 import { updateExternalTask } from "@/api/tasks";
+import { getIgnoredConflicts, getConflictCheckId } from "@/api/conflicts";
+import { auth } from '@/config/firebase';
 import {
   SchedulableItem,
   UnifiedTask,
@@ -11,6 +13,7 @@ import {
   UnifiedStudySession,
   convertToUnified,
   convertFromUnified,
+  ItemType
 } from "@/types/unified";
 
 import {
@@ -19,6 +22,7 @@ import {
 import { useToast } from "@/hooks/useToast";
 import { CalendarGrid } from "@/components/CalendarGrid";
 import { UnifiedItemDialog } from "@/components/UnifiedItemDialog";
+import { CalendarConflictPopup } from "@/components/CalendarConflictPopup";
 
 export function Calendar() {
   const [date, setDate] = useState<Date>(new Date());
@@ -35,12 +39,16 @@ export function Calendar() {
     loading,
     addReminder,
     updateReminder,
+    deleteReminder,
     addTask,
     updateTask,
+    deleteTask,
     addEvent,
     updateEvent,
+    deleteEvent,
     addSession,
     updateSession,
+    deleteSession,
   } = useData();
 
   // State for UnifiedItemDialog
@@ -48,7 +56,29 @@ export function Calendar() {
   const [selectedItem, setSelectedItem] = useState<SchedulableItem | null>(null);
   const [initialItemType, setInitialItemType] = useState<"task" | "event" | "session" | "reminder">("task");
   
+  // State for conflict handling
+  const [conflictPopupOpen, setConflictPopupOpen] = useState(false);
+  const [conflictingItems, setConflictingItems] = useState<SchedulableItem[]>([]);
+  const [ignoredConflictIds, setIgnoredConflictIds] = useState<Set<string>>(new Set());
+  
   const { toast } = useToast();
+
+  // Fetch ignored conflicts on mount/user change
+  useEffect(() => {
+    const userId = auth.currentUser?.uid;
+    if (userId) {
+        getIgnoredConflicts(userId)
+            .then(ids => {
+                console.log("Fetched ignored conflict IDs:", ids);
+                setIgnoredConflictIds(ids);
+            })
+            .catch(error => {
+                console.error("Error fetching ignored conflicts:", error);
+                // Optionally show a toast
+            });
+    }
+    // Consider adding a listener for auth state changes if not handled by DataProvider
+  }, [auth.currentUser]);
 
   // Optimize data filtering with proper memoization
   const filteredData = useMemo(() => {
@@ -234,6 +264,104 @@ export function Calendar() {
     }
   }, [allTasks, addEvent, addReminder, addSession, addTask, toast, updateEvent, updateReminder, updateSession, updateTask]);
 
+  // Conflict handling functions
+  const handleConflictClick = useCallback((items: (Task | Event | StudySession)[]) => {
+    // Log the items to see what we're dealing with
+    console.log("Conflict items received from grid:", items);
+    
+    // Ensure we have at least two items to have a conflict
+    if (items.length < 2) {
+        console.warn("Conflict click triggered with less than 2 items:", items);
+        return; // No conflict if fewer than 2 items
+    }
+
+    // Convert items to unified format before setting state
+    const unifiedItems = items.map(item => {
+        let itemType: "task" | "event" | "session"; // Reminders shouldn't cause scheduling conflicts
+        if ('name' in item) {
+            itemType = "event";
+        } else if ('subject' in item && 'scheduledFor' in item) {
+            itemType = "session";
+        } else {
+            itemType = "task";
+        }
+        return convertToUnified(item, itemType);
+    });
+
+    console.log("Unified conflict items:", unifiedItems);
+    setConflictingItems(unifiedItems);
+    setConflictPopupOpen(true);
+  }, [convertToUnified, setConflictingItems, setConflictPopupOpen]); // Add dependencies
+  
+  const handleConflictResolved = useCallback(() => {
+    setConflictPopupOpen(false);
+    setConflictingItems([]);
+    // Optionally trigger a data refresh if needed, though DataProvider might handle it
+    toast({
+        title: "Success",
+        description: "Conflict resolved successfully.",
+    });
+  }, [setConflictPopupOpen, setConflictingItems, toast]);
+
+  // Handlers for manual actions in the conflict popup
+  const handleRescheduleConflict = useCallback(async (itemId: string, itemType: ItemType, newStartTime: string, newEndTime?: string) => {
+    try {
+      console.log(`Manual Reschedule - ID: ${itemId}, Type: ${itemType}, Start: ${newStartTime}, End: ${newEndTime}`);
+      switch (itemType) {
+        case 'task': {
+          // Assuming we update the first timeslot if it exists
+          const task = allTasks.find(t => t.id === itemId);
+          if (task?.timeSlots?.[0]) {
+            const updatedTimeSlots = [...task.timeSlots];
+            updatedTimeSlots[0] = { ...updatedTimeSlots[0], startDate: newStartTime, endDate: newEndTime || updatedTimeSlots[0].endDate };
+            await updateTask(itemId, { timeSlots: updatedTimeSlots });
+          } else {
+             // Handle tasks without timeslots or find a better way?
+             await updateTask(itemId, { /* Update appropriate field if no timeslot */ }); 
+          }
+          break;
+        }
+        case 'event':
+          await updateEvent(itemId, { startTime: newStartTime, endTime: newEndTime });
+          break;
+        case 'session':
+          await updateSession(itemId, { scheduledFor: newStartTime }); // Duration is usually fixed
+          break;
+        default:
+          throw new Error(`Unknown item type for reschedule: ${itemType}`);
+      }
+      toast({ title: "Success", description: `${itemType} manually rescheduled.` });
+      handleConflictResolved(); // Close popup on success
+    } catch (error) {
+      console.error("Error manually rescheduling item:", error);
+      toast({ variant: "destructive", title: "Error", description: `Failed to reschedule ${itemType}` });
+    }
+  }, [allTasks, updateTask, updateEvent, updateSession, toast, handleConflictResolved]);
+
+  const handleDeleteConflict = useCallback(async (itemId: string, itemType: ItemType) => {
+    try {
+      console.log(`Manual Delete - ID: ${itemId}, Type: ${itemType}`);
+       switch (itemType) {
+        case 'task':
+          await deleteTask(itemId);
+          break;
+        case 'event':
+          await deleteEvent(itemId);
+          break;
+        case 'session':
+          await deleteSession(itemId);
+          break;
+        default:
+          throw new Error(`Unknown item type for delete: ${itemType}`);
+      }
+      toast({ title: "Success", description: `${itemType} manually deleted.` });
+      handleConflictResolved(); // Close popup on success
+    } catch (error) {
+      console.error("Error manually deleting item:", error);
+      toast({ variant: "destructive", title: "Error", description: `Failed to delete ${itemType}` });
+    }
+  }, [deleteTask, deleteEvent, deleteSession, toast, handleConflictResolved]);
+
   // Memoize CalendarGrid to prevent unnecessary re-renders
   const calendarGrid = useMemo(() => (
     <CalendarGrid
@@ -247,8 +375,10 @@ export function Calendar() {
       deadlines={deadlines}
       onAddItem={() => handleAddItem()}
       onItemClick={handleItemClick}
+      onConflictClick={handleConflictClick}
+      ignoredConflictIds={ignoredConflictIds}
     />
-  ), [date, deadlines, events, handleAddItem, handleDateRangeChange, handleDateSelect, handleItemClick, reminders, sessions, tasks]);
+  ), [date, deadlines, events, handleAddItem, handleConflictClick, handleDateRangeChange, handleDateSelect, handleItemClick, reminders, sessions, tasks, ignoredConflictIds]);
 
   return (
     <div className="space-y-6">
@@ -274,6 +404,16 @@ export function Calendar() {
         initialType={initialItemType}
         onSave={handleSaveItem}
         mode={selectedItem ? "edit" : "create"}
+      />
+      
+      {/* Conflict Popup */}
+      <CalendarConflictPopup
+        open={conflictPopupOpen}
+        onOpenChange={setConflictPopupOpen}
+        conflictingItems={conflictingItems}
+        onResolve={handleConflictResolved}
+        onReschedule={handleRescheduleConflict}
+        onDelete={handleDeleteConflict}
       />
     </div>
   );

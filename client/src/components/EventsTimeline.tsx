@@ -35,10 +35,9 @@ export function EventsTimeline({ onEventClick, events }: EventsTimelineProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-sm font-medium">Events Timeline</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-0">
         <ScrollArea className="h-[300px] pr-4">
           {Object.entries(groupedEvents).map(([day, dayEvents]) => (
             <div key={day} className="mb-4 last:mb-0">

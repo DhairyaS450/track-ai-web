@@ -87,6 +87,7 @@ export function DateTimePicker({
                 onChange={handleTimeChange}
                 className="pl-9"
                 disabled={disabled}
+                step={600}
               />
             </div>
             <div className="flex gap-1">
