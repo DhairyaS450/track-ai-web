@@ -231,6 +231,57 @@ export function UnifiedItemDialog({
     }
 
     try {
+      // Helper function to format event times
+      function formatEventTimes(start: string, end: string | undefined, allDay: boolean): { startTime: string; endTime: string } {
+        if (allDay) {
+          // For all-day events, ensure startTime is just the date part.
+          // The backend expects YYYY-MM-DD for all-day start time.
+          // We set endTime to the same date for consistency in Firestore, though Google uses an exclusive end date.
+          const datePart = start.split('T')[0];
+          return { startTime: datePart, endTime: datePart };
+        } else {
+          // For timed events, ensure both start and end are valid datetime-local strings.
+          // Add seconds if missing, though HTML input type=datetime-local might not include them.
+          const formatDateTime = (dateTimeStr: string | undefined) => {
+             if (!dateTimeStr) return new Date().toISOString().slice(0, 16); // Fallback
+             return dateTimeStr.length === 16 ? dateTimeStr : new Date(dateTimeStr).toISOString().slice(0, 16);
+          };
+          
+          let formattedStart = formatDateTime(start);
+          let formattedEnd = formatDateTime(end);
+          
+          // Ensure end is after start
+          if (new Date(formattedEnd) <= new Date(formattedStart)) {
+              // Set end time to one hour after start time as a default
+              const startDateObj = new Date(formattedStart);
+              formattedEnd = new Date(startDateObj.getTime() + 60 * 60 * 1000).toISOString().slice(0, 16);
+          }
+          
+          return { startTime: formattedStart, endTime: formattedEnd };
+        }
+      }
+
+      let finalStartTime = startTime;
+      let finalEndTime = endTime;
+      let finalIsAllDay = false;
+
+      if (itemType === 'event') {
+        finalIsAllDay = isAllDay; // Use the state value
+        
+        if (isAllDay) {
+          // For all-day events, ensure we're using just the date
+          // If there's no T in the startTime, it's already a date string
+          finalStartTime = startTime.includes('T') ? startTime.split('T')[0] : startTime;
+          // For all-day events, endTime should match the start date or be empty
+          finalEndTime = finalStartTime;
+        } else {
+          // For regular events, ensure both start and end are properly formatted
+          const formattedTimes = formatEventTimes(startTime, endTime, isAllDay);
+          finalStartTime = formattedTimes.startTime;
+          finalEndTime = formattedTimes.endTime;
+        }
+      }
+
       // Create base item
       const baseItem: Partial<SchedulableItem> = {
         ...(initialItem?.id && { id: initialItem.id }),
@@ -239,11 +290,11 @@ export function UnifiedItemDialog({
         priority,
         status: initialItem?.status || (itemType === 'task' ? 'todo' : 'scheduled'),
         itemType,
-        startTime,
-        endTime: endTime || undefined,
+        startTime: finalStartTime,
+        endTime: finalEndTime || undefined,
         createdAt: initialItem?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        source: 'manual',
+        source: initialItem?.source || 'manual',
       };
 
       // Add type-specific fields
@@ -253,7 +304,7 @@ export function UnifiedItemDialog({
         case 'task':
           itemData = {
             ...baseItem,
-            deadline: startTime,
+            deadline: finalStartTime,
             completion,
             timeSlots: timeSlots.filter(slot => slot.startDate && slot.endDate),
             subject,
@@ -264,7 +315,9 @@ export function UnifiedItemDialog({
         case 'event':
           itemData = {
             ...baseItem,
-            isAllDay,
+            startTime: finalStartTime,
+            endTime: finalEndTime,
+            isAllDay: finalIsAllDay,
             isFlexible,
             location,
             category,
@@ -279,7 +332,7 @@ export function UnifiedItemDialog({
             goal,
             duration,
             technique,
-            scheduledFor: startTime,
+            scheduledFor: finalStartTime,
             breakInterval,
             breakDuration,
             materials,
@@ -293,7 +346,7 @@ export function UnifiedItemDialog({
         case 'reminder':
           itemData = {
             ...baseItem,
-            reminderTime: startTime,
+            reminderTime: finalStartTime,
             notificationMessage,
             recurring: isRecurring ? {
               frequency: recurrenceFrequency,
@@ -398,48 +451,6 @@ export function UnifiedItemDialog({
                   </div>
                 </RadioGroup>
               </div>
-
-              {/* Date/Time Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="startTime">
-                    {itemType === 'task' ? 'Deadline' : 'Start Time'}
-                  </Label>
-                  <Input
-                    id="startTime"
-                    type="datetime-local"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    step={600}
-                  />
-                </div>
-
-                {(itemType === 'event' || itemType === 'session') && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="endTime">End Time</Label>
-                    <Input
-                      id="endTime"
-                      type="datetime-local"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      step={600}
-                    />
-                  </div>
-                )}
-
-                {itemType === 'reminder' && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="reminderTime">Reminder Time</Label>
-                    <Input
-                      id="reminderTime"
-                      type="datetime-local"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      step={600}
-                    />
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Item type specific content */}
@@ -464,6 +475,17 @@ export function UnifiedItemDialog({
                 />
               </div>
 
+              <div className="grid gap-2">
+                <Label htmlFor="startTime">Deadline</Label>
+                <Input
+                  id="startTime"
+                  type="datetime-local"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  step={600}
+                />
+              </div>
+              
               <div className="grid gap-2">
                 <div className="flex items-center justify-between">
                   <Label>Completion</Label>
@@ -555,52 +577,102 @@ export function UnifiedItemDialog({
 
             <TabsContent value="event" className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="event-description">Description</Label>
                 <Textarea
-                  id="description"
+                  id="event-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Enter description"
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2">
                 <div className="flex items-center space-x-2">
                   <Checkbox 
-                    id="isAllDay" 
+                    id="isAllDay"
                     checked={isAllDay}
-                    onCheckedChange={(checked: boolean) => setIsAllDay(checked)}
+                    onCheckedChange={(checked) => {
+                      // When turning on All Day, strip any time component
+                      if (checked && startTime) {
+                        // Extract just the date part and update the startTime
+                        const datePart = startTime.split('T')[0];
+                        setStartTime(datePart);
+                        // Since all-day events don't need end time, we can clear it
+                        setEndTime('');
+                      }
+                      setIsAllDay(Boolean(checked));
+                    }} 
                   />
-                  <Label htmlFor="isAllDay">All Day</Label>
+                  <Label htmlFor="isAllDay" className="cursor-pointer">All Day Event</Label>
                 </div>
-
+                
                 <div className="flex items-center space-x-2">
                   <Checkbox 
-                    id="isFlexible" 
+                    id="isFlexible"
                     checked={isFlexible}
-                    onCheckedChange={(checked: boolean) => setIsFlexible(checked)}
+                    onCheckedChange={(checked) => setIsFlexible(Boolean(checked))} 
                   />
-                  <Label htmlFor="isFlexible">Flexible</Label>
+                  <Label htmlFor="isFlexible" className="cursor-pointer">Flexible (Allow AI rescheduling)</Label>
                 </div>
               </div>
-
+              
+              <div className={isAllDay ? "grid gap-2" : "grid grid-cols-1 sm:grid-cols-2 gap-4"}>
+                {/* Single date picker for All Day events */}
+                {isAllDay ? (
+                  <div className="grid gap-2">
+                    <Label htmlFor="event-date">Date</Label>
+                    <Input
+                      id="event-date"
+                      type="date"
+                      value={startTime.split('T')[0] || startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    {/* Start Time input for regular events */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="event-startTime">Start Time</Label>
+                      <Input
+                        id="event-startTime"
+                        type="datetime-local"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        step={600}
+                      />
+                    </div>
+                    {/* End Time input for regular events */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="event-endTime">End Time</Label>
+                      <Input
+                        id="event-endTime"
+                        type="datetime-local"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        min={startTime}
+                        step={600}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+              
               <div className="grid gap-2">
                 <Label htmlFor="location">Location</Label>
                 <Input
                   id="location"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Enter location"
+                  placeholder="Enter location (optional)"
                 />
               </div>
-
               <div className="grid gap-2">
                 <Label htmlFor="category">Category</Label>
                 <Input
                   id="category"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  placeholder="Enter category"
+                  placeholder="Enter category (optional)"
                 />
               </div>
 
@@ -699,6 +771,17 @@ export function UnifiedItemDialog({
                     placeholder="e.g. Complete chapter 5 exercises"
                   />
                 </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="startTime">Start Time</Label>
+                <Input
+                  id="startTime"
+                  type="datetime-local"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  step={600}
+                />
               </div>
 
               <div className="grid gap-3 items-start md:grid-cols-2">
@@ -904,95 +987,105 @@ export function UnifiedItemDialog({
 
             <TabsContent value="reminder" className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="notificationMessage">Notification Message (Optional)</Label>
-                <Input
-                  id="notificationMessage"
+                <Label htmlFor="reminder-description">Notification Message</Label>
+                <Textarea
+                  id="reminder-description"
                   value={notificationMessage}
                   onChange={(e) => setNotificationMessage(e.target.value)}
-                  placeholder="Enter custom notification message"
+                  placeholder="What should the notification say?"
                 />
               </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="recurring"
-                  checked={isRecurring}
-                  onCheckedChange={(checked: boolean) => setIsRecurring(checked)}
-                />
-                <label
-                  htmlFor="recurring"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Recurring Reminder
-                </label>
-              </div>
-
-              {isRecurring && (
-                <div className="space-y-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="recurrenceFrequency">Frequency</Label>
-                    <Select
-                      value={recurrenceFrequency}
-                      onValueChange={(value) => setRecurrenceFrequency(value as "Daily" | "Weekly" | "Monthly" | "Yearly")}
-                    >
-                      <SelectTrigger id="recurrenceFrequency">
-                        <SelectValue placeholder="Select frequency" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Daily">Daily</SelectItem>
-                        <SelectItem value="Weekly">Weekly</SelectItem>
-                        <SelectItem value="Monthly">Monthly</SelectItem>
-                        <SelectItem value="Yearly">Yearly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="recurrenceInterval">Interval</Label>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                 <div className="grid gap-2">
+                    <Label htmlFor="reminderTime">Reminder Time</Label>
                     <Input
-                      id="recurrenceInterval"
-                      type="number"
-                      min={1}
-                      value={recurrenceInterval}
-                      onChange={(e) => setRecurrenceInterval(Math.max(1, e.target.valueAsNumber))}
-                      placeholder="Enter interval"
+                      id="reminderTime"
+                      type="datetime-local"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      step={600}
                     />
                   </div>
+               </div>
+               <div className="flex items-center space-x-2">
+                 <Checkbox
+                   id="recurring"
+                   checked={isRecurring}
+                   onCheckedChange={(checked: boolean) => setIsRecurring(checked)}
+                 />
+                 <label
+                   htmlFor="recurring"
+                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                 >
+                   Recurring Reminder
+                 </label>
+               </div>
+               {isRecurring && (
+                 <div className="space-y-4">
+                   <div className="grid gap-2">
+                     <Label htmlFor="recurrenceFrequency">Frequency</Label>
+                     <Select
+                       value={recurrenceFrequency}
+                       onValueChange={(value) => setRecurrenceFrequency(value as "Daily" | "Weekly" | "Monthly" | "Yearly")}
+                     >
+                       <SelectTrigger id="recurrenceFrequency">
+                         <SelectValue placeholder="Select frequency" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="Daily">Daily</SelectItem>
+                         <SelectItem value="Weekly">Weekly</SelectItem>
+                         <SelectItem value="Monthly">Monthly</SelectItem>
+                         <SelectItem value="Yearly">Yearly</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="recurrenceEndDate">End Date (Optional)</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !recurrenceEndDate && "text-muted-foreground"
-                          )}
-                        >
-                          {recurrenceEndDate ? (
-                            format(recurrenceEndDate, "PPP")
-                          ) : (
-                            <span>Pick an end date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={recurrenceEndDate}
-                          onSelect={setRecurrenceEndDate}
-                          disabled={(date: Date) =>
-                            date < new Date(new Date().setHours(0, 0, 0, 0))
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-              )}
+                   <div className="grid gap-2">
+                     <Label htmlFor="recurrenceInterval">Interval</Label>
+                     <Input
+                       id="recurrenceInterval"
+                       type="number"
+                       min={1}
+                       value={recurrenceInterval}
+                       onChange={(e) => setRecurrenceInterval(Math.max(1, e.target.valueAsNumber))}
+                       placeholder="Enter interval"
+                     />
+                   </div>
+
+                   <div className="grid gap-2">
+                     <Label htmlFor="recurrenceEndDate">End Date (Optional)</Label>
+                     <Popover>
+                       <PopoverTrigger asChild>
+                         <Button
+                           variant={"outline"}
+                           className={cn(
+                             "w-full pl-3 text-left font-normal",
+                             !recurrenceEndDate && "text-muted-foreground"
+                           )}
+                         >
+                           {recurrenceEndDate ? (
+                             format(recurrenceEndDate, "PPP")
+                           ) : (
+                             <span>Pick an end date</span>
+                           )}
+                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                         </Button>
+                       </PopoverTrigger>
+                       <PopoverContent className="w-auto p-0" align="start">
+                         <Calendar
+                           mode="single"
+                           selected={recurrenceEndDate}
+                           onSelect={setRecurrenceEndDate}
+                           disabled={(date: Date) =>
+                             date < new Date(new Date().setHours(0, 0, 0, 0))
+                           }
+                           initialFocus
+                         />
+                       </PopoverContent>
+                     </Popover>
+                   </div>
+                 </div>
+               )}
             </TabsContent>
           </ScrollArea>
         </Tabs>
@@ -1002,7 +1095,7 @@ export function UnifiedItemDialog({
             Cancel
           </Button>
           <Button onClick={handleSubmit}>
-            {mode === "edit" ? "Save Changes" : "Create"} {itemType.charAt(0).toUpperCase() + itemType.slice(1)}
+            {mode === "create" ? "Create" : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>

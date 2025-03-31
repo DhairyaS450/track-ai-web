@@ -643,7 +643,21 @@ export function StudySessions() {
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs md:text-sm">
                         <div className="flex items-center gap-1 md:gap-2 bg-muted/30 p-1.5 md:p-2 rounded-md">
                           <Clock className="h-3 w-3 md:h-4 md:w-4 text-blue-500" />
-                          <span className="truncate">{format(new Date(session.scheduledFor), "MMM d, h:mm a")}</span>
+                          <span className="truncate">{
+                            (() => {
+                              try {
+                                const scheduledDate = new Date(session.scheduledFor);
+                                // Check if the date is valid
+                                if (isNaN(scheduledDate.getTime())) {
+                                  return "Invalid Date";
+                                }
+                                return format(scheduledDate, "MMM d, h:mm a");
+                              } catch (error) {
+                                console.error("Error formatting date:", error, "for session:", session);
+                                return "Invalid Date";
+                              }
+                            })()
+                          }</span>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 bg-muted/30 p-1.5 md:p-2 rounded-md">
                           <Timer className="h-3 w-3 md:h-4 md:w-4 text-blue-500" />
