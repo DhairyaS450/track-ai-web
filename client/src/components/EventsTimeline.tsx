@@ -1,7 +1,6 @@
 import { Event } from "@/types";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { format, isToday, isTomorrow } from "date-fns";
-import { MapPin, Clock, ChevronRight, Sparkles } from "lucide-react";
+import { MapPin, Clock, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
@@ -34,87 +33,98 @@ export function EventsTimeline({ onEventClick, events }: EventsTimelineProps) {
   }, {} as Record<string, Event[]>);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      </CardHeader>
-      <CardContent className="p-0">
-        <ScrollArea className="h-[300px] pr-4">
-          {Object.entries(groupedEvents).map(([day, dayEvents]) => (
-            <div key={day} className="mb-4 last:mb-0">
-              <h3 className="text-sm font-semibold mb-2">{day}</h3>
-              <div className="space-y-2">
-                {dayEvents.map((event) => (
-                  <div
-                    key={event.id}
-                    className={`${cn(
-                      "flex items-start justify-between p-3 rounded-lg border transition-colors hover:bg-accent cursor-pointer",
-                      isToday(new Date(event.startTime))
-                        ? "border-blue-200 dark:border-blue-800"
-                        : ""
-                    )} ${
-                      event.source === "google_calendar"
-                        ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
-                        : ""
-                    }`}
-                    onClick={() => onEventClick(event)}
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{event.name}</span>
-                        <div className="flex flex-col items-start gap-2">
-                          {event.source === "google_calendar" && (
-                            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
-                              <Sparkles className="mr-1 h-3 w-3" />
-                              Google Calendar
-                            </span>
-                          )}
-                          {event.priority && (
-                            <Badge
-                              variant={
-                                event.priority === "High"
-                                  ? "destructive"
-                                  : event.priority === "Medium"
-                                  ? "default"
-                                  : "secondary"
-                              }
-                            >
-                              {event.priority}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center text-sm text-muted-foreground gap-4">
+    <ScrollArea className="h-full">
+      <div className="space-y-5 p-2">
+        {Object.entries(groupedEvents).map(([day, dayEvents]) => (
+          <div key={day} className="space-y-2">
+            <div className="sticky top-0 z-10 bg-card pb-1">
+              <h3 className="text-sm font-semibold px-2 py-1 bg-muted inline-block rounded-md">
+                {day}
+              </h3>
+            </div>
+            <div className="space-y-3">
+              {dayEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className={cn(
+                    "p-3 rounded-lg border bg-background transition-colors hover:bg-accent/50 cursor-pointer",
+                    isToday(new Date(event.startTime))
+                      ? "border-blue-200 dark:border-blue-800"
+                      : "",
+                    event.source === "google_calendar"
+                      ? "bg-gradient-to-r from-green-100 to-yellow-100 dark:from-green-900 dark:to-yellow-900"
+                      : ""
+                  )}
+                  onClick={() => onEventClick(event)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-medium text-base">{event.name}</div>
+                      <div className="flex flex-wrap items-center text-sm text-muted-foreground gap-x-4 gap-y-1 mt-1">
                         <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
+                          <Clock className="h-4 w-4 shrink-0" />
                           <span>
-                            {format(new Date(event.startTime), "h:mm a")}
-                            {" - "}
-                            {format(new Date(event.endTime), "h:mm a")}
+                            {event.isAllDay ? (
+                              "All-day"
+                            ) : (
+                              <>
+                                {format(new Date(event.startTime), "h:mm a")}
+                                {" - "}
+                                {format(new Date(event.endTime), "h:mm a")}
+                              </>
+                            )}
                           </span>
                         </div>
                         {event.location && (
                           <div className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            <span>{event.location}</span>
+                            <MapPin className="h-4 w-4 shrink-0" />
+                            <span className="truncate max-w-[200px]">
+                              {event.location}
+                            </span>
                           </div>
                         )}
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon">
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
+                    <div className="flex flex-col gap-2 items-end ml-2">
+                      {event.source === "google_calendar" && (
+                        <Badge variant="outline" className="border-green-500 text-green-600 dark:text-green-400">
+                          <Sparkles className="mr-1 h-3 w-3" />
+                          Google
+                        </Badge>
+                      )}
+                      {event.priority && (
+                        <Badge
+                          variant={
+                            event.priority === "High"
+                              ? "destructive"
+                              : event.priority === "Medium"
+                              ? "default"
+                              : "secondary"
+                          }
+                        >
+                          {event.priority}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          ))}
-          {filteredEvents.length === 0 && (
-            <p className="text-center text-muted-foreground py-8">
-              No events scheduled for today or tomorrow
-            </p>
-          )}
-        </ScrollArea>
-      </CardContent>
-    </Card>
+          </div>
+        ))}
+        {filteredEvents.length === 0 && (
+          <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-8">
+            <p>No events scheduled for today or tomorrow</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => onEventClick({} as Event)}
+            >
+              Add an Event
+            </Button>
+          </div>
+        )}
+      </div>
+    </ScrollArea>
   );
 }
