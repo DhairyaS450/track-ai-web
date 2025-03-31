@@ -401,6 +401,19 @@ export function CalendarGrid({
     return eventColumns;
   };
 
+  // Helper function to filter and organize all-day vs. timed events
+  function processItems(items) {
+    // Separate all-day from timed events
+    const allDayItems = items.filter(item => item.isAllDay);
+    const timedItems = items.filter(item => !item.isAllDay);
+    
+    // Return organized structure
+    return {
+      allDay: allDayItems,
+      timed: timedItems
+    };
+  }
+
   // Render the calendar view
   return (
     <div className="space-y-4">
@@ -503,6 +516,48 @@ export function CalendarGrid({
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
+                  {/* All Day Events Section */}
+                  <div className="border-b border-gray-200 dark:border-gray-800 p-2">
+                    {(() => {
+                      const targetDateStr = format(date, "yyyy-MM-dd");
+                      const allDayEvents = effectiveEvents
+                        .filter(event => {
+                          const eventDate = new Date(event.startTime);
+                          return format(eventDate, "yyyy-MM-dd") === targetDateStr && event.isAllDay;
+                        })
+                        .map(event => ({
+                          id: event.id,
+                          title: event.name,
+                          type: "event" as const,
+                          isAllDay: true,
+                          color: "blue",
+                          item: event
+                        }));
+                        
+                      if (allDayEvents.length === 0) {
+                        return null;
+                      }
+                      
+                      return (
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-medium mb-1 text-muted-foreground">All-day</h4>
+                          {allDayEvents.map(event => (
+                            <div 
+                              key={event.id}
+                              className={cn(
+                                "px-2 py-1 rounded-md text-xs cursor-pointer border-l-2 overflow-hidden",
+                                getTypeStyles(event.type)
+                              )}
+                              onClick={() => onItemClick(event.item)}
+                            >
+                              {event.title}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  
                   <div className="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
                     {/* Time slots */}
                     {TIME_SLOTS.map((hour) => (
@@ -527,7 +582,8 @@ export function CalendarGrid({
                       const dayEvents = effectiveEvents
                         .filter(event => {
                           const eventDate = new Date(event.startTime);
-                          return format(eventDate, "yyyy-MM-dd") === targetDateStr;
+                          // Only show non-all-day events in the timed grid
+                          return format(eventDate, "yyyy-MM-dd") === targetDateStr && !event.isAllDay;
                         })
                         .map(event => ({
                           id: event.id,
@@ -535,7 +591,7 @@ export function CalendarGrid({
                           start: new Date(event.startTime),
                           end: event.endTime ? new Date(event.endTime) : addMinutes(new Date(event.startTime), 60),
                           type: "event" as const,
-                          isAllDay: event.isAllDay,
+                          isAllDay: false,
                           color: "blue",
                           item: event
                         }));
@@ -721,49 +777,56 @@ export function CalendarGrid({
                       {format(day, "d")}
                     </div>
                   </CardHeader>
-                  <CardContent className={cn(
-                    "p-0 overflow-y-auto", 
-                    isMobile ? "h-[120px]" : "h-[300px]"
-                  )}>
-                    <ScrollArea className="h-full">
+                  <CardContent className="p-3">
+                    <ScrollArea className="h-32">
                       {(() => {
                         const items = getAllItemsForDate(day);
-                        const { conflictMap, conflictPairs } = detectConflicts(items, ignoredConflictIds);
-                        return items.map((event) => (
-                          <div
-                            key={event.id}
-                            className={cn(
-                              "rounded border-l-2 cursor-pointer",
-                              getTypeStyles(event.type),
-                              isMobile ? "m-0.5 p-0.5 text-[10px]" : "m-1 p-1 text-xs"
-                            )}
-                            onClick={() => onItemClick(event.item)}
-                          >
-                            <div className="font-medium truncate">
-                              {event.title} 
-                              {conflictMap.get(event.id) && onConflictClick && (
-                                <span 
-                                  className="ml-1 cursor-pointer" 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const conflicts = conflictPairs.get(event.id) || [];
-                                    const items = conflicts.map(item => item.item).filter(
-                                      item => item.type !== 'deadline' && item.type !== 'reminder'
-                                    );
-                                    onConflictClick(items);
-                                  }}
-                                >
-                                  ⚠️
-                                </span>
-                              )}
-                            </div>
-                            {!isMobile && (
-                              <div className="text-xs opacity-80">
-                                {format(event.start, "h:mm a")}
+                        
+                        // Separate all-day from timed events
+                        const { allDay, timed } = processItems(items);
+                        
+                        return (
+                          <>
+                            {/* All-day events at the top */}
+                            {allDay.length > 0 && (
+                              <div className="mb-2">
+                                {allDay.map((event) => (
+                                  <div
+                                    key={event.id}
+                                    className={cn(
+                                      "px-2 py-1 mb-1 rounded-sm text-xs cursor-pointer border-l-2 truncate",
+                                      getTypeStyles(event.type)
+                                    )}
+                                    onClick={() => onItemClick(event.item)}
+                                  >
+                                    <span className="font-medium">{event.title}</span>
+                                    {" "}
+                                    <span className="text-xs opacity-70">All-day</span>
+                                  </div>
+                                ))}
                               </div>
                             )}
-                          </div>
-                        ));
+                            
+                            {/* Timed events below */}
+                            {timed.map((event) => (
+                              <div
+                                key={event.id}
+                                className={cn(
+                                  "px-2 py-1 mb-1 rounded-sm text-xs cursor-pointer border-l-2",
+                                  getTypeStyles(event.type)
+                                )}
+                                onClick={() => onItemClick(event.item)}
+                              >
+                                <div className="font-medium truncate">{event.title}</div>
+                                {!isMobile && (
+                                  <div className="text-xs opacity-80">
+                                    {format(event.start, "h:mm a")}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </>
+                        );
                       })()}
                     </ScrollArea>
                   </CardContent>

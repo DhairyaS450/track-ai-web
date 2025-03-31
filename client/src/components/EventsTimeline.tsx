@@ -87,9 +87,15 @@ export function EventsTimeline({ onEventClick, events }: EventsTimelineProps) {
                         <div className="flex items-center gap-1">
                           <Clock className="h-4 w-4" />
                           <span>
-                            {format(new Date(event.startTime), "h:mm a")}
-                            {" - "}
-                            {format(new Date(event.endTime), "h:mm a")}
+                            {event.isAllDay ? (
+                              "All-day"
+                            ) : (
+                              <>
+                                {format(new Date(event.startTime), "h:mm a")}
+                                {" - "}
+                                {format(new Date(event.endTime), "h:mm a")}
+                              </>
+                            )}
                           </span>
                         </div>
                         {event.location && (
