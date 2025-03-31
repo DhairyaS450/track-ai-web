@@ -469,6 +469,25 @@ export function StudySessionTimer({
     return () => clearInterval(timer);
   }, [isInitialized, isPaused, isBreak, onComplete, phaseEndTime, actualStartTime, duration, totalPausedTime]);
 
+  // Add this new useEffect after the other useEffect hooks
+  useEffect(() => {
+    // Only reset if we're not in a break phase
+    if (!isBreak) {
+      console.log("Duration changed, resetting timer");
+      setIsBreak(false);
+      setProgress(0);
+      setIsPaused(false);
+      setTotalPausedTime(0);
+      setPauseStartTime(null);
+      
+      // Reset isFirstPhase flag for proper initialization
+      localStorage.setItem("isFirstPhase", "true");
+      
+      // Initialize the study phase with new duration
+      initializePhase(false);
+    }
+  }, [duration, breakInterval, breakDuration]);
+
   // Cleanup and persistence on unmount
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -596,7 +615,7 @@ export function StudySessionTimer({
             priority === "High" && "bg-red-500",
             priority === "Medium" && "bg-[#F49D1A]",
             priority === "Low" && "bg-green-500",
-            !priority && "bg-green-500" // Default to green if no priority
+            !priority && "bg-blue-500" // Default to blue if no priority
           )} 
           style={{ 
             width: `${Math.max(0, Math.min(100, progress))}%`,
@@ -702,15 +721,15 @@ export function StudySessionTimer({
 
   return (
     <div className={cn(
-      "flex flex-col rounded-lg overflow-hidden border-t-4 shadow-md",
-      priority === "High" && "border-t-red-500 bg-red-50 dark:bg-red-900/20",
-      priority === "Medium" && "border-t-[#F49D1A] bg-amber-50 dark:bg-amber-900/20",
-      priority === "Low" && "border-t-green-500 bg-green-50 dark:bg-green-900/20",
-      !priority && "border-t-green-500 bg-green-50 dark:bg-green-900/20", // Default to green if no priority set
+      "flex flex-col rounded-lg overflow-hidden border-t-4 shadow-md transition-all duration-200 hover:shadow-lg",
+      priority === "High" && "border-t-red-500 bg-white dark:bg-gray-900",
+      priority === "Medium" && "border-t-[#F49D1A] bg-white dark:bg-gray-900",
+      priority === "Low" && "border-t-green-500 bg-white dark:bg-gray-900",
+      !priority && "border-t-blue-500 bg-white dark:bg-gray-900", // Default to blue if no priority set
     )}>
       {/* Top section with name and priority */}
-      <div className="flex justify-between items-center p-3 sm:p-4 bg-white dark:bg-gray-900">
-        <h3 className="text-sm sm:text-base font-medium">
+      <div className="flex justify-between items-center p-3.5 sm:p-4 bg-white dark:bg-gray-900">
+        <h3 className="text-sm sm:text-base font-semibold tracking-tight">
           {getCurrentSubject()}
           {sessionMode === 'sections' && (
             <span className="text-xs text-muted-foreground ml-2">
@@ -719,10 +738,11 @@ export function StudySessionTimer({
           )}
         </h3>
         <div className={cn(
-          "text-white font-medium rounded px-2 py-1 text-xs",
-          priority === "High" && "bg-red-500",
-          priority === "Medium" && "bg-[#F49D1A]",
-          priority === "Low" && "bg-green-500"
+          "text-white font-medium rounded-md px-2.5 py-1 text-xs shadow-sm transition-colors",
+          priority === "High" && "bg-red-500 dark:bg-red-600",
+          priority === "Medium" && "bg-[#F49D1A] dark:bg-amber-600",
+          priority === "Low" && "bg-green-500 dark:bg-green-600",
+          !priority && "bg-blue-500 dark:bg-blue-600"
         )}>
           {priority || "Medium"} Priority
         </div>
@@ -732,17 +752,17 @@ export function StudySessionTimer({
       {sessionMode === 'sections' && sections.length > 1 && renderSectionIndicator()}
       
       {/* Big centered timer */}
-      <div className="text-center py-8">
-        <div className="font-['New_York'] text-7xl font-extrabold tracking-tight">
+      <div className="text-center py-12 bg-white dark:bg-gray-900">
+        <div className="font-mono text-7xl font-bold tracking-tight drop-shadow-sm">
           {formatTimeLeft(timeLeft)}
         </div>
-        <div className="mt-3 sm:mt-4">
+        <div className="mt-4 sm:mt-5">
           <div className={cn(
-            "text-white font-medium rounded-full py-1 px-3 sm:px-4 inline-block text-xs",
-            priority === "High" && "bg-red-500",
-            priority === "Medium" && "bg-[#F49D1A]",
-            priority === "Low" && "bg-green-500",
-            !priority && "bg-green-500" // Default to green if no priority
+            "text-white font-medium rounded-full py-1.5 px-4 sm:px-6 inline-block text-xs shadow-sm",
+            priority === "High" && "bg-red-500 dark:bg-red-600",
+            priority === "Medium" && "bg-[#F49D1A] dark:bg-amber-600",
+            priority === "Low" && "bg-green-500 dark:bg-green-600",
+            !priority && "bg-blue-500 dark:bg-blue-600" // Default to blue if no priority
           )}>
             {isBreak ? "Break Time" : "Study Time"}
           </div>
@@ -750,9 +770,9 @@ export function StudySessionTimer({
       </div>
       
       {/* End time and next phase */}
-      <div className="flex justify-between items-center px-3 sm:px-4 text-xs text-muted-foreground py-2 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
+      <div className="flex justify-between items-center px-4 sm:px-5 text-xs text-muted-foreground py-3 bg-white dark:bg-gray-900">
         <div className="flex items-center">
-          <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+          <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1.5 opacity-70" />
           <span>Ends: {format(phaseEndTime, "h:mm a")}</span>
         </div>
         <div>
@@ -760,43 +780,65 @@ export function StudySessionTimer({
         </div>
       </div>
       
-      {/* Progress section - using the dedicated render function */}
-      {renderProgressBar()}
+      {/* Progress section - enhanced progress bar */}
+      <div className="px-4 sm:px-5 py-4 sm:py-5 bg-white dark:bg-gray-900">
+        <div className="flex justify-between items-center mb-2.5">
+          <div className="text-xs font-medium text-muted-foreground">
+            {isBreak ? "Break Progress" : "Study Progress"}
+          </div>
+          <div className="text-xs font-medium">{Math.round(progress)}%</div>
+        </div>
+        <div className="w-full h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner">
+          <div 
+            className={cn(
+              "h-full rounded-full transition-all duration-500 ease-out",
+              priority === "High" && "bg-gradient-to-r from-red-500 to-red-400 shadow-[0_0_8px_rgba(239,68,68,0.5)]",
+              priority === "Medium" && "bg-gradient-to-r from-[#F49D1A] to-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]",
+              priority === "Low" && "bg-gradient-to-r from-green-500 to-green-400 shadow-[0_0_8px_rgba(34,197,94,0.5)]",
+              !priority && "bg-gradient-to-r from-blue-500 to-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.5)]" // Default to blue if no priority
+            )} 
+            style={{ 
+              width: `${Math.max(0, Math.min(100, progress))}%`,
+              transition: "width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)" 
+            }}
+          />
+        </div>
+      </div>
       
       {/* Control buttons */}
-      <div className="grid grid-cols-2 gap-2 px-3 sm:px-4 mb-2 mt-1 pt-2 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
+      <div className="grid grid-cols-2 gap-3 px-4 sm:px-5 mb-4 mt-3 pt-3 bg-white dark:bg-gray-900">
         <button
-          className="bg-gray-100 dark:bg-gray-800 text-foreground border border-gray-200 dark:border-gray-700 rounded text-xs py-3 flex items-center justify-center font-medium hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
+          className="bg-gray-100 dark:bg-gray-800 text-foreground border border-gray-200 dark:border-gray-700 rounded-md text-xs py-3.5 flex items-center justify-center font-medium hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-all duration-150 shadow-sm hover:shadow active:shadow-inner"
           style={{ touchAction: 'manipulation' }}
           onClick={handlePauseResume}
           aria-label={isPaused ? "Resume" : "Pause"}
         >
           {isPaused ? (
             <>
-              <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" />
+              <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
               Resume
             </>
           ) : (
             <>
-              <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" />
+              <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
               Pause
             </>
           )}
         </button>
         
         <button
-          className="bg-gray-100 dark:bg-gray-800 text-foreground border border-gray-200 dark:border-gray-700 rounded text-xs py-3 flex items-center justify-center font-medium hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
+          className="bg-gray-100 dark:bg-gray-800 text-foreground border border-gray-200 dark:border-gray-700 rounded-md text-xs py-3.5 flex items-center justify-center font-medium hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-all duration-150 shadow-sm hover:shadow active:shadow-inner"
           style={{ touchAction: 'manipulation' }}
           onClick={handleSkipPhase}
           aria-label={`Skip ${isBreak ? "Break" : "Study"}`}
         >
-          <SkipForward className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" />
+          <SkipForward className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
           Skip {isBreak ? "Break" : "Study"}
         </button>
       </div>
       
       {/* Bottom buttons */}
-      <div className="flex justify-between p-3 sm:p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
+      <div className="flex justify-between p-4 sm:p-5 bg-white dark:bg-gray-900">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
@@ -860,7 +902,7 @@ export function StudySessionTimer({
             priority === "High" && "bg-red-500 hover:bg-red-600", 
             priority === "Medium" && "bg-[#F49D1A] hover:bg-amber-600",
             priority === "Low" && "bg-green-500 hover:bg-green-600",
-            !priority && "bg-green-500 hover:bg-green-600"
+            !priority && "bg-blue-500 hover:bg-blue-600"
           )}
           style={{ touchAction: 'manipulation' }}
         >
