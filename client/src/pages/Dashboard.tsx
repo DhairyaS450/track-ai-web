@@ -1095,13 +1095,19 @@ export function Dashboard() {
         </Card>
 
         {/* Events Timeline Card */}
-        <Card className="border-brand-primary/20 shadow-sm">
+        <Card className="border-brand-primary/20 shadow-sm h-full flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Events Timeline
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              Upcoming Events
             </CardTitle>
+            {events.length > 0 && (
+              <Badge variant="outline" className="font-normal">
+                {events.length} {events.length === 1 ? 'event' : 'events'}
+              </Badge>
+            )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0 flex-1">
             <EventsTimeline
               events={events}
               onEventClick={handleEditItem}
