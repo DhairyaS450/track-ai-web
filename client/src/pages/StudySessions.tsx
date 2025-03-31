@@ -1398,6 +1398,7 @@ export function StudySessions() {
     
     // TODO: Send to AI and get response
     // For now, simulate a response
+    
     setTimeout(() => {
       const aiResponse = {
         id: (Date.now() + 1).toString(),
