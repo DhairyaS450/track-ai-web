@@ -47,6 +47,19 @@ interface CalendarGridProps {
 
 type CalendarViewType = "day" | "week" | "month" | "schedule";
 
+// Helper function to filter and organize all-day vs. timed events
+function processItems(items: any[]) {
+  // Separate all-day from timed events
+  const allDayItems = items.filter((item: any) => item.isAllDay);
+  const timedItems = items.filter((item: any) => !item.isAllDay);
+  
+  // Return organized structure
+  return {
+    allDay: allDayItems,
+    timed: timedItems
+  };
+}
+
 export function CalendarGrid({
   date,
   onDateSelect,
@@ -215,6 +228,7 @@ export function CalendarGrid({
       end: addMinutes(new Date(reminder.reminderTime), 30),
       type: "reminder" as const,
       isAllDay: false,
+      isReminder: true,
       color: "yellow",
       item: reminder
     }));
@@ -241,6 +255,16 @@ export function CalendarGrid({
     console.log(`Total items found for ${targetDateStr}: ${allItems.length}`);
     return allItems;
   };
+
+  // Function to calculate the max number of events for any day in the week
+  const getMaxEventsForWeek = useMemo(() => {
+    if (viewType !== "week") return 0;
+    
+    return viewDates.reduce((maxCount, day) => {
+      const dayItems = getAllItemsForDate(day);
+      return Math.max(maxCount, dayItems.length);
+    }, 0);
+  }, [viewDates, viewType, effectiveEvents, effectiveTasks, effectiveSessions, effectiveReminders, effectiveDeadlines]);
 
   const getTypeStyles = (type: string) => {
     switch (type) {
@@ -401,19 +425,6 @@ export function CalendarGrid({
     return eventColumns;
   };
 
-  // Helper function to filter and organize all-day vs. timed events
-  function processItems(items) {
-    // Separate all-day from timed events
-    const allDayItems = items.filter(item => item.isAllDay);
-    const timedItems = items.filter(item => !item.isAllDay);
-    
-    // Return organized structure
-    return {
-      allDay: allDayItems,
-      timed: timedItems
-    };
-  }
-
   // Render the calendar view
   return (
     <div className="space-y-4">
@@ -453,10 +464,10 @@ export function CalendarGrid({
               value={viewType}
               onChange={(e) => setViewType(e.target.value as CalendarViewType)}
             >
-              <option value="day">Day</option>
+              <option value="schedule">Schedule</option>
               <option value="week">Week</option>
               <option value="month">Month</option>
-              <option value="schedule">Schedule</option>
+              <option value="day">Day</option>
             </select>
           </div>
         </div>
@@ -487,10 +498,10 @@ export function CalendarGrid({
           <div className="flex items-center space-x-2">
             <Tabs value={viewType} onValueChange={(val) => setViewType(val as CalendarViewType)}>
               <TabsList>
-                <TabsTrigger value="day" className="px-2 py-1 text-xs">Day</TabsTrigger>
+                <TabsTrigger value="schedule" className="px-2 py-1 text-xs">Schedule</TabsTrigger>
                 <TabsTrigger value="week" className="px-2 py-1 text-xs">Week</TabsTrigger>
                 <TabsTrigger value="month" className="px-2 py-1 text-xs">Month</TabsTrigger>
-                <TabsTrigger value="schedule" className="px-2 py-1 text-xs">Schedule</TabsTrigger>
+                <TabsTrigger value="day" className="px-2 py-1 text-xs">Day</TabsTrigger>
               </TabsList>
             </Tabs>
             
@@ -520,19 +531,8 @@ export function CalendarGrid({
                   <div className="border-b border-gray-200 dark:border-gray-800 p-2">
                     {(() => {
                       const targetDateStr = format(date, "yyyy-MM-dd");
-                      const allDayEvents = effectiveEvents
-                        .filter(event => {
-                          const eventDate = new Date(event.startTime);
-                          return format(eventDate, "yyyy-MM-dd") === targetDateStr && event.isAllDay;
-                        })
-                        .map(event => ({
-                          id: event.id,
-                          title: event.name,
-                          type: "event" as const,
-                          isAllDay: true,
-                          color: "blue",
-                          item: event
-                        }));
+                      const allDayEvents = getAllItemsForDate(date)
+                        .filter(item => item.isAllDay);
                         
                       if (allDayEvents.length === 0) {
                         return null;
@@ -541,16 +541,16 @@ export function CalendarGrid({
                       return (
                         <div className="space-y-1">
                           <h4 className="text-xs font-medium mb-1 text-muted-foreground">All-day</h4>
-                          {allDayEvents.map(event => (
+                          {allDayEvents.map(item => (
                             <div 
-                              key={event.id}
+                              key={item.id}
                               className={cn(
                                 "px-2 py-1 rounded-md text-xs cursor-pointer border-l-2 overflow-hidden",
-                                getTypeStyles(event.type)
+                                getTypeStyles(item.type)
                               )}
-                              onClick={() => onItemClick(event.item)}
+                              onClick={() => onItemClick(item.item)}
                             >
-                              {event.title}
+                              {item.title}
                             </div>
                           ))}
                         </div>
@@ -579,104 +579,14 @@ export function CalendarGrid({
                       const targetDateStr = format(date, "yyyy-MM-dd");
                       
                       // Get events with direct filtering to ensure data is processed
-                      const dayEvents = effectiveEvents
-                        .filter(event => {
-                          const eventDate = new Date(event.startTime);
+                      const dayEvents = getAllItemsForDate(date)
+                        .filter(item => {
+                          const eventDate = new Date(item.start);
                           // Only show non-all-day events in the timed grid
-                          return format(eventDate, "yyyy-MM-dd") === targetDateStr && !event.isAllDay;
-                        })
-                        .map(event => ({
-                          id: event.id,
-                          title: event.name,
-                          start: new Date(event.startTime),
-                          end: event.endTime ? new Date(event.endTime) : addMinutes(new Date(event.startTime), 60),
-                          type: "event" as const,
-                          isAllDay: false,
-                          color: "blue",
-                          item: event
-                        }));
+                          return format(eventDate, "yyyy-MM-dd") === targetDateStr && !item.isAllDay;
+                        });
                       
-                      // Similar direct processing for other item types
-                      const dayTasks = effectiveTasks
-                        .filter(task => 
-                          task.timeSlots?.some(slot => {
-                            const slotDate = new Date(slot.startDate);
-                            return format(slotDate, "yyyy-MM-dd") === targetDateStr;
-                          })
-                        )
-                        .flatMap(task => 
-                          task.timeSlots
-                            .filter(slot => {
-                              const slotDate = new Date(slot.startDate);
-                              return format(slotDate, "yyyy-MM-dd") === targetDateStr;
-                            })
-                            .map(slot => ({
-                              id: `${task.id}-${slot.startDate}`,
-                              title: task.title,
-                              start: new Date(slot.startDate),
-                              end: slot.endDate ? new Date(slot.endDate) : addMinutes(new Date(slot.startDate), 60),
-                              type: "task" as const,
-                              isAllDay: false,
-                              color: "green",
-                              item: task
-                            }))
-                        );
-                      
-                      const daySessions = effectiveSessions
-                        .filter(session => {
-                          const sessionDate = new Date(session.scheduledFor);
-                          return format(sessionDate, "yyyy-MM-dd") === targetDateStr;
-                        })
-                        .map(session => ({
-                          id: session.id,
-                          title: session.subject,
-                          start: new Date(session.scheduledFor),
-                          end: addMinutes(new Date(session.scheduledFor), session.duration),
-                          type: "session" as const,
-                          isAllDay: false,
-                          color: "purple",
-                          item: session
-                        }));
-                      
-                      const dayReminders = effectiveReminders
-                        .filter(reminder => {
-                          const reminderDate = new Date(reminder.reminderTime);
-                          return format(reminderDate, "yyyy-MM-dd") === targetDateStr;
-                        })
-                        .map(reminder => ({
-                          id: reminder.id,
-                          title: reminder.title,
-                          start: new Date(reminder.reminderTime),
-                          end: addMinutes(new Date(reminder.reminderTime), 30),
-                          type: "reminder" as const,
-                          isAllDay: false,
-                          color: "yellow",
-                          item: reminder
-                        }));
-                      
-                      const dayDeadlines = effectiveDeadlines
-                        .filter(deadline => {
-                          if (!deadline.deadline) return false;
-                          const deadlineDate = new Date(deadline.deadline);
-                          return format(deadlineDate, "yyyy-MM-dd") === targetDateStr;
-                        })
-                        .map(deadline => ({
-                          id: deadline.id,
-                          title: deadline.title,
-                          start: new Date(deadline.deadline),
-                          end: addMinutes(new Date(deadline.deadline), 30),
-                          type: "deadline" as const,
-                          isAllDay: false,
-                          color: "red",
-                          item: deadline
-                        }));
-                      
-                      const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines]
-                        .sort((a, b) => a.start.getTime() - b.start.getTime());
-                      
-                      console.log(`Day view direct calculation - items found for ${targetDateStr}: ${allItems.length}`);
-                      
-                      if (allItems.length === 0) {
+                      if (dayEvents.length === 0) {
                         return (
                           <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-muted-foreground">
                             No events for this day
@@ -684,10 +594,10 @@ export function CalendarGrid({
                         );
                       }
                       
-                      const columns = calculateEventColumns(allItems);
+                      const columns = calculateEventColumns(dayEvents);
                       
                       // Detect conflicts for visual indication
-                      const { conflictMap, conflictPairs } = detectConflicts(allItems, ignoredConflictIds);
+                      const { conflictMap, conflictPairs } = detectConflicts(dayEvents, ignoredConflictIds);
                       
                       return columns.map((column, colIndex) => 
                         column.map((event: any) => {
@@ -728,9 +638,13 @@ export function CalendarGrid({
                                   </span>
                                 )}
                               </div>
-                              <div className="text-xs opacity-80">
-                                {format(event.start, "h:mm a")}
-                                {!isSameDay(event.start, event.end) && " - " + format(event.end, "h:mm a")}
+                              <div className="text-xs opacity-70">
+                                {event.isAllDay 
+                                  ? "All-day" 
+                                  : event.isReminder
+                                    ? `Reminder at ${format(event.start, "h:mm a")}`
+                                    : `${format(event.start, "h:mm a")} - ${format(event.end, "h:mm a")}`
+                                }
                               </div>
                             </div>
                           );
@@ -748,7 +662,7 @@ export function CalendarGrid({
           <div className={cn("w-full", isMobile ? "min-w-full" : "min-w-[800px]")}>
             <div className={cn(
               "grid gap-1", 
-              isMobile ? "grid-cols-7" : "grid-cols-7 gap-4"
+              isMobile ? "grid-cols-1" : "grid-cols-7 gap-4"
             )}>
               {viewDates.map((day) => (
                 <Card 
@@ -756,79 +670,101 @@ export function CalendarGrid({
                   className={cn(
                     "overflow-hidden",
                     isSameDay(day, new Date()) && "border-blue-500",
-                    isMobile && "border-[1px]"
+                    isMobile && "border-[1px] mb-2"
                   )}
                 >
                   <CardHeader 
                     className={cn(
                       "cursor-pointer text-center",
                       isSameMonth(day, date) ? "bg-muted" : "bg-muted/50",
-                      isMobile ? "p-1" : "p-2"
+                      isMobile ? "py-2 px-3" : "p-2"
                     )}
                     onClick={() => {
                       onDateSelect(day);
                       setViewType("day");
                     }}
                   >
-                    <div className={cn("font-medium", isMobile && "text-xs")}>
-                      {format(day, "EEE")}
-                    </div>
-                    <div className={cn("font-bold", isMobile ? "text-base" : "text-2xl")}>
-                      {format(day, "d")}
+                    <div className={cn(
+                      "flex items-center justify-between",
+                      isMobile ? "flex-row" : "flex-col"
+                    )}>
+                      <div className={cn("font-medium", isMobile && "text-sm")}>
+                        {format(day, "EEE")}
+                      </div>
+                      <div className={cn("font-bold", isMobile ? "text-xl" : "text-2xl")}>
+                        {format(day, "d")}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-3">
-                    <ScrollArea className="h-32">
+                    <div className="space-y-1">
                       {(() => {
                         const items = getAllItemsForDate(day);
                         
                         // Separate all-day from timed events
                         const { allDay, timed } = processItems(items);
                         
+                        // Detect conflicts for visual indication
+                        const { conflictMap, conflictPairs } = detectConflicts(items, ignoredConflictIds);
+                        
                         return (
                           <>
                             {/* All-day events at the top */}
                             {allDay.length > 0 && (
                               <div className="mb-2">
-                                {allDay.map((event) => (
+                                {allDay.map((item: any) => (
                                   <div
-                                    key={event.id}
+                                    key={item.id}
                                     className={cn(
-                                      "px-2 py-1 mb-1 rounded-sm text-xs cursor-pointer border-l-2 truncate",
-                                      getTypeStyles(event.type)
+                                      "px-2 py-1 mb-1 rounded-md text-xs cursor-pointer border-l-2",
+                                      getTypeStyles(item.type)
                                     )}
-                                    onClick={() => onItemClick(event.item)}
+                                    onClick={() => onItemClick(item.item)}
                                   >
-                                    <span className="font-medium">{event.title}</span>
-                                    {" "}
-                                    <span className="text-xs opacity-70">All-day</span>
+                                    <div className="font-medium truncate">{item.title}</div>
+                                    <div className="text-xs opacity-70">All-day</div>
                                   </div>
                                 ))}
                               </div>
                             )}
                             
                             {/* Timed events below */}
-                            {timed.map((event) => (
+                            {timed.map((item: any) => (
                               <div
-                                key={event.id}
+                                key={item.id}
                                 className={cn(
-                                  "px-2 py-1 mb-1 rounded-sm text-xs cursor-pointer border-l-2",
-                                  getTypeStyles(event.type)
+                                  "px-2 py-1 mb-1 rounded-md text-xs cursor-pointer border-l-2",
+                                  getTypeStyles(item.type),
+                                  conflictMap.get(item.id) && "border-red-500 border"
                                 )}
-                                onClick={() => onItemClick(event.item)}
+                                onClick={
+                                  conflictMap.get(item.id) && conflictPairs.has(item.id)
+                                    ? () => onConflictClick && onConflictClick(conflictPairs.get(item.id) || [])
+                                    : () => onItemClick(item.item)
+                                }
                               >
-                                <div className="font-medium truncate">{event.title}</div>
-                                {!isMobile && (
-                                  <div className="text-xs opacity-80">
-                                    {format(event.start, "h:mm a")}
-                                  </div>
-                                )}
+                                <div className="font-medium truncate">{item.title}</div>
+                                <div className="text-xs opacity-70">
+                                  {item.isAllDay 
+                                    ? "All-day" 
+                                    : item.isReminder
+                                      ? `Reminder at ${format(item.start, "h:mm a")}`
+                                      : `${format(item.start, "h:mm a")} - ${format(item.end, "h:mm a")}`
+                                  }
+                                </div>
                               </div>
                             ))}
+
+                            {/* Show empty state if no events */}
+                            {items.length === 0 && (
+                              <div className="text-xs text-center text-muted-foreground py-1">
+                                No events
+                              </div>
+                            )}
                           </>
                         );
                       })()}
-                    </ScrollArea>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -1058,6 +994,7 @@ function ScheduleView({
       end: addMinutes(new Date(reminder.reminderTime), 30),
       type: "reminder" as const,
       isAllDay: false,
+      isReminder: true,
       color: "yellow",
       item: reminder
     }));
@@ -1079,8 +1016,7 @@ function ScheduleView({
       item: deadline
     }));
   
-  const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines]
-    .sort((a, b) => a.start.getTime() - b.start.getTime());
+  const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines];
   
   console.log(`Schedule view direct calculation - items found for ${targetDateStr}: ${allItems.length}`);
   
@@ -1092,45 +1028,105 @@ function ScheduleView({
     );
   }
   
+  // Separate all-day from timed events using the helper function
+  const { allDay, timed } = processItems(allItems);
+  
+  // Sort timed events by start time
+  const sortedTimedItems = [...timed].sort((a, b) => a.start.getTime() - b.start.getTime());
+  
   // Detect conflicts for schedule view, passing ignored IDs
   const { conflictMap, conflictPairs } = detectConflicts(allItems, ignoredConflictIds);
   
   return (
     <>
-      {allItems.map(item => (
-        <div
-          key={item.id}
-          className={cn(
-            "flex items-center border-l-4 rounded-md p-3 cursor-pointer",
-            getTypeStyles(item.type)
-          )}
-          onClick={() => onItemClick(item.item)}
-        >
-          <div className="flex-1">
-            <div className="flex items-center">
-              <div className="font-medium">{item.title}</div>
-              {conflictMap.get(item.id) && onConflictClick && (
-                <div 
-                  className="ml-2 text-amber-500 cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const conflicts = conflictPairs.get(item.id) || [];
-                    const items = conflicts.map(i => i.item).filter(
-                      i => i.type !== 'deadline' && i.type !== 'reminder'
-                    );
-                    onConflictClick(items);
-                  }}
-                >
-                  ⚠️
+      {/* All-day events section */}
+      {allDay.length > 0 && (
+        <div className="mb-4">
+          <h4 className="text-sm font-semibold mb-2 text-muted-foreground">All-day Events</h4>
+          <div className="space-y-2">
+            {allDay.map((item: any) => (
+              <div
+                key={item.id}
+                className={cn(
+                  "flex items-center border-l-4 rounded-md p-3 cursor-pointer",
+                  getTypeStyles(item.type)
+                )}
+                onClick={() => onItemClick(item.item)}
+              >
+                <div className="flex-1">
+                  <div className="flex items-center">
+                    <div className="font-medium">{item.title}</div>
+                    {conflictMap.get(item.id) && onConflictClick && (
+                      <div 
+                        className="ml-2 text-amber-500 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const conflicts = conflictPairs.get(item.id) || [];
+                          const items = conflicts.map((i: any) => i.item).filter(
+                            (i: any) => i.type !== 'deadline' && i.type !== 'reminder'
+                          );
+                          onConflictClick(items);
+                        }}
+                      >
+                        ⚠️
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-muted-foreground text-sm">All-day</div>
                 </div>
-              )}
-            </div>
-            <div className="text-muted-foreground text-sm">
-              {format(item.start, "h:mm a")} - {format(item.end, "h:mm a")}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
-      ))}
+      )}
+      
+      {/* Timed events section */}
+      {sortedTimedItems.length > 0 && (
+        <div>
+          {allDay.length > 0 && <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Timed Events</h4>}
+          <div className="space-y-2">
+            {sortedTimedItems.map((item: any) => (
+              <div
+                key={item.id}
+                className={cn(
+                  "flex items-center border-l-4 rounded-md p-3 cursor-pointer",
+                  getTypeStyles(item.type)
+                )}
+                onClick={() => onItemClick(item.item)}
+              >
+                <div className="flex-1">
+                  <div className="flex items-center">
+                    <div className="font-medium">{item.title}</div>
+                    {conflictMap.get(item.id) && onConflictClick && (
+                      <div 
+                        className="ml-2 text-amber-500 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const conflicts = conflictPairs.get(item.id) || [];
+                          const items = conflicts.map((i: any) => i.item).filter(
+                            (i: any) => i.type !== 'deadline' && i.type !== 'reminder'
+                          );
+                          onConflictClick(items);
+                        }}
+                      >
+                        ⚠️
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-muted-foreground text-sm">
+                    {item.isAllDay 
+                      ? "All-day" 
+                      : item.isReminder
+                        ? `Reminder at ${format(item.start, "h:mm a")}`
+                        : `${format(item.start, "h:mm a")} - ${format(item.end, "h:mm a")}`
+                    }
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 } 
