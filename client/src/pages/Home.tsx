@@ -15,6 +15,9 @@ import {
   Target,
   Award,
   PlusCircle,
+  ChevronLeft,
+  ChevronRight,
+  Check,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
@@ -56,6 +59,8 @@ export function Home() {
   const navigate = useNavigate();
   const [activeAccordion, setActiveAccordion] = useState<number | null>(null);
   const [inviteCode, setInviteCode] = useState("");
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const featuresRef = useRef<HTMLDivElement>(null);
   const howItWorksRef = useRef<HTMLDivElement>(null);
   const faqRef = useRef<HTMLDivElement>(null);
@@ -193,6 +198,42 @@ export function Home() {
     },
   ];
 
+  // Slides for the hero section
+  const slides = [
+    {
+      image: "/dashboard-preview.png",
+      alt: "TidalTasks Dashboard",
+      title: "Smart Dashboard",
+      description: "Everything you need to manage your academic life in one place"
+    },
+    {
+      image: "/calendar-preview.png",
+      alt: "TidalTasks Calendar Integration",
+      title: "Calendar Integration",
+      description: "Sync with Google Calendar to keep all your events organized"
+    },
+    {
+      image: "/mobile-preview.png",
+      alt: "TidalTasks Mobile App",
+      title: "Available on All Devices",
+      description: "Access TidalTasks anywhere, anytime from any device"
+    },
+    {
+      image: "/chatbot-icon.png",
+      alt: "Kai - AI Assistant",
+      title: "Meet Kai",
+      description: "Your AI study companion to help you stay on track"
+    }
+  ];
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
+  };
+
   const scrollToSection = (ref: React.RefObject<HTMLDivElement>) => {
     ref.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -246,7 +287,7 @@ export function Home() {
                   loading="lazy" 
                   onClick={() => navigate("/")}
                 />
-                <span className="text-xl font-bold">TidalTasks AI</span>
+                {!isMobile && <span className="text-xl font-bold">TidalTasks AI</span>}
               </div>
               <div className="hidden md:flex items-center space-x-8">
                 <button 
@@ -280,7 +321,7 @@ export function Home() {
       </header>
 
       <main id="main-content" className="pt-24">
-        {/* Hero Section */}
+        {/* Hero Section with Image Slider */}
         <section className="pt-32 pb-20 bg-gradient-to-b from-primary/10 via-background to-background relative overflow-hidden">
           {/* Animated Wave Background */}
           <div className="absolute inset-0 -z-10 opacity-30">
@@ -331,7 +372,7 @@ export function Home() {
             <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
               Transform your academic journey with TidalTasks AI—where intelligent scheduling meets personalized learning assistance.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
               <Button size="lg" className="text-lg px-8 group relative overflow-hidden" onClick={() => navigate("/register")}>
                 <span className="relative z-10">Get Started</span>
                 <motion.span 
@@ -347,128 +388,104 @@ export function Home() {
               </Button>
             </div>
             
-            <motion.div
-              className="mt-16"
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <div className="relative mx-auto max-w-6xl">
-                {/* Main Dashboard Preview */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="relative z-10 transition-all duration-500 ease-out cursor-pointer group"
-                >
-                  <img
-                    src="/dashboard-preview.png"
-                    alt="TidalTasks Dashboard Preview"
-                    className="rounded-xl shadow-2xl border border-border/40 w-full transition-all duration-500 ease-out group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.15)] group-hover:-translate-y-2 group-hover:scale-[1.02] group-hover:z-30"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-primary/5 rounded-xl opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100" />
-                </motion.div>
-                
-                {/* Floating Elements */}
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.6 }}
-                  className="absolute -left-8 top-1/4 w-64 hidden lg:block cursor-pointer group"
-                >
-                  <img
-                    src="/mobile-preview.png"
-                    alt="TidalTasks Mobile View"
-                    className="rounded-lg shadow-xl border border-border/40 transform -rotate-6 transition-all duration-500 ease-out group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.15)] group-hover:-translate-y-2 group-hover:scale-110 group-hover:z-30"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-primary/5 rounded-lg opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100 transform -rotate-6" />
-                </motion.div>
-                
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.8 }}
-                  className="absolute -right-8 top-1/3 w-72 hidden lg:block cursor-pointer group"
-                >
-                  <img
-                    src="/calendar-preview.png"
-                    alt="TidalTasks Calendar View"
-                    className="rounded-lg shadow-xl border border-border/40 transform rotate-6 transition-all duration-500 ease-out group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.15)] group-hover:-translate-y-2 group-hover:scale-110 group-hover:z-30"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-primary/5 rounded-lg opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100 transform rotate-6" />
-                </motion.div>
-                
-                {/* Chat Bot Preview - New Element */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1 }}
-                  className="absolute -bottom-10 right-1/4 w-56 hidden lg:block cursor-pointer group"
-                >
-                  <img
-                    src="/chatbot-icon.png"
-                    alt="Kai - AI Assistant"
-                    className="rounded-full shadow-xl border-4 border-background transition-all duration-500 ease-out group-hover:shadow-[0_10px_30px_rgba(79,70,229,0.3)] group-hover:-translate-y-2 group-hover:scale-110 group-hover:z-30"
-                    loading="lazy"
-                  />
-                  <motion.div 
-                    className="absolute -top-8 -right-8 bg-white dark:bg-gray-800 p-2 rounded-lg shadow-lg text-sm font-medium"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1.5 }}
+            {/* Image Slider */}
+            <div className="max-w-5xl mx-auto relative">
+              <div className="relative aspect-video overflow-hidden rounded-xl shadow-2xl border border-border/40">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentSlide}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="absolute inset-0"
                   >
-                    Hi, I'm Kai! 👋
+                    <img
+                      src={slides[currentSlide].image}
+                      alt={slides[currentSlide].alt}
+                      className="w-full h-full object-cover object-center"
+                      loading="lazy"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 text-white text-left">
+                      <h3 className="text-xl font-bold">{slides[currentSlide].title}</h3>
+                      <p>{slides[currentSlide].description}</p>
+                    </div>
                   </motion.div>
-                </motion.div>
-                
-                {/* Decorative Elements */}
-                <div className="absolute -z-10 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 blur-3xl rounded-full" />
-                <div className="absolute inset-0 -z-20 bg-gradient-to-tr from-primary/5 to-secondary/5 rounded-3xl transition-opacity duration-300 group-hover:opacity-70" />
+                </AnimatePresence>
               </div>
               
-              {/* Feature Highlights */}
-              <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
-                <motion.span 
-                  className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.2 }}
+              {/* Slider Navigation */}
+              <div className="absolute left-4 right-4 top-1/2 transform -translate-y-1/2 flex justify-between pointer-events-none">
+                <Button 
+                  size="icon" 
+                  variant="secondary" 
+                  className="rounded-full shadow-lg opacity-80 hover:opacity-100 pointer-events-auto"
+                  onClick={prevSlide}
                 >
-                  <Clock className="w-4 h-4 text-primary" /> Smart Scheduling
-                </motion.span>
-                <motion.span 
-                  className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.3 }}
+                  <ChevronLeft className="w-5 h-5" />
+                </Button>
+                <Button 
+                  size="icon" 
+                  variant="secondary" 
+                  className="rounded-full shadow-lg opacity-80 hover:opacity-100 pointer-events-auto"
+                  onClick={nextSlide}
                 >
-                  <Calendar className="w-4 h-4 text-blue-500" /> Google Calendar Integration
-                </motion.span>
-                <motion.span 
-                  className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.4 }}
-                >
-                  <Bot className="w-4 h-4 text-indigo-500" /> AI Assistant Kai
-                </motion.span>
-                <motion.span 
-                  className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.5 }}
-                >
-                  <BarChart2 className="w-4 h-4 text-purple-500" /> Productivity Analytics
-                </motion.span>
+                  <ChevronRight className="w-5 h-5" />
+                </Button>
               </div>
-            </motion.div>
+              
+              {/* Slide Indicators */}
+              <div className="flex justify-center mt-6 gap-2">
+                {slides.map((_, index) => (
+                  <button
+                    key={index}
+                    className={`w-2.5 h-2.5 rounded-full transition-all ${index === currentSlide ? 'bg-primary scale-125' : 'bg-muted-foreground/30'}`}
+                    onClick={() => setCurrentSlide(index)}
+                    aria-label={`Go to slide ${index + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+              
+            {/* Feature Highlights */}
+            <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+              <motion.span 
+                className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.2 }}
+              >
+                <Clock className="w-4 h-4 text-primary" /> Smart Scheduling
+              </motion.span>
+              <motion.span 
+                className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.3 }}
+              >
+                <Calendar className="w-4 h-4 text-blue-500" /> Google Calendar Integration
+              </motion.span>
+              <motion.span 
+                className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.4 }}
+              >
+                <Bot className="w-4 h-4 text-indigo-500" /> AI Assistant Kai
+              </motion.span>
+              <motion.span 
+                className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.5 }}
+              >
+                <BarChart2 className="w-4 h-4 text-purple-500" /> Productivity Analytics
+              </motion.span>
+            </div>
           </motion.div>
         </section>
 
-        {/* Features Grid */}
+        {/* Features Section - Improved with clear differentiation */}
         <section className="py-20 bg-gradient-to-b from-background via-muted/50 to-background" ref={featuresRef}>
           <div className="container mx-auto px-6">
             <motion.div
@@ -485,22 +502,203 @@ export function Home() {
                 Experience the future of student productivity with our cutting-edge features designed to help you achieve academic excellence.
               </p>
             </motion.div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {features.map((feature, index) => (
-                <motion.div
-                  key={index}
-                  className="bg-card p-8 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-border/50 hover:border-primary/20 group"
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ y: -5 }}
-                >
-                  <div className="mb-6 transform transition-transform duration-300 group-hover:scale-110 group-hover:text-primary">{feature.icon}</div>
-                  <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                  <p className="text-muted-foreground">{feature.description}</p>
-                </motion.div>
-              ))}
+            
+            {/* Feature cards with clearer UI - RevisionDojo inspired */}
+            <div className="space-y-12">
+              {/* Feature 1: Intelligent Scheduling */}
+              <motion.div
+                className="grid md:grid-cols-2 gap-8 items-center"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <div className="order-2 md:order-1">
+                  <div className="inline-flex items-center gap-3 text-primary mb-4">
+                    <Brain className="w-8 h-8" /> 
+                    <h3 className="text-2xl font-bold">Intelligent Scheduling</h3>
+                  </div>
+                  <p className="text-muted-foreground mb-6">
+                    Our AI-powered scheduling adapts to your learning style and energy levels. It analyzes your productivity patterns and creates optimized study sessions to maximize your learning potential.
+                  </p>
+                  <ul className="space-y-3">
+                    <li className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
+                      <span>Personalized study plans based on your learning style</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
+                      <span>Automatic breaks scheduled to prevent burnout</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
+                      <span>Prioritizes tasks based on deadlines and difficulty</span>
+                    </li>
+                  </ul>
+                </div>
+                <div className="bg-card p-4 rounded-xl shadow-lg border order-1 md:order-2">
+                  <img 
+                    src="/dashboard-preview.png" 
+                    alt="Intelligent Scheduling Interface" 
+                    className="rounded-lg w-full shadow-sm" 
+                    loading="lazy"
+                  />
+                </div>
+              </motion.div>
+              
+              {/* Feature 2: Meet Kai */}
+              <motion.div
+                className="grid md:grid-cols-2 gap-8 items-center"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <div className="bg-card p-4 rounded-xl shadow-lg border">
+                  <img 
+                    src="/chatbot-preview.png" 
+                    alt="Kai - AI Assistant" 
+                    className="rounded-lg w-full shadow-sm" 
+                    loading="lazy"
+                  />
+                </div>
+                <div>
+                  <div className="inline-flex items-center gap-3 text-indigo-500 mb-4">
+                    <Bot className="w-8 h-8" /> 
+                    <h3 className="text-2xl font-bold">Meet Kai</h3>
+                  </div>
+                  <p className="text-muted-foreground mb-6">
+                    Kai is your AI study companion that helps you stay on track and motivated. Ask questions about your schedule, get study tips, or simply chat when you need a break.
+                  </p>
+                  <ul className="space-y-3">
+                    <li className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-indigo-500 mt-1 flex-shrink-0" />
+                      <span>Provides personalized study recommendations</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-indigo-500 mt-1 flex-shrink-0" />
+                      <span>Helps you manage your time efficiently</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-indigo-500 mt-1 flex-shrink-0" />
+                      <span>Offers motivation when you need it most</span>
+                    </li>
+                  </ul>
+                </div>
+              </motion.div>
+              
+              {/* Feature 3: Calendar Integration */}
+              <motion.div
+                className="grid md:grid-cols-2 gap-8 items-center"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <div className="order-2 md:order-1">
+                  <div className="inline-flex items-center gap-3 text-blue-500 mb-4">
+                    <Calendar className="w-8 h-8" /> 
+                    <h3 className="text-2xl font-bold">Calendar Integration</h3>
+                  </div>
+                  <p className="text-muted-foreground mb-6">
+                    Seamlessly sync with Google Calendar to keep all your events and deadlines in one place. No more switching between multiple apps to manage your schedule.
+                  </p>
+                  <ul className="space-y-3">
+                    <li className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />
+                      <span>Two-way sync with Google Calendar</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />
+                      <span>Automated reminders for upcoming deadlines</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />
+                      <span>Visual timeline of all your academic commitments</span>
+                    </li>
+                  </ul>
+                </div>
+                <div className="bg-card p-4 rounded-xl shadow-lg border order-1 md:order-2">
+                  <img 
+                    src="/calendar-preview.png" 
+                    alt="Calendar Integration" 
+                    className="rounded-lg w-full shadow-sm" 
+                    loading="lazy"
+                  />
+                </div>
+              </motion.div>
+              
+              {/* Feature 4: Analytics Dashboard */}
+              <motion.div
+                className="grid md:grid-cols-2 gap-8 items-center"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <div className="bg-card p-4 rounded-xl shadow-lg border">
+                  <img 
+                    src="/analytics.png" 
+                    alt="Analytics Dashboard" 
+                    className="rounded-lg w-full shadow-sm" 
+                    loading="lazy"
+                  />
+                </div>
+                <div>
+                  <div className="inline-flex items-center gap-3 text-purple-500 mb-4">
+                    <BarChart2 className="w-8 h-8" /> 
+                    <h3 className="text-2xl font-bold">Analytics Dashboard</h3>
+                  </div>
+                  <p className="text-muted-foreground mb-6">
+                    Track your progress and identify areas for improvement with our comprehensive analytics dashboard. Get valuable insights into your study habits and productivity.
+                  </p>
+                  <ul className="space-y-3">
+                    <li className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-purple-500 mt-1 flex-shrink-0" />
+                      <span>Visualize your productivity trends over time</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-purple-500 mt-1 flex-shrink-0" />
+                      <span>Identify your peak productivity hours</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-purple-500 mt-1 flex-shrink-0" />
+                      <span>Get recommendations for improving study habits</span>
+                    </li>
+                  </ul>
+                </div>
+              </motion.div>
+            </div>
+            
+            {/* Other features grid - for secondary features */}
+            <div className="grid md:grid-cols-2 gap-8 mt-16">
+              {/* Smart Study Sessions */}
+              <motion.div
+                className="bg-card p-6 rounded-xl shadow-sm border border-border/50 hover:border-green-200 group transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+                whileHover={{ y: -5 }}
+              >
+                <div className="mb-6 transform transition-transform duration-300 group-hover:scale-110 group-hover:text-green-500">
+                  <Clock className="w-12 h-12 text-green-500" aria-label="Smart Study Sessions Icon" />
+                </div>
+                <h3 className="text-xl font-semibold mb-3">Smart Study Sessions</h3>
+                <p className="text-muted-foreground">Optimized study sessions with built-in breaks and focus tracking to help you maintain concentration and prevent burnout.</p>
+              </motion.div>
+              
+              {/* AI Insights */}
+              <motion.div
+                className="bg-card p-6 rounded-xl shadow-sm border border-border/50 hover:border-yellow-200 group transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+                whileHover={{ y: -5 }}
+              >
+                <div className="mb-6 transform transition-transform duration-300 group-hover:scale-110 group-hover:text-yellow-500">
+                  <Sparkles className="w-12 h-12 text-yellow-500" aria-label="AI Insights Icon" />
+                </div>
+                <h3 className="text-xl font-semibold mb-3">AI Insights</h3>
+                <p className="text-muted-foreground">Get personalized recommendations to boost your productivity based on your unique study patterns and performance data.</p>
+              </motion.div>
             </div>
           </div>
         </section>
