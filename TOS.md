@@ -46,7 +46,7 @@ Welcome to TidalTasks AI (“we,” “us,” or “our”). By accessing or usi
 
 4. **Termination**  
    - We may suspend or terminate your account if we believe you have violated these Terms or engaged in any unlawful conduct.  
-   - You may stop using our Services at any time. If you wish to delete your account, please contact us at [support@tidaltasks.app](mailto:support@tidaltasks.app).
+   - You may stop using our Services at any time. If you wish to delete your account, please contact us at [tidaltasks.app@gmail.com](mailto:tidaltasks.app@gmail.com).
 
 
 ---
@@ -141,7 +141,7 @@ You agree to defend, indemnify, and hold harmless TidalTasks AI, its partners, e
    Any dispute arising under these Terms shall be resolved in the courts located in Toronto, Ontario, Canada, and you consent to the personal jurisdiction of these courts.
 
 3. **Alternative Dispute Resolution**  
-   We encourage amicable resolution of any disputes. You may contact us at [support@tidaltasks.app](mailto:support@tidaltasks.app) to discuss any issues before initiating formal legal proceedings.
+   We encourage amicable resolution of any disputes. You may contact us at [tidaltasks.app@gmail.com](mailto:tidaltasks.app@gmail.com) to discuss any issues before initiating formal legal proceedings.
 
 
 ---
@@ -172,4 +172,4 @@ We may modify, suspend, or discontinue any aspect of the Services at any time wi
 
 For any questions or concerns about these Terms of Service, please contact us at:
 
-**Email:** [support@tidaltasks.app](mailto:support@tidaltasks.app)
+**Email:** [tidaltasks.app@gmail.com](mailto:tidaltasks.app@gmail.com)

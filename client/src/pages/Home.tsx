@@ -9,9 +9,16 @@ import {
   ArrowRight,
   Instagram,
   Youtube,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  Target,
+  Award,
+  PlusCircle,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
+import { useState, useRef } from "react";
 
 // Discord icon component (not available in lucide-react)
 const DiscordIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -47,6 +54,11 @@ const TikTokIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export function Home() {
   const navigate = useNavigate();
+  const [activeAccordion, setActiveAccordion] = useState<number | null>(null);
+  const [inviteCode, setInviteCode] = useState("");
+  const featuresRef = useRef<HTMLDivElement>(null);
+  const howItWorksRef = useRef<HTMLDivElement>(null);
+  const faqRef = useRef<HTMLDivElement>(null);
 
   // Shared fade-in animation variants
   const fadeIn = {
@@ -54,6 +66,34 @@ export function Home() {
     animate: { opacity: 1, y: 0 },
     transition: { duration: 0.6 },
   };
+
+  // FAQ data
+  const faqs = [
+    {
+      question: "What is TidalTasks AI?",
+      answer: "TidalTasks AI is an intelligent productivity platform designed specifically for students. It combines AI-powered scheduling, a study companion chatbot named Kai, and powerful analytics to help you optimize your study time and improve academic performance."
+    },
+    {
+      question: "How does the AI scheduling work?",
+      answer: "Our AI analyzes your learning patterns, energy levels, and deadlines to create personalized study schedules. It adapts to your preferences over time, suggesting optimal study times and breaks to maximize productivity while preventing burnout."
+    },
+    {
+      question: "Is TidalTasks available on mobile devices?",
+      answer: "Yes! TidalTasks works seamlessly across all devices - desktop, tablet, and mobile. Your data syncs automatically, so you can access your schedule and chat with Kai wherever you are."
+    },
+    {
+      question: "How do I get access to the beta version?",
+      answer: "TidalTasks is currently in beta testing. You'll need an invite code to register. Join our Discord server to request an invite code or enter your email in the waitlist section below."
+    },
+    {
+      question: "Does TidalTasks integrate with Google Calendar?",
+      answer: "Absolutely! TidalTasks seamlessly integrates with Google Calendar, allowing you to see all your events in one place. Your AI-generated study sessions can be automatically added to your Google Calendar."
+    },
+    {
+      question: "Who is Kai?",
+      answer: "Kai is your AI study companion within TidalTasks. Kai helps you stay on track, answers questions about your schedule, provides study tips, and offers motivation when you need it most. Also did you know Kai means 'ocean' in Japanese?"
+    }
+  ];
 
   // Feature data for the grid
   const features = [
@@ -89,6 +129,38 @@ export function Home() {
     },
   ];
 
+  // How it works steps
+  const howItWorks = [
+    {
+      icon: <PlusCircle className="w-10 h-10 text-primary" />,
+      title: "Sign Up",
+      description: "Create your account with an invite code and set up your profile with your academic goals."
+    },
+    {
+      icon: <Calendar className="w-10 h-10 text-primary" />,
+      title: "Connect Calendar",
+      description: "Link your Google Calendar to import existing commitments and deadlines."
+    },
+    {
+      icon: <Brain className="w-10 h-10 text-primary" />,
+      title: "Student Profile",
+      description: "Update your student profile to match your academic goals."
+    },
+    {
+      icon: <Sparkles className="w-10 h-10 text-primary" />,
+      title: "Get Personalized Plan",
+      description: "Receive optimized time management and scheduling tips."
+    }
+  ];
+
+  // Stats/benefits data
+  const stats = [
+    { value: "42%", label: "Average productivity increase", icon: <Zap className="w-8 h-8 text-yellow-500" /> },
+    { value: "3.2h", label: "Weekly time saved", icon: <Clock className="w-8 h-8 text-blue-500" /> },
+    { value: "87%", label: "Students report less stress", icon: <Target className="w-8 h-8 text-green-500" /> },
+    { value: "91%", label: "Would recommend to friends", icon: <Award className="w-8 h-8 text-purple-500" /> }
+  ];
+
   // Testimonial data
   const testimonials = [
     {
@@ -121,6 +193,21 @@ export function Home() {
     },
   ];
 
+  const scrollToSection = (ref: React.RefObject<HTMLDivElement>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const toggleAccordion = (index: number) => {
+    setActiveAccordion(activeAccordion === index ? null : index);
+  };
+
+  const handleInviteSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // In a real implementation, you would validate the invite code
+    if (inviteCode.trim()) {
+      navigate(`/register?invite=${inviteCode}`);
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -136,7 +223,7 @@ export function Home() {
           <div className="bg-primary text-primary-foreground py-2">
             <div className="container mx-auto px-6 text-center">
               <p className="text-sm font-medium">
-                Beta version coming in mid-April! Interested in becoming a beta tester? 
+                Beta version coming soon! Interested in becoming a beta tester? 
                 <a 
                   href="https://discord.gg/CQgJBgADdM" 
                   target="_blank" 
@@ -161,6 +248,26 @@ export function Home() {
                 />
                 <span className="text-xl font-bold">TidalTasks AI</span>
               </div>
+              <div className="hidden md:flex items-center space-x-8">
+                <button 
+                  className="text-sm font-medium hover:text-primary transition-colors"
+                  onClick={() => scrollToSection(featuresRef)}
+                >
+                  Features
+                </button>
+                <button 
+                  className="text-sm font-medium hover:text-primary transition-colors"
+                  onClick={() => scrollToSection(howItWorksRef)}
+                >
+                  How It Works
+                </button>
+                <button 
+                  className="text-sm font-medium hover:text-primary transition-colors"
+                  onClick={() => scrollToSection(faqRef)}
+                >
+                  FAQ
+                </button>
+              </div>
               <div className="flex items-center space-x-4">
                 <Button variant="ghost" onClick={() => navigate("/login")}>
                   Login
@@ -174,13 +281,50 @@ export function Home() {
 
       <main id="main-content" className="pt-24">
         {/* Hero Section */}
-        <section className="pt-32 pb-20 bg-gradient-to-b from-primary/10 via-background to-background">
+        <section className="pt-32 pb-20 bg-gradient-to-b from-primary/10 via-background to-background relative overflow-hidden">
+          {/* Animated Wave Background */}
+          <div className="absolute inset-0 -z-10 opacity-30">
+            <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-primary/20 to-transparent"></div>
+            <motion.div 
+              className="absolute bottom-0 left-0 right-0 h-64 bg-[url('/wave-pattern.svg')] bg-repeat-x bg-cover"
+              animate={{ 
+                x: [0, -100],
+                transition: { 
+                  repeat: Infinity, 
+                  duration: 20,
+                  ease: "linear"
+                }
+              }}
+            />
+            <motion.div 
+              className="absolute bottom-10 left-0 right-0 h-64 bg-[url('/wave-pattern.svg')] bg-repeat-x bg-cover opacity-70"
+              animate={{ 
+                x: [-50, 50],
+                transition: { 
+                  repeat: Infinity, 
+                  duration: 15,
+                  ease: "linear",
+                  repeatType: "reverse"
+                }
+              }}
+            />
+          </div>
+
           <motion.div
-            className="container mx-auto px-6 text-center"
+            className="container mx-auto px-6 text-center relative z-10"
             initial="initial"
             animate="animate"
             variants={fadeIn}
           >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+              className="inline-block mb-6 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium"
+            >
+              🚀 Currently in Beta • Limited Access
+            </motion.div>
+            
             <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-primary to-indigo-600 bg-clip-text text-transparent">
               Ride the Wave of Productivity
             </h1>
@@ -188,15 +332,23 @@ export function Home() {
               Transform your academic journey with TidalTasks AI—where intelligent scheduling meets personalized learning assistance.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="text-lg px-8" onClick={() => navigate("/register")}>
-                Get Started <ArrowRight className="ml-2" />
+              <Button size="lg" className="text-lg px-8 group relative overflow-hidden" onClick={() => navigate("/register")}>
+                <span className="relative z-10">Get Started</span>
+                <motion.span 
+                  className="absolute inset-0 bg-white/20"
+                  initial={{ x: "-100%" }}
+                  whileHover={{ x: "100%" }}
+                  transition={{ duration: 0.5 }}
+                />
+                <ArrowRight className="ml-2 relative z-10" />
               </Button>
               <Button size="lg" variant="outline" className="text-lg px-8" onClick={() => navigate("/demo")}>
                 Watch Demo
               </Button>
             </div>
+            
             <motion.div
-              className="mt-12"
+              className="mt-16"
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
@@ -211,7 +363,7 @@ export function Home() {
                 >
                   <img
                     src="/dashboard-preview.png"
-                    alt="TaskTide Dashboard Preview"
+                    alt="TidalTasks Dashboard Preview"
                     className="rounded-xl shadow-2xl border border-border/40 w-full transition-all duration-500 ease-out group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.15)] group-hover:-translate-y-2 group-hover:scale-[1.02] group-hover:z-30"
                     loading="lazy"
                   />
@@ -227,7 +379,7 @@ export function Home() {
                 >
                   <img
                     src="/mobile-preview.png"
-                    alt="TaskTide Mobile View"
+                    alt="TidalTasks Mobile View"
                     className="rounded-lg shadow-xl border border-border/40 transform -rotate-6 transition-all duration-500 ease-out group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.15)] group-hover:-translate-y-2 group-hover:scale-110 group-hover:z-30"
                     loading="lazy"
                   />
@@ -242,11 +394,34 @@ export function Home() {
                 >
                   <img
                     src="/calendar-preview.png"
-                    alt="TaskTide Calendar View"
+                    alt="TidalTasks Calendar View"
                     className="rounded-lg shadow-xl border border-border/40 transform rotate-6 transition-all duration-500 ease-out group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.15)] group-hover:-translate-y-2 group-hover:scale-110 group-hover:z-30"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-primary/5 rounded-lg opacity-0 transition-opacity duration-500 ease-out group-hover:opacity-100 transform rotate-6" />
+                </motion.div>
+                
+                {/* Chat Bot Preview - New Element */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1 }}
+                  className="absolute -bottom-10 right-1/4 w-56 hidden lg:block cursor-pointer group"
+                >
+                  <img
+                    src="/chatbot-icon.png"
+                    alt="Kai - AI Assistant"
+                    className="rounded-full shadow-xl border-4 border-background transition-all duration-500 ease-out group-hover:shadow-[0_10px_30px_rgba(79,70,229,0.3)] group-hover:-translate-y-2 group-hover:scale-110 group-hover:z-30"
+                    loading="lazy"
+                  />
+                  <motion.div 
+                    className="absolute -top-8 -right-8 bg-white dark:bg-gray-800 p-2 rounded-lg shadow-lg text-sm font-medium"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 1.5 }}
+                  >
+                    Hi, I'm Kai! 👋
+                  </motion.div>
                 </motion.div>
                 
                 {/* Decorative Elements */}
@@ -254,24 +429,47 @@ export function Home() {
                 <div className="absolute inset-0 -z-20 bg-gradient-to-tr from-primary/5 to-secondary/5 rounded-3xl transition-opacity duration-300 group-hover:opacity-70" />
               </div>
               
-              {/* Browser Frame Mockup - Optional */}
-              <div className="mt-8 flex items-center justify-center gap-4 text-sm text-muted-foreground">
-                <span className="flex items-center gap-2">
-                  <Clock className="w-4 h-4" /> Real-time Updates
-                </span>
-                <span className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" /> Smart Calendar
-                </span>
-                <span className="flex items-center gap-2">
-                  <Bot className="w-4 h-4" /> AI Assistant
-                </span>
+              {/* Feature Highlights */}
+              <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+                <motion.span 
+                  className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.2 }}
+                >
+                  <Clock className="w-4 h-4 text-primary" /> Smart Scheduling
+                </motion.span>
+                <motion.span 
+                  className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.3 }}
+                >
+                  <Calendar className="w-4 h-4 text-blue-500" /> Google Calendar Integration
+                </motion.span>
+                <motion.span 
+                  className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.4 }}
+                >
+                  <Bot className="w-4 h-4 text-indigo-500" /> AI Assistant Kai
+                </motion.span>
+                <motion.span 
+                  className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1.5 }}
+                >
+                  <BarChart2 className="w-4 h-4 text-purple-500" /> Productivity Analytics
+                </motion.span>
               </div>
             </motion.div>
           </motion.div>
         </section>
 
         {/* Features Grid */}
-        <section className="py-20 bg-gradient-to-b from-background via-muted/50 to-background">
+        <section className="py-20 bg-gradient-to-b from-background via-muted/50 to-background" ref={featuresRef}>
           <div className="container mx-auto px-6">
             <motion.div
               className="text-center mb-16"
@@ -279,23 +477,27 @@ export function Home() {
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-3xl font-bold mb-4">Powered by AI, Built for Students</h2>
-              <p className="text-muted-foreground text-lg">
-                Experience the future of student productivity with our cutting-edge features.
+              <div className="inline-block mb-4 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium">
+                Powerful Features
+              </div>
+              <h2 className="text-4xl font-bold mb-4">Powered by AI, Built for Students</h2>
+              <p className="text-muted-foreground text-lg max-w-3xl mx-auto">
+                Experience the future of student productivity with our cutting-edge features designed to help you achieve academic excellence.
               </p>
             </motion.div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {features.map((feature, index) => (
                 <motion.div
                   key={index}
-                  className="bg-card p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border"
+                  className="bg-card p-8 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-border/50 hover:border-primary/20 group"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
+                  whileHover={{ y: -5 }}
                 >
-                  <div className="mb-4">{feature.icon}</div>
-                  <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                  <div className="mb-6 transform transition-transform duration-300 group-hover:scale-110 group-hover:text-primary">{feature.icon}</div>
+                  <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
                   <p className="text-muted-foreground">{feature.description}</p>
                 </motion.div>
               ))}
@@ -303,59 +505,147 @@ export function Home() {
           </div>
         </section>
 
-        {/* Social Proof */}
-        <section className="py-20">
+        {/* How It Works Section */}
+        <section className="py-20 bg-muted/30" ref={howItWorksRef}>
           <div className="container mx-auto px-6">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold mb-4">
-                Trusted by High-School Students Across Many Schools
-              </h2>
-              <p className="text-muted-foreground text-lg">
-                Join the beta testers excited to use TidalTasks AI to excel in their studies.
+            <motion.div
+              className="text-center mb-16"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+            >
+              <div className="inline-block mb-4 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium">
+                Simple Process
+              </div>
+              <h2 className="text-4xl font-bold mb-4">How TidalTasks Works</h2>
+              <p className="text-muted-foreground text-lg max-w-3xl mx-auto">
+                Getting started with TidalTasks is easy. Follow these simple steps to transform your study routine.
               </p>
-              {/* <div className="flex flex-wrap justify-center gap-8 opacity-70">
-                <img
-                  src="/university-logos/harvard.png"
-                  alt="Harvard University Logo"
-                  className="h-12"
-                  loading="lazy"
-                />
-                <img
-                  src="/university-logos/stanford.png"
-                  alt="Stanford University Logo"
-                  className="h-12"
-                  loading="lazy"
-                />
-                <img
-                  src="/university-logos/mit.png"
-                  alt="MIT Logo"
-                  className="h-12"
-                  loading="lazy"
-                />
-              </div> */}
+            </motion.div>
+            
+            <div className="relative">
+              {/* Connection Line */}
+              <div className="absolute top-1/4 left-0 right-0 h-1 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 transform -translate-y-1/2 hidden md:block"></div>
+              
+              <div className="grid md:grid-cols-4 gap-8 relative z-10">
+                {howItWorks.map((step, index) => (
+                  <motion.div
+                    key={index}
+                    className="flex flex-col items-center text-center"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.2 }}
+                  >
+                    <motion.div 
+                      className="w-20 h-20 rounded-full bg-background flex items-center justify-center shadow-md mb-6 relative"
+                      whileHover={{ scale: 1.1 }}
+                    >
+                      <div className="absolute inset-0 bg-primary/10 rounded-full animate-pulse"></div>
+                      <span className="relative z-10">{step.icon}</span>
+                      <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">
+                        {index + 1}
+                      </div>
+                    </motion.div>
+                    <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
+                    <p className="text-muted-foreground">{step.description}</p>
+                  </motion.div>
+                ))}
+              </div>
             </div>
+          </div>
+        </section>
+
+        {/* Benefits/Stats Section */}
+        <section className="py-20 bg-gradient-to-r from-primary/5 to-secondary/5">
+          <div className="container mx-auto px-6">
+            <motion.div
+              className="text-center mb-16"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+            >
+              <div className="inline-block mb-4 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium">
+                Real Results
+              </div>
+              <h2 className="text-4xl font-bold mb-4">See the Difference</h2>
+              <p className="text-muted-foreground text-lg max-w-3xl mx-auto">
+                Our beta testers have experienced significant improvements in productivity and academic performance.
+              </p>
+            </motion.div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {stats.map((stat, index) => (
+                <motion.div
+                  key={index}
+                  className="bg-card p-6 rounded-xl shadow-sm border text-center"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <div className="flex justify-center mb-4">{stat.icon}</div>
+                  <div className="text-3xl font-bold mb-2 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    {stat.value}
+                  </div>
+                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                </motion.div>
+              ))}
+            </div>
+            
+            <motion.div
+              className="mt-16 text-center"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <Button 
+                size="lg" 
+                className="text-lg px-8" 
+                onClick={() => navigate("/register")}
+              >
+                Join the Beta <ArrowRight className="ml-2" />
+              </Button>
+            </motion.div>
           </div>
         </section>
 
         {/* Testimonials */}
         <section className="py-20 bg-muted/50">
           <div className="container mx-auto px-6">
-            <h2 className="text-3xl font-bold text-center mb-12">Student Success Stories</h2>
-            <div className="grid md:grid-cols-3 gap-8">
+            <motion.div
+              className="text-center mb-16"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+            >
+              <div className="inline-block mb-4 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium">
+                Testimonials
+              </div>
+              <h2 className="text-4xl font-bold mb-4">Student Success Stories</h2>
+              <p className="text-muted-foreground text-lg max-w-3xl mx-auto">
+                Hear from students who have transformed their academic journey with TidalTasks AI.
+              </p>
+            </motion.div>
+            
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
               {testimonials.map((testimonial, index) => (
                 <motion.div
                   key={index}
-                  className="bg-card p-6 rounded-xl shadow-sm border"
+                  className="bg-card p-6 rounded-xl shadow-sm border relative"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
+                  whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
                 >
-                  <div className="flex items-center mb-4">
+                  <div className="absolute -top-5 -left-2 text-5xl text-primary/20">"</div>
+                  <p className="text-muted-foreground mb-6 relative z-10">{testimonial.feedback}</p>
+                  <div className="flex items-center mt-auto">
                     <img
                       src={testimonial.image}
                       alt={`${testimonial.name}'s picture`}
-                      className="w-12 h-12 rounded-full mr-4"
+                      className="w-12 h-12 rounded-full mr-4 border-2 border-primary/20"
                       loading="lazy"
                     />
                     <div>
@@ -363,9 +653,136 @@ export function Home() {
                       <p className="text-sm text-muted-foreground">{testimonial.role}</p>
                     </div>
                   </div>
-                  <p className="text-muted-foreground">"{testimonial.feedback}"</p>
                 </motion.div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section className="py-20 bg-gradient-to-b from-background to-muted/30" ref={faqRef}>
+          <div className="container mx-auto px-6">
+            <motion.div
+              className="text-center mb-16"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+            >
+              <div className="inline-block mb-4 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium">
+                FAQ
+              </div>
+              <h2 className="text-4xl font-bold mb-4">Frequently Asked Questions</h2>
+              <p className="text-muted-foreground text-lg max-w-3xl mx-auto">
+                Get answers to the most common questions about TidalTasks AI.
+              </p>
+            </motion.div>
+            
+            <div className="max-w-3xl mx-auto">
+              {faqs.map((faq, index) => (
+                <motion.div
+                  key={index}
+                  className="mb-4"
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <motion.button
+                    className={`w-full text-left p-5 rounded-lg flex justify-between items-center ${
+                      activeAccordion === index 
+                        ? 'bg-primary/10 text-primary' 
+                        : 'bg-card hover:bg-muted/80'
+                    } transition-colors duration-200 border`}
+                    onClick={() => toggleAccordion(index)}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    <span className="font-medium text-lg">{faq.question}</span>
+                    {activeAccordion === index ? (
+                      <ChevronUp className="w-5 h-5 flex-shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 flex-shrink-0" />
+                    )}
+                  </motion.button>
+                  <AnimatePresence>
+                    {activeAccordion === index && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="p-5 bg-muted/30 rounded-b-lg border-x border-b">
+                          <p className="text-muted-foreground">{faq.answer}</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Beta Access Section */}
+        <section className="py-20 bg-gradient-to-r from-primary/10 to-secondary/10">
+          <div className="container mx-auto px-6">
+            <div className="max-w-4xl mx-auto bg-card rounded-2xl shadow-xl overflow-hidden">
+              <div className="grid md:grid-cols-2">
+                <div className="p-8 md:p-12">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="inline-block mb-4 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium">
+                      Limited Access
+                    </div>
+                    <h2 className="text-3xl font-bold mb-4">Join Our Beta Program</h2>
+                    <p className="text-muted-foreground mb-6">
+                      TidalTasks AI is currently in beta testing. Enter your invite code to get early access and help shape the future of student productivity.
+                    </p>
+                    
+                    <form onSubmit={handleInviteSubmit} className="space-y-4">
+                      <div>
+                        <label htmlFor="inviteCode" className="block text-sm font-medium mb-1">
+                          Invite Code
+                        </label>
+                        <input
+                          type="text"
+                          id="inviteCode"
+                          placeholder="Enter your invite code"
+                          value={inviteCode}
+                          onChange={(e) => setInviteCode(e.target.value)}
+                          className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          required
+                        />
+                      </div>
+                      <Button type="submit" className="w-full">
+                        Get Started
+                      </Button>
+                    </form>
+                    
+                    <div className="mt-6 text-sm text-muted-foreground">
+                      <p>Don't have an invite code? <a href="https://discord.gg/CQgJBgADdM" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Join our Discord</a> to request one.</p>
+                    </div>
+                  </motion.div>
+                </div>
+                
+                <div className="relative hidden md:block">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-secondary/80"></div>
+                  <div className="absolute inset-0 bg-[url('/wave-pattern.svg')] bg-cover opacity-20"></div>
+                  <div className="absolute inset-0 flex items-center justify-center p-8">
+                    <div className="text-white text-center">
+                      <Bot className="w-16 h-16 mx-auto mb-4" />
+                      <h3 className="text-2xl font-bold mb-2">Meet Kai</h3>
+                      <p className="opacity-90">
+                        Your personal AI study companion, ready to help you achieve your academic goals.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -373,18 +790,33 @@ export function Home() {
         {/* CTA Section */}
         <section className="py-20 bg-primary text-primary-foreground">
           <div className="container mx-auto px-6 text-center">
-            <h2 className="text-4xl font-bold mb-6">Ready to Transform Your Academic Journey?</h2>
-            <p className="text-xl mb-8 opacity-90">
-              Join thousands of students already using TidalTasks AI to excel in their studies.
-            </p>
-            <Button
-              size="lg"
-              variant="secondary"
-              className="text-lg px-8"
-              onClick={() => navigate("/register")}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
             >
-              Get Started
-            </Button>
+              <h2 className="text-4xl font-bold mb-6">Ready to Transform Your Academic Journey?</h2>
+              <p className="text-xl mb-8 opacity-90 max-w-3xl mx-auto">
+                Join the growing community of students using TidalTasks AI to excel in their studies and achieve academic success.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  className="text-lg px-8"
+                  onClick={() => navigate("/register")}
+                >
+                  Get Started
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="text-lg px-8 bg-transparent text-white hover:bg-white/10"
+                  onClick={() => scrollToSection(featuresRef)}
+                >
+                  Learn More
+                </Button>
+              </div>
+            </motion.div>
           </div>
         </section>
       </main>
@@ -394,44 +826,19 @@ export function Home() {
         <div className="container mx-auto px-6">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <h3 className="font-semibold mb-4">TidalTasks AI</h3>
+              <div className="flex items-center space-x-3 mb-4">
+                <img 
+                  src="/logo.png" 
+                  alt="TidalTasks AI Logo" 
+                  className="h-8" 
+                  loading="lazy" 
+                />
+                <h3 className="font-semibold">TidalTasks AI</h3>
+              </div>
               <p className="text-sm text-muted-foreground">
-                Empowering students with AI-driven productivity tools.
+                Empowering students with AI-driven productivity tools to achieve academic excellence.
               </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>Features</li>
-                <li>Pricing</li>
-                <li>Roadmap</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>
-                  <Link to="/about" className="hover:text-primary transition-colors">
-                    About
-                  </Link>
-                </li>
-                <li>Blog</li>
-                <li>Careers</li>
-                <li>
-                  <Link to="/privacy" className="hover:text-primary transition-colors">
-                    Privacy Policy
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/terms-of-service" className="hover:text-primary transition-colors">
-                    Terms of Service
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Connect</h4>
-              <div className="flex flex-wrap gap-4">
+              <div className="flex space-x-4 mt-4">
                 <a
                   href="https://discord.gg/CQgJBgADdM"
                   target="_blank"
@@ -470,9 +877,87 @@ export function Home() {
                 </a>
               </div>
             </div>
+            <div>
+              <h4 className="font-semibold mb-4">Product</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <button 
+                    className="hover:text-primary transition-colors"
+                    onClick={() => scrollToSection(featuresRef)}
+                  >
+                    Features
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    className="hover:text-primary transition-colors"
+                    onClick={() => scrollToSection(howItWorksRef)}
+                  >
+                    How It Works
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    className="hover:text-primary transition-colors"
+                    onClick={() => scrollToSection(faqRef)}
+                  >
+                    FAQ
+                  </button>
+                </li>
+                <li>Pricing</li>
+                <li>Roadmap</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Company</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <Link to="/about" className="hover:text-primary transition-colors">
+                    About
+                  </Link>
+                </li>
+                <li>Blog</li>
+                <li>Careers</li>
+                <li>
+                  <Link to="/privacy" className="hover:text-primary transition-colors">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/terms-of-service" className="hover:text-primary transition-colors">
+                    Terms of Service
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Support</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <a 
+                    href="https://discord.gg/CQgJBgADdM" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:text-primary transition-colors"
+                  >
+                    Discord Community
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    href="mailto:support@tidaltasks.ai"
+                    className="hover:text-primary transition-colors"
+                  >
+                    Contact Us
+                  </a>
+                </li>
+                <li>Help Center</li>
+                <li>Status</li>
+              </ul>
+            </div>
           </div>
           <div className="mt-8 pt-8 border-t text-center text-sm text-muted-foreground">
-            <p>© 2025 TidalTasks AI. All rights reserved.</p>
+            <p> 2025 TidalTasks AI. All rights reserved.</p>
           </div>
         </div>
       </footer>
