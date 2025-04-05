@@ -21,7 +21,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { KaiFullInfo } from "@/components/KaiFullInfo";
 
 // Discord icon component (not available in lucide-react)
 const DiscordIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -61,9 +62,27 @@ export function Home() {
   const [inviteCode, setInviteCode] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const [showKaiDialog, setShowKaiDialog] = useState(false);
+  const [kaiSuggestionsEnabled, setKaiSuggestionsEnabled] = useState(true);
   const featuresRef = useRef<HTMLDivElement>(null);
   const howItWorksRef = useRef<HTMLDivElement>(null);
   const faqRef = useRef<HTMLDivElement>(null);
+
+  // Check for mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    // Initial check
+    checkMobile();
+    
+    // Add event listener
+    window.addEventListener('resize', checkMobile);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Shared fade-in animation variants
   const fadeIn = {
@@ -100,40 +119,6 @@ export function Home() {
     }
   ];
 
-  // Feature data for the grid
-  const features = [
-    {
-      icon: <Brain className="w-12 h-12 text-primary" aria-label="Intelligent Scheduling Icon" />,
-      title: "Intelligent Scheduling",
-      description: "AI-powered scheduling that adapts to your learning style and energy levels.",
-    },
-    {
-      icon: <Bot className="w-12 h-12 text-indigo-500" aria-label="Meet Kai Icon" />,
-      title: "Meet Kai",
-      description: "Your AI study companion that helps you stay on track and motivated.",
-    },
-    {
-      icon: <Calendar className="w-12 h-12 text-blue-500" aria-label="Calendar Integration Icon" />,
-      title: "Calendar Integration",
-      description: "Seamlessly sync with Google Calendar to keep all your events in one place.",
-    },
-    {
-      icon: <Clock className="w-12 h-12 text-green-500" aria-label="Smart Study Sessions Icon" />,
-      title: "Smart Study Sessions",
-      description: "Optimized study sessions with built-in breaks and focus tracking.",
-    },
-    {
-      icon: <BarChart2 className="w-12 h-12 text-purple-500" aria-label="Analytics Dashboard Icon" />,
-      title: "Analytics Dashboard",
-      description: "Track your progress and identify areas for improvement.",
-    },
-    {
-      icon: <Sparkles className="w-12 h-12 text-yellow-500" aria-label="AI Insights Icon" />,
-      title: "AI Insights",
-      description: "Get personalized recommendations to boost your productivity.",
-    },
-  ];
-
   // How it works steps
   const howItWorks = [
     {
@@ -160,7 +145,7 @@ export function Home() {
 
   // Stats/benefits data
   const stats = [
-    { value: "42%", label: "Average productivity increase", icon: <Zap className="w-8 h-8 text-yellow-500" /> },
+    { value: "4.1%", label: "Average increase in grades", icon: <Zap className="w-8 h-8 text-yellow-500" /> },
     { value: "3.2h", label: "Weekly time saved", icon: <Clock className="w-8 h-8 text-blue-500" /> },
     { value: "87%", label: "Students report less stress", icon: <Target className="w-8 h-8 text-green-500" /> },
     { value: "91%", label: "Would recommend to friends", icon: <Award className="w-8 h-8 text-purple-500" /> }
@@ -213,16 +198,16 @@ export function Home() {
       description: "Sync with Google Calendar to keep all your events organized"
     },
     {
-      image: "/mobile-preview.png",
-      alt: "TidalTasks Mobile App",
-      title: "Available on All Devices",
-      description: "Access TidalTasks anywhere, anytime from any device"
-    },
-    {
-      image: "/chatbot-icon.png",
+      image: "/chatbot-preview.png",
       alt: "Kai - AI Assistant",
       title: "Meet Kai",
       description: "Your AI study companion to help you stay on track"
+    },
+    {
+      image: "/analytics.png",
+      alt: "TidalTasks Analytics Dashboard",
+      title: "Analytics",
+      description: "Track your progress and identify areas for improvement"
     }
   ];
 
@@ -244,83 +229,101 @@ export function Home() {
 
   const handleInviteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real implementation, you would validate the invite code
-    if (inviteCode.trim()) {
-      navigate(`/register?invite=${inviteCode}`);
-    }
+    // Process the invite code
+    alert(`Thank you for your interest! Your invite code ${inviteCode} has been submitted.`);
+    setInviteCode("");
   };
 
-  return (
-    <div className="min-h-screen">
-      {/* Skip to content link for accessibility */}
-      <a href="#main-content" className="sr-only focus:not-sr-only">
-        Skip to content
-      </a>
+  const handleKaiToggleSuggestions = (enabled: boolean) => {
+    setKaiSuggestionsEnabled(enabled);
+  };
 
-      {/* Navbar */}
-      <header>
-        <nav className="fixed top-0 w-full bg-background/80 backdrop-blur-sm z-50 border-b">
-          {/* Beta Announcement Banner */}
-          <div className="bg-primary text-primary-foreground py-2">
-            <div className="container mx-auto px-6 text-center">
-              <p className="text-sm font-medium">
-                Beta version coming soon! Interested in becoming a beta tester? 
-                <a 
-                  href="https://discord.gg/CQgJBgADdM" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="underline ml-1 hover:text-white"
-                >
-                  Join our Discord server
-                </a>
-              </p>
+  // YouTube embed for intelligent scheduling
+  const YouTubeEmbed = ({ videoId }: { videoId: string }) => (
+    <div className="relative overflow-hidden rounded-lg shadow-lg" style={{ paddingTop: '56.25%' /* 16:9 Aspect Ratio */ }}>
+      <iframe
+        className="absolute top-0 left-0 w-full h-full"
+        src={`https://www.youtube.com/embed/${videoId}`}
+        title="YouTube video player"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      ></iframe>
+    </div>
+  );
+
+  return (
+    <div className="bg-background min-h-screen">
+      {/* Responsive Navigation */}
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/40 shadow-sm">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-2">
+              <img 
+                src="/logo.png" 
+                alt="TidalTasks Logo" 
+                className="w-10 h-10 cursor-pointer" 
+                loading="lazy" 
+                onClick={() => navigate("/")}
+              />
+              {!isMobile && <span className="text-xl font-bold">TidalTasks AI</span>}
+            </div>
+            {/* Modified navigation for better mobile experience */}
+            <div className={isMobile ? "hidden" : "hidden md:flex items-center space-x-8"}>
+              <button 
+                onClick={() => featuresRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-foreground/90 hover:text-primary transition-colors"
+              >
+                Features
+              </button>
+              <button 
+                onClick={() => howItWorksRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-foreground/90 hover:text-primary transition-colors"
+              >
+                How It Works
+              </button>
+              <button 
+                onClick={() => faqRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-foreground/90 hover:text-primary transition-colors"
+              >
+                FAQ
+              </button>
+            </div>
+            {/* Mobile-optimized navigation menu */}
+            <div className={!isMobile ? "hidden" : "md:hidden flex items-center space-x-4"}>
+              <button 
+                onClick={() => featuresRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-sm px-3 py-1 rounded-full bg-primary/10 text-primary"
+              >
+                Features
+              </button>
+              <button 
+                onClick={() => faqRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-sm px-3 py-1 rounded-full bg-primary/10 text-primary"
+              >
+                FAQ
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button 
+                onClick={() => navigate("/login")}
+                variant="outline" 
+                size={isMobile ? "sm" : "default"}
+                className="hidden sm:inline-flex"
+              >
+                Log In
+              </Button>
+              <Button 
+                onClick={() => navigate("/signup")}
+                size={isMobile ? "sm" : "default"}
+              >
+                Sign Up
+              </Button>
             </div>
           </div>
-          
-          <div className="container mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <img 
-                  src="/logo.png" 
-                  alt="TidalTasks AI Logo" 
-                  className="h-8 cursor-pointer" 
-                  loading="lazy" 
-                  onClick={() => navigate("/")}
-                />
-                {!isMobile && <span className="text-xl font-bold">TidalTasks AI</span>}
-              </div>
-              <div className="hidden md:flex items-center space-x-8">
-                <button 
-                  className="text-sm font-medium hover:text-primary transition-colors"
-                  onClick={() => scrollToSection(featuresRef)}
-                >
-                  Features
-                </button>
-                <button 
-                  className="text-sm font-medium hover:text-primary transition-colors"
-                  onClick={() => scrollToSection(howItWorksRef)}
-                >
-                  How It Works
-                </button>
-                <button 
-                  className="text-sm font-medium hover:text-primary transition-colors"
-                  onClick={() => scrollToSection(faqRef)}
-                >
-                  FAQ
-                </button>
-              </div>
-              <div className="flex items-center space-x-4">
-                <Button variant="ghost" onClick={() => navigate("/login")}>
-                  Login
-                </Button>
-                <Button onClick={() => navigate("/register")}>Get Started</Button>
-              </div>
-            </div>
-          </div>
-        </nav>
+        </div>
       </header>
 
-      <main id="main-content" className="pt-24">
+      <main>
         {/* Hero Section with Image Slider */}
         <section className="pt-32 pb-20 bg-gradient-to-b from-primary/10 via-background to-background relative overflow-hidden">
           {/* Animated Wave Background */}
@@ -448,7 +451,7 @@ export function Home() {
             </div>
               
             {/* Feature Highlights */}
-            <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+            {!isMobile && <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
               <motion.span 
                 className="flex items-center gap-2 bg-background/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm"
                 initial={{ opacity: 0, y: 10 }}
@@ -481,7 +484,7 @@ export function Home() {
               >
                 <BarChart2 className="w-4 h-4 text-purple-500" /> Productivity Analytics
               </motion.span>
-            </div>
+            </div>}
           </motion.div>
         </section>
 
@@ -503,8 +506,8 @@ export function Home() {
               </p>
             </motion.div>
             
-            {/* Feature cards with clearer UI - RevisionDojo inspired */}
-            <div className="space-y-12">
+            {/* Feature cards with clearer UI */}
+            <div className="space-y-12 px-10 py-20 bg-muted/30">
               {/* Feature 1: Intelligent Scheduling */}
               <motion.div
                 className="grid md:grid-cols-2 gap-8 items-center"
@@ -536,34 +539,43 @@ export function Home() {
                   </ul>
                 </div>
                 <div className="bg-card p-4 rounded-xl shadow-lg border order-1 md:order-2">
-                  <img 
-                    src="/dashboard-preview.png" 
-                    alt="Intelligent Scheduling Interface" 
-                    className="rounded-lg w-full shadow-sm" 
-                    loading="lazy"
-                  />
+                  <YouTubeEmbed videoId="pdXpseJq96c" />
                 </div>
               </motion.div>
+
+              <div className="h-5" />
               
-              {/* Feature 2: Meet Kai */}
+              {/* Feature 2: Meet Kai with KaiFullInfo dialog */}
               <motion.div
-                className="grid md:grid-cols-2 gap-8 items-center"
+                className={`grid md:grid-cols-2 gap-8 items-center ${isMobile ? "" : ""}`}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
               >
-                <div className="bg-card p-4 rounded-xl shadow-lg border">
+                <div 
+                  className={`bg-card p-4 rounded-xl shadow-lg border border-indigo-200/50 hover:border-indigo-400 hover:shadow-xl cursor-pointer ${isMobile ? "order-1" : ""}`}
+                  onClick={() => setShowKaiDialog(true)}
+                >
                   <img 
                     src="/chatbot-preview.png" 
                     alt="Kai - AI Assistant" 
                     className="rounded-lg w-full shadow-sm" 
                     loading="lazy"
                   />
+                  {/* Subtle indicator that this is clickable */}
+                  <div className="text-center text-xs text-muted-foreground mt-2 opacity-70">Click to meet Kai</div>
                 </div>
-                <div>
+                <div className={`${isMobile ? "order-2" : ""}`}>
                   <div className="inline-flex items-center gap-3 text-indigo-500 mb-4">
                     <Bot className="w-8 h-8" /> 
-                    <h3 className="text-2xl font-bold">Meet Kai</h3>
+                    <h3 className="text-2xl font-bold">
+                      <span 
+                        className="cursor-pointer hover:text-indigo-600" 
+                        onClick={() => setShowKaiDialog(true)}
+                      >
+                        Meet Kai
+                      </span>
+                    </h3>
                   </div>
                   <p className="text-muted-foreground mb-6">
                     Kai is your AI study companion that helps you stay on track and motivated. Ask questions about your schedule, get study tips, or simply chat when you need a break.
@@ -584,6 +596,8 @@ export function Home() {
                   </ul>
                 </div>
               </motion.div>
+
+              <div className="h-5" />
               
               {/* Feature 3: Calendar Integration */}
               <motion.div
@@ -624,6 +638,8 @@ export function Home() {
                   />
                 </div>
               </motion.div>
+
+              <div className="h-5" />
               
               {/* Feature 4: Analytics Dashboard */}
               <motion.div
@@ -667,10 +683,10 @@ export function Home() {
             </div>
             
             {/* Other features grid - for secondary features */}
-            <div className="grid md:grid-cols-2 gap-8 mt-16">
+            <div className="grid md:grid-cols-2 gap-8 mt-16 py-20 px-10 bg-muted/30">
               {/* Smart Study Sessions */}
               <motion.div
-                className="bg-card p-6 rounded-xl shadow-sm border border-border/50 hover:border-green-200 group transition-all duration-300"
+                className="bg-card p-6 rounded-xl shadow-sm border border-green-100/50 hover:border-green-200 group transition-all duration-300"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -686,7 +702,7 @@ export function Home() {
               
               {/* AI Insights */}
               <motion.div
-                className="bg-card p-6 rounded-xl shadow-sm border border-border/50 hover:border-yellow-200 group transition-all duration-300"
+                className="bg-card p-6 rounded-xl shadow-sm border border-yellow-100/50 hover:border-yellow-200 group transition-all duration-300"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -1159,6 +1175,13 @@ export function Home() {
           </div>
         </div>
       </footer>
+      {/* Kai Dialog */}
+      <KaiFullInfo 
+        suggestionsEnabled={kaiSuggestionsEnabled}
+        onToggleSuggestions={handleKaiToggleSuggestions}
+        isOpen={showKaiDialog}
+        onOpenChange={setShowKaiDialog}
+      />
     </div>
   );
 }
