@@ -345,7 +345,7 @@ export function Home() {
                 Log In
               </Button>
               <Button 
-                onClick={() => navigate("/signup")}
+                onClick={() => navigate("/register")}
                 size={isMobile ? "sm" : "default"}
               >
                 Sign Up
