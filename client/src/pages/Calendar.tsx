@@ -2,27 +2,22 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { Task, StudySession, Event, Deadline, Reminder } from "@/types";
 import { addDays, startOfWeek } from "date-fns";
 import { useData } from '@/contexts/DataProvider';
-import { updateExternalTask } from "@/api/tasks";
 import { getIgnoredConflicts, getConflictCheckId } from "@/api/conflicts";
 import { auth } from '@/config/firebase';
 import {
   SchedulableItem,
-  UnifiedTask,
-  UnifiedEvent,
-  UnifiedReminder,
-  UnifiedStudySession,
-  convertToUnified,
-  convertFromUnified,
-  ItemType
+  ItemType,
+  convertToUnified
 } from "@/types/unified";
 
 import {
   Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
-import { CalendarGrid } from "@/components/CalendarGrid";
+import { useItemManager } from "@/hooks/useItemManager";
+import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { UnifiedItemDialog } from "@/components/UnifiedItemDialog";
-import { CalendarConflictPopup } from "@/components/CalendarConflictPopup";
+import { CalendarConflictPopup } from "@/components/calendar/CalendarConflictPopup";
 
 export function Calendar() {
   const [date, setDate] = useState<Date>(new Date());
@@ -37,18 +32,14 @@ export function Calendar() {
     sessions: allSessions,
     reminders: allReminders,
     loading,
-    addReminder,
-    updateReminder,
     deleteReminder,
-    addTask,
-    updateTask,
     deleteTask,
-    addEvent,
-    updateEvent,
     deleteEvent,
-    addSession,
-    updateSession,
     deleteSession,
+    updateTask,
+    updateEvent,
+    updateSession,
+    updateReminder,
   } = useData();
 
   // State for UnifiedItemDialog
@@ -62,6 +53,7 @@ export function Calendar() {
   const [ignoredConflictIds, setIgnoredConflictIds] = useState<Set<string>>(new Set());
   
   const { toast } = useToast();
+  const { handleSaveItem } = useItemManager();
 
   // Fetch ignored conflicts on mount/user change
   useEffect(() => {
@@ -164,105 +156,6 @@ export function Calendar() {
     setInitialItemType(itemType);
     setItemDialogOpen(true);
   }, []);
-
-  const handleSaveItem = useCallback(async (item: SchedulableItem) => {
-    try {
-      const originalItem = convertFromUnified(item);
-      
-      switch (item.itemType) {
-        case 'task': {
-          const task = item as UnifiedTask;
-          if (task.id) {
-            // Check if external task
-            const existingTask = allTasks.find(t => t.id === task.id);
-            if (existingTask?.source && ['google_tasks', 'google_calendar'].includes(existingTask.source)) {
-              const shouldUpdate = window.confirm(
-                `Do you want to update this task in ${existingTask.source === 'google_tasks' ? 'Google Tasks' : 'Google Calendar'} as well?`
-              );
-              
-              if (shouldUpdate) {
-                await updateExternalTask(originalItem);
-              }
-            }
-            
-            await updateTask(task.id, originalItem);
-            toast({
-              title: "Success",
-              description: "Task updated successfully",
-            });
-          } else {
-            await addTask(originalItem);
-            toast({
-              title: "Success",
-              description: "Task created successfully",
-            });
-          }
-          break;
-        }
-        
-        case 'event': {
-          const event = item as UnifiedEvent;
-          if (event.id) {
-            await updateEvent(event.id, originalItem);
-            toast({
-              title: "Success",
-              description: "Event updated successfully",
-            });
-          } else {
-            await addEvent(originalItem);
-            toast({
-              title: "Success",
-              description: "Event created successfully",
-            });
-          }
-          break;
-        }
-        
-        case 'session': {
-          const session = item as UnifiedStudySession;
-          if (session.id) {
-            await updateSession(session.id, originalItem);
-            toast({
-              title: "Success",
-              description: "Study session updated successfully",
-            });
-          } else {
-            await addSession(originalItem);
-            toast({
-              title: "Success",
-              description: "Study session created successfully",
-            });
-          }
-          break;
-        }
-        
-        case 'reminder': {
-          const reminder = item as UnifiedReminder;
-          if (reminder.id) {
-            await updateReminder(reminder.id, originalItem);
-            toast({
-              title: "Success",
-              description: "Reminder updated successfully",
-            });
-          } else {
-            await addReminder(originalItem);
-            toast({
-              title: "Success",
-              description: "Reminder created successfully",
-            });
-          }
-          break;
-        }
-      }
-    } catch (error) {
-      console.error("Error saving item:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: `Failed to save ${item.itemType}`,
-      });
-    }
-  }, [allTasks, addEvent, addReminder, addSession, addTask, toast, updateEvent, updateReminder, updateSession, updateTask]);
 
   // Conflict handling functions
   const handleConflictClick = useCallback((items: (Task | Event | StudySession)[]) => {
