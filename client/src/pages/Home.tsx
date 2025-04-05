@@ -18,6 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  X,
+  Maximize2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
@@ -64,6 +66,7 @@ export function Home() {
   const [isMobile, setIsMobile] = useState(false);
   const [showKaiDialog, setShowKaiDialog] = useState(false);
   const [kaiSuggestionsEnabled, setKaiSuggestionsEnabled] = useState(true);
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const featuresRef = useRef<HTMLDivElement>(null);
   const howItWorksRef = useRef<HTMLDivElement>(null);
   const faqRef = useRef<HTMLDivElement>(null);
@@ -145,9 +148,9 @@ export function Home() {
 
   // Stats/benefits data
   const stats = [
-    { value: "4.1%", label: "Average increase in grades", icon: <Zap className="w-8 h-8 text-yellow-500" /> },
-    { value: "3.2h", label: "Weekly time saved", icon: <Clock className="w-8 h-8 text-blue-500" /> },
     { value: "87%", label: "Students report less stress", icon: <Target className="w-8 h-8 text-green-500" /> },
+    { value: "4.1%", label: "Average increase in grades", icon: <Zap className="w-8 h-8 text-yellow-500" /> },
+    { value: "3.2h", label: "Average weekly time saved", icon: <Clock className="w-8 h-8 text-blue-500" /> },
     { value: "91%", label: "Would recommend to friends", icon: <Award className="w-8 h-8 text-purple-500" /> }
   ];
 
@@ -193,9 +196,9 @@ export function Home() {
     },
     {
       image: "/calendar-preview.png",
-      alt: "TidalTasks Calendar Integration",
-      title: "Calendar Integration",
-      description: "Sync with Google Calendar to keep all your events organized"
+      alt: "TidalTasks Calendar View",
+      title: "Calendar View",
+      description: "See all of your events from everywhere in one place"
     },
     {
       image: "/chatbot-preview.png",
@@ -250,6 +253,35 @@ export function Home() {
       ></iframe>
     </div>
   );
+
+  // Image Modal Component
+  const ImageModal = () => {
+    if (!expandedImage) return null;
+    
+    return (
+      <div 
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+        onClick={() => setExpandedImage(null)}
+      >
+        <div className="relative max-w-4xl max-h-[90vh] w-[90%] rounded-lg overflow-hidden">
+          <button 
+            className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpandedImage(null);
+            }}
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <img 
+            src={expandedImage} 
+            alt="Expanded view" 
+            className="w-full h-full object-contain" 
+          />
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="bg-background min-h-screen">
@@ -391,7 +423,7 @@ export function Home() {
               </Button>
             </div>
             
-            {/* Image Slider */}
+            {/* Image Slider - Mobile Optimized */}
             <div className="max-w-5xl mx-auto relative">
               <div className="relative aspect-video overflow-hidden rounded-xl shadow-2xl border border-border/40">
                 <AnimatePresence mode="wait">
@@ -409,40 +441,41 @@ export function Home() {
                       className="w-full h-full object-cover object-center"
                       loading="lazy"
                     />
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 text-white text-left">
-                      <h3 className="text-xl font-bold">{slides[currentSlide].title}</h3>
-                      <p>{slides[currentSlide].description}</p>
+                    {/* Mobile-optimized overlay */}
+                    <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent ${isMobile ? 'p-3' : 'p-6'} text-white text-left`}>
+                      <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold`}>{slides[currentSlide].title}</h3>
+                      <p className={isMobile ? 'text-xs line-clamp-2' : ''}>{slides[currentSlide].description}</p>
                     </div>
                   </motion.div>
                 </AnimatePresence>
               </div>
               
-              {/* Slider Navigation */}
-              <div className="absolute left-4 right-4 top-1/2 transform -translate-y-1/2 flex justify-between pointer-events-none">
+              {/* Slider Navigation - Mobile Optimized */}
+              <div className={`absolute left-2 right-2 md:left-4 md:right-4 top-1/2 transform -translate-y-1/2 flex justify-between pointer-events-none`}>
                 <Button 
-                  size="icon" 
+                  size={isMobile ? "sm" : "icon"} 
                   variant="secondary" 
-                  className="rounded-full shadow-lg opacity-80 hover:opacity-100 pointer-events-auto"
+                  className={`rounded-full shadow-lg opacity-80 hover:opacity-100 pointer-events-auto ${isMobile ? 'w-8 h-8 p-1' : ''}`}
                   onClick={prevSlide}
                 >
-                  <ChevronLeft className="w-5 h-5" />
+                  <ChevronLeft className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                 </Button>
                 <Button 
-                  size="icon" 
+                  size={isMobile ? "sm" : "icon"} 
                   variant="secondary" 
-                  className="rounded-full shadow-lg opacity-80 hover:opacity-100 pointer-events-auto"
+                  className={`rounded-full shadow-lg opacity-80 hover:opacity-100 pointer-events-auto ${isMobile ? 'w-8 h-8 p-1' : ''}`}
                   onClick={nextSlide}
                 >
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                 </Button>
               </div>
               
-              {/* Slide Indicators */}
-              <div className="flex justify-center mt-6 gap-2">
+              {/* Slide Indicators - Mobile Optimized */}
+              <div className={`flex justify-center mt-3 md:mt-6 gap-1 md:gap-2`}>
                 {slides.map((_, index) => (
                   <button
                     key={index}
-                    className={`w-2.5 h-2.5 rounded-full transition-all ${index === currentSlide ? 'bg-primary scale-125' : 'bg-muted-foreground/30'}`}
+                    className={`${isMobile ? 'w-2 h-2' : 'w-2.5 h-2.5'} rounded-full transition-all ${index === currentSlide ? 'bg-primary scale-125' : 'bg-muted-foreground/30'}`}
                     onClick={() => setCurrentSlide(index)}
                     aria-label={`Go to slide ${index + 1}`}
                   />
@@ -599,7 +632,7 @@ export function Home() {
 
               <div className="h-5" />
               
-              {/* Feature 3: Calendar Integration */}
+              {/* Feature 3: Calendar Integration - Make image clickable to expand */}
               <motion.div
                 className="grid md:grid-cols-2 gap-8 items-center"
                 initial={{ opacity: 0, y: 20 }}
@@ -627,21 +660,32 @@ export function Home() {
                       <Check className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />
                       <span>Visual timeline of all your academic commitments</span>
                     </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-blue-500 mt-1 flex-shrink-0" />
+                      <span>Todoist, Notion, Outlook and others coming soon!</span>
+                    </li>
                   </ul>
                 </div>
                 <div className="bg-card p-4 rounded-xl shadow-lg border order-1 md:order-2">
-                  <img 
-                    src="/calendar-preview.png" 
-                    alt="Calendar Integration" 
-                    className="rounded-lg w-full shadow-sm" 
-                    loading="lazy"
-                  />
+                  <div className="relative group cursor-pointer" onClick={() => setExpandedImage("/google-calendar-preview.png")}>
+                    <img 
+                      src="/google-calendar-preview.png" 
+                      alt="Calendar Integration" 
+                      className="rounded-lg w-full shadow-sm transition-all duration-300 group-hover:brightness-90" 
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="p-2 rounded-full bg-black/40 text-white">
+                        <Maximize2 className="w-5 h-5" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
 
               <div className="h-5" />
               
-              {/* Feature 4: Analytics Dashboard */}
+              {/* Feature 4: Analytics Dashboard - Make image clickable to expand */}
               <motion.div
                 className="grid md:grid-cols-2 gap-8 items-center"
                 initial={{ opacity: 0, y: 20 }}
@@ -649,12 +693,19 @@ export function Home() {
                 viewport={{ once: true }}
               >
                 <div className="bg-card p-4 rounded-xl shadow-lg border">
-                  <img 
-                    src="/analytics.png" 
-                    alt="Analytics Dashboard" 
-                    className="rounded-lg w-full shadow-sm" 
-                    loading="lazy"
-                  />
+                  <div className="relative group cursor-pointer" onClick={() => setExpandedImage("/analytics.png")}>
+                    <img 
+                      src="/analytics.png" 
+                      alt="Analytics Dashboard" 
+                      className="rounded-lg w-full shadow-sm transition-all duration-300 group-hover:brightness-90" 
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="p-2 rounded-full bg-black/40 text-white">
+                        <Maximize2 className="w-5 h-5" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <div className="inline-flex items-center gap-3 text-purple-500 mb-4">
@@ -1045,7 +1096,7 @@ export function Home() {
                   src="/logo.png" 
                   alt="TidalTasks AI Logo" 
                   className="h-8" 
-                  loading="lazy" 
+                  loading="lazy"
                 />
                 <h3 className="font-semibold">TidalTasks AI</h3>
               </div>
@@ -1182,6 +1233,8 @@ export function Home() {
         isOpen={showKaiDialog}
         onOpenChange={setShowKaiDialog}
       />
+      {/* Image Modal for expanding images */}
+      <ImageModal />
     </div>
   );
 }
