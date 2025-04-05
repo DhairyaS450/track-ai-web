@@ -11,7 +11,7 @@ Thank you for choosing TidalTasks AI. We respect your privacy and are committed 
 - Service Description: A scheduling and productivity application tailored for high-school and university students.
 - Platform: Web and Mobile
 - Privacy Policy Version: 1.0
-- Primary Contact: support@tidaltasks.app
+- Primary Contact: tidaltasks.app@gmail.com
 - No Physical Office: Our team is remote, and we do not have a physical office.
 - Governing Law: This Privacy Policy is governed by the laws of Canada.
 
@@ -150,7 +150,7 @@ We may update this Privacy Policy to reflect changes in our practices or for oth
 
 If you have questions or concerns about this Privacy Policy or our data practices, please contact us at:
 
-**Email**: support@tidaltasks.app
+**Email**: tidaltasks.app@gmail.com
 
 **Web**: tidaltasks.app
 

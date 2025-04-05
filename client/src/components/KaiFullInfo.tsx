@@ -13,13 +13,19 @@ import { useState } from "react";
 interface KaiFullInfoProps {
   suggestionsEnabled: boolean;
   onToggleSuggestions: (enabled: boolean) => void;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function KaiFullInfo({ suggestionsEnabled, onToggleSuggestions }: KaiFullInfoProps) {
-  const [open, setOpen] = useState(false);
+export function KaiFullInfo({ suggestionsEnabled, onToggleSuggestions, isOpen, onOpenChange }: KaiFullInfoProps) {
+  const [localOpen, setLocalOpen] = useState(false);
+  
+  // Use controlled or uncontrolled state based on props
+  const open = isOpen !== undefined ? isOpen : localOpen;
+  const handleOpenChange = onOpenChange || setLocalOpen;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <span className="text-sm font-medium cursor-pointer hover:underline">
           Kai
