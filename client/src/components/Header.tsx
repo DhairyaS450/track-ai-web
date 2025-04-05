@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Search, Menu } from "lucide-react";
 import { Input } from "./ui/input";
-import { UserNotifications } from "./UserNotifications";
+import { NotificationBell } from "./NotificationBell";
 import { UserProfileMenu } from "./UserProfileMenu";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
@@ -205,7 +205,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-4 flex-shrink-0 ml-4">
-          <UserNotifications />
+          <NotificationBell />
           <UserProfileMenu />
         </div>
       </div>
