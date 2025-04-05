@@ -3,6 +3,14 @@ import { useAuth } from './AuthContext';
 import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, Timestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useToast } from '@/hooks/useToast';
+import {
+  initMessaging,
+  arePushNotificationsSupported,
+  getNotificationPermissionStatus,
+  subscribeToPushNotifications,
+  unsubscribeFromPushNotifications,
+  isPushNotificationSubscribed
+} from '@/services/pushNotificationService';
 
 // Define the notification type
 export interface Notification {
@@ -24,6 +32,13 @@ interface NotificationContextType {
   markAllAsRead: () => Promise<void>;
   clearNotifications: () => Promise<void>;
   deleteNotification: (notificationId: string) => Promise<void>;
+  // Push notification functions
+  isPushSupported: boolean;
+  pushPermissionStatus: string;
+  isPushEnabled: boolean;
+  requestPushPermission: () => Promise<string>;
+  enablePushNotifications: () => Promise<boolean>;
+  disablePushNotifications: () => Promise<boolean>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -45,7 +60,36 @@ export const NotificationProvider: React.FC<Props> = ({ children }) => {
   const { toast } = useToast();
   const { user } = useAuth();
   
+  // Push notification state
+  const [isPushSupported, setIsPushSupported] = useState(false);
+  const [pushPermissionStatus, setPushPermissionStatus] = useState('default');
+  const [isPushEnabled, setIsPushEnabled] = useState(false);
+
   const unreadCount = notifications.filter(notification => !notification.read).length;
+
+  // Initialize push notification service
+  useEffect(() => {
+    const initPushService = async () => {
+      // Initialize Firebase messaging
+      await initMessaging();
+      
+      // Check if push is supported
+      const supported = await arePushNotificationsSupported();
+      setIsPushSupported(supported);
+      
+      // Get current permission status
+      const permissionStatus = getNotificationPermissionStatus();
+      setPushPermissionStatus(permissionStatus);
+      
+      // Check if user is subscribed
+      if (user && permissionStatus === 'granted') {
+        const isSubscribed = await isPushNotificationSubscribed();
+        setIsPushEnabled(isSubscribed);
+      }
+    };
+    
+    initPushService();
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -88,7 +132,7 @@ export const NotificationProvider: React.FC<Props> = ({ children }) => {
         ) : undefined,
       });
     }
-  }, [notifications]);
+  }, [notifications, toast]);
 
   const createNotification = async (notification: Omit<Notification, 'id' | 'userId' | 'read' | 'createdAt'>) => {
     if (!user) return;
@@ -129,6 +173,73 @@ export const NotificationProvider: React.FC<Props> = ({ children }) => {
     await markAllAsRead();
   };
 
+  // Push notification functions
+  const requestPushPermission = async () => {
+    if (!isPushSupported) return 'unsupported';
+    
+    try {
+      const permission = await Notification.requestPermission();
+      setPushPermissionStatus(permission);
+      return permission;
+    } catch (error) {
+      console.error('Error requesting notification permission:', error);
+      return 'error';
+    }
+  };
+
+  const enablePushNotifications = async () => {
+    if (pushPermissionStatus !== 'granted') {
+      const permission = await requestPushPermission();
+      if (permission !== 'granted') {
+        toast({
+          title: 'Permission Denied',
+          description: 'You need to allow notifications in your browser settings.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+    }
+    
+    const token = await subscribeToPushNotifications();
+    const success = !!token;
+    setIsPushEnabled(success);
+    
+    if (success) {
+      toast({
+        title: 'Push Notifications Enabled',
+        description: 'You will now receive push notifications.',
+      });
+    } else {
+      toast({
+        title: 'Error',
+        description: 'Failed to enable push notifications.',
+        variant: 'destructive',
+      });
+    }
+    
+    return success;
+  };
+
+  const disablePushNotifications = async () => {
+    const success = await unsubscribeFromPushNotifications();
+    
+    if (success) {
+      setIsPushEnabled(false);
+      toast({
+        title: 'Push Notifications Disabled',
+        description: 'You will no longer receive push notifications.',
+      });
+    } else {
+      toast({
+        title: 'Error',
+        description: 'Failed to disable push notifications.',
+        variant: 'destructive',
+      });
+    }
+    
+    return success;
+  };
+
   const value = {
     notifications,
     unreadCount,
@@ -137,6 +248,13 @@ export const NotificationProvider: React.FC<Props> = ({ children }) => {
     markAllAsRead,
     clearNotifications,
     deleteNotification,
+    // Push notification functions
+    isPushSupported,
+    pushPermissionStatus,
+    isPushEnabled,
+    requestPushPermission,
+    enablePushNotifications,
+    disablePushNotifications,
   };
 
   return (

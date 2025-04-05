@@ -17,7 +17,10 @@ import { TimeConstraintDialog } from "@/components/TimeConstraintDialog";
 import { TimeConstraint } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useNotifications } from "@/contexts/NotificationContext";
-import { TestNotifications } from "@/components/TestNotifications";
+import { TestNotifications } from "@/components/notifications/TestNotifications";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
+import { PushNotificationTester } from "@/components/notifications/PushNotificationTester";
 
 export function Settings() {
   const [notifications, setNotifications] = useState({
@@ -34,7 +37,14 @@ export function Settings() {
   const [isConnecting, setIsConnecting] = useState(false);
   const setLoading = useState(true)[1]; // Add loading state
   const { toast } = useToast();
-  const { createNotification } = useNotifications();
+  const { 
+    createNotification, 
+    isPushSupported, 
+    pushPermissionStatus, 
+    isPushEnabled,
+    enablePushNotifications,
+    disablePushNotifications 
+  } = useNotifications();
 
   const [profile, setProfile] = useState({
     studyLevel: "highschool",
@@ -358,14 +368,47 @@ export function Settings() {
                   Receive notifications in-app and on browser
                 </p>
               </div>
-              <Switch
-                id="push-notifications"
-                checked={notifications.push}
-                onCheckedChange={(value) =>
-                  handleNotificationChange("push", value)
-                }
-              />
+              {isPushSupported ? (
+                <Switch
+                  id="push-notifications"
+                  checked={isPushEnabled}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      enablePushNotifications();
+                      handleNotificationChange("push", true);
+                    } else {
+                      disablePushNotifications();
+                      handleNotificationChange("push", false);
+                    }
+                  }}
+                  disabled={pushPermissionStatus === 'denied'}
+                />
+              ) : (
+                <Badge variant="outline" className="text-muted-foreground">
+                  Not supported
+                </Badge>
+              )}
             </div>
+
+            {isPushSupported && pushPermissionStatus === 'denied' && (
+              <Alert variant="destructive" className="mt-2">
+                <InfoIcon className="h-4 w-4" />
+                <AlertTitle>Notifications blocked</AlertTitle>
+                <AlertDescription>
+                  You've blocked notifications in your browser. Please update your browser settings to enable push notifications.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {isPushSupported && !isPushEnabled && pushPermissionStatus !== 'denied' && (
+              <Alert className="mt-2">
+                <InfoIcon className="h-4 w-4" />
+                <AlertTitle>Enable notifications</AlertTitle>
+                <AlertDescription>
+                  Enable push notifications to receive important updates even when you're not using the app.
+                </AlertDescription>
+              </Alert>
+            )}
 
             <div className="flex items-center justify-between">
               <div>
@@ -422,11 +465,6 @@ export function Settings() {
             </div>
           </CardContent>
         </Card>
-
-        {/* For development and testing purposes */}
-        <div className="mb-8">
-          <TestNotifications />
-        </div>
 
         <Card>
           <CardHeader>
@@ -561,6 +599,19 @@ export function Settings() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* For development and testing purposes */}
+        <div className="mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Development & Testing</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TestNotifications />
+              <PushNotificationTester />
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <TimeConstraintDialog

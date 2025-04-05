@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Search, Menu } from "lucide-react";
 import { Input } from "./ui/input";
-import { NotificationBell } from "./NotificationBell";
+import { NotificationBell } from "./notifications/NotificationBell";
 import { UserProfileMenu } from "./UserProfileMenu";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
