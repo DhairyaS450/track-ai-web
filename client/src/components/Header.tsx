@@ -3,20 +3,20 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Search, Menu } from "lucide-react";
 import { Input } from "./ui/input";
-import { UserNotifications } from "./UserNotifications";
+import { NotificationBell } from "./notifications/NotificationBell";
 import { UserProfileMenu } from "./UserProfileMenu";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { SearchResults } from "./SearchResults";
 import { searchItems, type SearchResult } from "@/api/search";
 import { useDebounce } from "@/hooks/useDebounce";
-import { CreateTaskDialog } from "./CreateTaskDialog";
-import { CreateEventDialog } from "./CreateEventDialog";
-import { CreateStudySessionDialog } from "./CreateStudySessionDialog";
 import { useToast } from "@/hooks/useToast";
-import { CreateReminderDialog } from "./CreateReminderDialog";
 import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/DataProvider";
+import { UnifiedItemDialog } from "./UnifiedItemDialog";
+import { ItemType, convertToUnified } from "@/types/unified";
+import { useItemManager } from "@/hooks/useItemManager";
+
 interface HeaderProps {
   onMenuClick: () => void;
 }
@@ -26,18 +26,17 @@ export function Header({ onMenuClick }: HeaderProps) {
   const data = useData();
   const { tasks, events, sessions, reminders, deleteTask, dismissReminder } = data;
   const navigate = useNavigate();
+  const { handleSaveItem } = useItemManager();
   const [date, setDate] = useState(new Date());
   const [search, setSearch] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
-  const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
-  const [isStudyDialogOpen, setIsStudyDialogOpen] = useState(false);
-  const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
+  const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
+  const [initialItemType, setInitialItemType] = useState<ItemType>("task");
+  
   const debouncedSearch = useDebounce(search, 300);
 
   useEffect(() => {
@@ -74,30 +73,37 @@ export function Header({ onMenuClick }: HeaderProps) {
   const handleEdit = async (id: string, type: string) => {
     setIsSearchOpen(false);
     setSearch("");
-    setSelectedItemId(id);
     
     try {
+      let item;
+      let itemType: ItemType;
+      
       switch (type) {
         case "task":
-          { const task = tasks.find(task => task.id === id);
-          setSelectedItem(task);
-          setIsTaskDialogOpen(true);
-          break; }
+          item = tasks.find(task => task.id === id);
+          itemType = "task";
+          break;
         case "event":
-          { const event = events.find(event => event.id === id);
-          setSelectedItem(event);
-          setIsEventDialogOpen(true);
-          break; }
+          item = events.find(event => event.id === id);
+          itemType = "event";
+          break;
         case "study":
-          { const study = sessions.find(session => session.id === id);
-          setSelectedItem(study);
-          setIsStudyDialogOpen(true);
-          break; }
+          item = sessions.find(session => session.id === id);
+          itemType = "session";
+          break;
         case "reminder":
-          { const reminder = reminders.find(reminder => reminder.id === id);
-          setSelectedItem(reminder);
-          setIsReminderDialogOpen(true);
-          break; }
+          item = reminders.find(reminder => reminder.id === id);
+          itemType = "reminder";
+          break;
+        default:
+          throw new Error(`Unknown item type: ${type}`);
+      }
+      
+      if (item) {
+        const unifiedItem = convertToUnified(item, itemType);
+        setSelectedItem(unifiedItem);
+        setInitialItemType(itemType);
+        setIsItemDialogOpen(true);
       }
     } catch (error) {
       console.error("Error fetching item:", error);
@@ -205,50 +211,17 @@ export function Header({ onMenuClick }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-4 flex-shrink-0 ml-4">
-          <UserNotifications />
+          <NotificationBell />
           <UserProfileMenu />
         </div>
       </div>
-      <CreateTaskDialog
-        open={isTaskDialogOpen}
-        onOpenChange={setIsTaskDialogOpen}
-        onTaskCreated={() => {
-          setIsTaskDialogOpen(false); 
-          setSelectedItem(null)
-        }}
+      <UnifiedItemDialog
+        open={isItemDialogOpen}
+        onOpenChange={setIsItemDialogOpen}
+        initialItem={selectedItem}
+        initialType={initialItemType}
+        onSave={handleSaveItem}
         mode="edit"
-        initialTask={{id: selectedItemId, ...selectedItem}}
-      />
-      <CreateEventDialog
-        open={isEventDialogOpen}
-        onOpenChange={setIsEventDialogOpen}
-        onEventCreated={() => {
-          setIsEventDialogOpen(false); 
-          setSelectedItem(null)
-        }}
-        mode="edit"
-        initialEvent={{id: selectedItemId, ...selectedItem}}
-      />
-      <CreateStudySessionDialog
-        open={isStudyDialogOpen}
-        onOpenChange={setIsStudyDialogOpen}
-        onSessionCreated={() => {
-          setIsStudyDialogOpen(false); 
-          setSelectedItem(null)
-        }}
-        mode="edit"
-        initialSession={{id: selectedItemId, ...selectedItem}}
-      />
-      
-      <CreateReminderDialog
-        open={isReminderDialogOpen}
-        onOpenChange={setIsReminderDialogOpen}
-        onReminderCreated={() => {
-          setIsReminderDialogOpen(false); 
-          setSelectedItem(null)
-        }}
-        mode="edit"
-        initialReminder={{id: selectedItemId, ...selectedItem}}
       />
     </header>
   );

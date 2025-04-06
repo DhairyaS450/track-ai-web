@@ -7,11 +7,12 @@ import { useState } from "react";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
 import { Edit, Trash2 } from "lucide-react";
-import { CreateTaskDialog } from "./CreateTaskDialog";
 import { DeleteTaskDialog } from "./DeleteTaskDialog";
 import { useData } from "@/contexts/DataProvider";
 import { useToast } from "@/hooks/useToast";
 import { convertToUnified } from "@/types/unified";
+import { UnifiedItemDialog } from "./UnifiedItemDialog";
+import { useItemManager } from "@/hooks/useItemManager";
 
 interface ViewAllTasksDialogProps {
   open: boolean;
@@ -23,13 +24,14 @@ export function ViewAllTasksDialog({
   onOpenChange,
 }: ViewAllTasksDialogProps) {
   const [filters, setFilters] = useState<TaskFilters>({});
-  const [editTask, setEditTask] = useState<Task | null>(null);
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [deleteTaskOpen, setDeleteTaskOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const { toast } = useToast();
+  const { handleSaveItem } = useItemManager();
   
-  const { tasks, addTask, deleteTask } = useData();
+  const { tasks, deleteTask } = useData();
 
   const filterTasks = (tasksToFilter: Task[]) => {
     return tasksToFilter.filter((task) => {
@@ -78,8 +80,8 @@ export function ViewAllTasksDialog({
   const handleEditTask = (task: Task) => {
     // Convert the task to unified format
     const unifiedTask = convertToUnified(task, 'task');
-    setEditTask(unifiedTask as unknown as Task);
-    setCreateTaskOpen(true);
+    setSelectedItem(unifiedTask);
+    setItemDialogOpen(true);
   };
 
   const handleDeleteTask = async () => {
@@ -103,22 +105,13 @@ export function ViewAllTasksDialog({
     }
   };
 
-  const handleCreateTask = async (taskData: Task) => {
+  const handleSaveItemComplete = async (item: any) => {
     try {
-      await addTask(taskData);
-      toast({
-        title: "Success",
-        description: "Task created successfully",
-      });
-      setCreateTaskOpen(false);
-      setEditTask(null);
+      await handleSaveItem(item);
+      setItemDialogOpen(false);
+      setSelectedItem(null);
     } catch (error) {
-      console.error("Error creating task:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to create task",
-      });
+      console.error("Error saving item:", error);
     }
   };
 
@@ -246,12 +239,13 @@ export function ViewAllTasksDialog({
           </ScrollArea>
         </Tabs>
 
-        <CreateTaskDialog
-          open={createTaskOpen}
-          onOpenChange={setCreateTaskOpen}
-          onTaskCreated={handleCreateTask}
-          initialTask={editTask}
-          mode={editTask ? 'edit' : 'create'}
+        <UnifiedItemDialog
+          open={itemDialogOpen}
+          onOpenChange={setItemDialogOpen}
+          initialItem={selectedItem}
+          initialType="task"
+          onSave={handleSaveItemComplete}
+          mode="edit"
         />
 
         <DeleteTaskDialog
