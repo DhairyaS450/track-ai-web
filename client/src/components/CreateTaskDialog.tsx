@@ -19,6 +19,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 import { ExternalUpdateDialog } from "./ExternalUpdateDialog";
 import { updateGoogleTasksTask, updateCalendarEvent } from "@/api/calendar";
+import { Checkbox } from "./ui/checkbox";
 
 type Priority = "High" | "Medium" | "Low";
 
@@ -55,7 +56,8 @@ export function CreateTaskDialog({
     resources: "",
     timeSlots: [{ startDate: "", endDate: "" }] as TimeSlot[],
     completion: 0,
-    source: "manual",
+    source: "manual" as "manual" | "google_calendar" | "google_tasks",
+    isAllDayTask: false
   });
 
   const { toast } = useToast();
@@ -84,6 +86,7 @@ export function CreateTaskDialog({
           timeSlots: initialTask.timeSlots || [{ startDate: "", endDate: "" }],
           completion: initialTask.completion || 0,
           source: initialTask.source || 'manual',
+          isAllDayTask: initialTask.isAllDayTask || false
         });
       } else {
         setFormData({
@@ -96,6 +99,7 @@ export function CreateTaskDialog({
           timeSlots: [{ startDate: "", endDate: "" }],
           completion: 0,
           source: "manual",
+          isAllDayTask: false
         });
       }
       
@@ -128,13 +132,34 @@ export function CreateTaskDialog({
   };
 
   const handleSubmit = async () => {
+    // Basic validation
+    if (!formData.title.trim()) {
+      alert("Please enter a task title");
+      return;
+    }
+
     try {
+      const task: Partial<Task> = {
+        title: formData.title,
+        description: formData.description,
+        priority: formData.priority,
+        deadline: formData.deadline,
+        timeSlots: formData.timeSlots.filter(
+          (slot) => slot.startDate || slot.endDate
+        ),
+        subject: formData.subject,
+        resources: formData.resources,
+        completion: formData.completion,
+        source: formData.source,
+        isAllDayTask: formData.isAllDayTask
+      };
+
       const status: 'completed' | 'in-progress' | 'todo' = 
         formData.completion === 100 ? 'completed' : 
         formData.completion > 0 ? 'in-progress' : 'todo';
 
       const taskData = {
-        ...formData,
+        ...task,
         status,
       };
 
@@ -282,7 +307,34 @@ export function CreateTaskDialog({
                 </RadioGroup>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="deadline">Deadline</Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="deadline">Deadline</Label>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="isAllDay" 
+                      checked={formData.isAllDayTask}
+                      onCheckedChange={(checked) => {
+                        // Convert to boolean
+                        const isChecked = checked === true;
+                        
+                        // Update the formData
+                        updateFormData({ isAllDayTask: isChecked });
+                        
+                        // If setting to all-day, set the time to midnight
+                        if (isChecked && formData.deadline) {
+                          try {
+                            // Extract just the date part and set time to midnight
+                            const dateOnly = formData.deadline.split('T')[0];
+                            updateFormData({ deadline: `${dateOnly}T00:00` });
+                          } catch (e) {
+                            console.error("Error setting all-day time:", e);
+                          }
+                        }
+                      }}
+                    />
+                    <Label htmlFor="isAllDay" className="text-sm">All-day</Label>
+                  </div>
+                </div>
                 <Input
                   id="deadline"
                   type="datetime-local"

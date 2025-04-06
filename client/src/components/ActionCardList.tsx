@@ -182,6 +182,17 @@ export function ActionCardList() {
     // Don't remove the action from the list - keep it visible
   };
 
+  const handleDeleteEdit = (itemId: string) => {
+    console.log("Delete item ID:", itemId);
+    setEditDialogOpen(false);
+    // When an item is deleted from the edit dialog in action list,
+    // we don't need to actually delete it from the database,
+    // just remove it from the action list
+    if (itemToEdit?.id) {
+      removeAction(itemToEdit.id);
+    }
+  };
+
   const clearError = () => {
     setError(null);
   };
@@ -255,6 +266,7 @@ export function ActionCardList() {
         initialItem={itemToEdit}
         initialType={itemType}
         onSave={handleSaveEdit}
+        onDelete={handleDeleteEdit}
         mode="edit"
       />
     </div>

@@ -77,6 +77,7 @@ export function Dashboard() {
     startSession,
     markTaskComplete: markAsComplete,
     dismissReminder,
+    deleteEvent,
   } = useData();
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -268,7 +269,7 @@ export function Dashboard() {
     "Don't stop when you're tired. Stop when you're done.",
     "Work hard in silence, let success make the noise.",
     "Do something today that your future self will thank you for.",
-    "You are stronger than you think.",
+    "You are never too old to set another goal or to dream a new dream.",
     "Stay focused and never give up.",
     "Difficult roads often lead to beautiful destinations.",
     "Success doesn't just find you. You have to go out and get it.",
@@ -643,6 +644,39 @@ export function Dashboard() {
       });
     }
   }, [addTask, updateTask, addEvent, updateEvent, addSession, updateSession, toast]);
+
+  const handleDeleteItem = useCallback(async (itemId: string) => {
+    try {
+      // First, find the item to determine its type
+      if (selectedItem) {
+        switch (selectedItem.itemType) {
+          case 'task':
+            await deleteTask(itemId);
+            toast({ title: "Success", description: "Task deleted successfully" });
+            break;
+          case 'event':
+            await deleteEvent(itemId);
+            toast({ title: "Success", description: "Event deleted successfully" });
+            break;
+          case 'session':
+            await deleteSession(itemId);
+            toast({ title: "Success", description: "Study session deleted successfully" });
+            break;
+          // Add other cases as needed
+        }
+        // Close dialog after deleting
+        setItemDialogOpen(false);
+        setSelectedItem(null);
+      }
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete item",
+      });
+    }
+  }, [selectedItem, deleteTask, deleteEvent, deleteSession, toast]);
 
   return (
     <div className="space-y-6">
@@ -1095,19 +1129,13 @@ export function Dashboard() {
         </Card>
 
         {/* Events Timeline Card */}
-        <Card className="border-brand-primary/20 shadow-sm h-full flex flex-col">
+        <Card className="border-brand-primary/20 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              Upcoming Events
+            <CardTitle className="text-sm font-medium">
+              Events Timeline
             </CardTitle>
-            {events.length > 0 && (
-              <Badge variant="outline" className="font-normal">
-                {events.length} {events.length === 1 ? 'event' : 'events'}
-              </Badge>
-            )}
           </CardHeader>
-          <CardContent className="p-0 flex-1">
+          <CardContent>
             <EventsTimeline
               events={events}
               onEventClick={handleEditItem}
@@ -1226,6 +1254,7 @@ export function Dashboard() {
         initialItem={selectedItem}
         initialType={initialItemType}
         onSave={handleSaveItem}
+        onDelete={handleDeleteItem}
         mode={selectedItem ? "edit" : "create"}
       />
     </div>

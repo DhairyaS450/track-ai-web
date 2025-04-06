@@ -39,6 +39,7 @@ interface UnifiedItemDialogProps {
   initialItem?: SchedulableItem | null;
   initialType?: ItemType;
   onSave: (item: SchedulableItem) => void;
+  onDelete?: (itemId: string) => void;
   mode?: "create" | "edit";
 }
 
@@ -48,6 +49,7 @@ export function UnifiedItemDialog({
   initialItem,
   initialType = "task",
   onSave,
+  onDelete,
   mode = "create"
 }: UnifiedItemDialogProps) { 
   const [itemType, setItemType] = useState<ItemType>(initialType);
@@ -1091,6 +1093,19 @@ export function UnifiedItemDialog({
         </Tabs>
 
         <DialogFooter className="mt-6">
+          {mode === "edit" && initialItem?.id && onDelete && (
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                onDelete(initialItem.id as string);
+                onOpenChange(false);
+              }}
+              className="mr-auto"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

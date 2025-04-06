@@ -1,5 +1,5 @@
 import { Event } from "@/types";
-import { format, isToday, isTomorrow } from "date-fns";
+import { format, isToday, isTomorrow, addDays } from "date-fns";
 import { MapPin, Clock, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -14,8 +14,19 @@ interface EventsTimelineProps {
 export function EventsTimeline({ onEventClick, events }: EventsTimelineProps) {
   const filteredEvents = events
     .filter((event) => {
-      const eventDate = new Date(event.startTime);
-      return isToday(eventDate) || isTomorrow(eventDate);
+      if (event.isAllDay) {
+        // For all-day events, extract date parts without time components
+        const eventDateStr = event.startTime.includes('T') ? event.startTime.split('T')[0] : event.startTime;
+        const today = format(new Date(), "yyyy-MM-dd");
+        const tomorrow = format(addDays(new Date(), 1), "yyyy-MM-dd");
+        
+        // Check if the event date matches today or tomorrow
+        return eventDateStr === today || eventDateStr === tomorrow;
+      } else {
+        // For regular events with time, use the existing logic
+        const eventDate = new Date(event.startTime);
+        return isToday(eventDate) || isTomorrow(eventDate);
+      }
     })
     .sort(
       (a, b) =>
@@ -23,12 +34,25 @@ export function EventsTimeline({ onEventClick, events }: EventsTimelineProps) {
     );
 
   const groupedEvents = filteredEvents.reduce((groups, event) => {
-    const date = new Date(event.startTime);
-    const key = isToday(date) ? "Today" : "Tomorrow";
-    if (!groups[key]) {
-      groups[key] = [];
+    // For all-day events, use the date string for comparison
+    if (event.isAllDay) {
+      const eventDateStr = event.startTime.includes('T') ? event.startTime.split('T')[0] : event.startTime;
+      const today = format(new Date(), "yyyy-MM-dd");
+      const key = eventDateStr === today ? "Today" : "Tomorrow";
+      
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(event);
+    } else {
+      // For regular events, use the existing logic
+      const date = new Date(event.startTime);
+      const key = isToday(date) ? "Today" : "Tomorrow";
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(event);
     }
-    groups[key].push(event);
     return groups;
   }, {} as Record<string, Event[]>);
 

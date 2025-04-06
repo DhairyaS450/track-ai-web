@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { 
   format, 
   addDays, 
@@ -77,31 +77,79 @@ export function CalendarGrid({
   const [viewType, setViewType] = useState<CalendarViewType>("week");
   const isMobile = useMediaQuery("(max-width: 768px)");
   
-  // Store data in component state to prevent loss during re-renders
-  const [cachedEvents, setCachedEvents] = useState<Event[]>([]);
-  const [cachedTasks, setCachedTasks] = useState<Task[]>([]);
-  const [cachedSessions, setCachedSessions] = useState<StudySession[]>([]);
-  const [cachedReminders, setCachedReminders] = useState<Reminder[]>([]);
-  const [cachedDeadlines, setCachedDeadlines] = useState<Task[]>([]);
+  // Improved state management for cached items
+  const [cachedData, setCachedData] = useState({
+    events: events || [],
+    tasks: tasks || [],
+    sessions: sessions || [],
+    reminders: reminders || [],
+    deadlines: deadlines || []
+  });
   
   // Update cached data when props change and are not empty
   useEffect(() => {
-    if (events.length > 0) setCachedEvents(events);
-    if (tasks.length > 0) setCachedTasks(tasks);
-    if (sessions.length > 0) setCachedSessions(sessions);
-    if (reminders.length > 0) setCachedReminders(reminders);
-    if (deadlines.length > 0) setCachedDeadlines(deadlines);
+    const updates: Partial<{
+      events: Event[],
+      tasks: Task[],
+      sessions: StudySession[],
+      reminders: Reminder[],
+      deadlines: Task[]
+    }> = {};
+    let hasUpdates = false;
+    
+    if (events.length > 0) {
+      updates.events = events;
+      hasUpdates = true;
+    }
+    if (tasks.length > 0) {
+      updates.tasks = tasks;
+      hasUpdates = true;
+    }
+    if (sessions.length > 0) {
+      updates.sessions = sessions;
+      hasUpdates = true;
+    }
+    if (reminders.length > 0) {
+      updates.reminders = reminders;
+      hasUpdates = true;
+    }
+    if (deadlines.length > 0) {
+      updates.deadlines = deadlines;
+      hasUpdates = true;
+    }
+    
+    if (hasUpdates) {
+      setCachedData(prev => ({ ...prev, ...updates }));
+    }
   }, [events, tasks, sessions, reminders, deadlines]);
   
-  // Use cached data or prop data, whichever has content
-  const effectiveEvents = events.length > 0 ? events : cachedEvents;
-  const effectiveTasks = tasks.length > 0 ? tasks : cachedTasks;
-  const effectiveSessions = sessions.length > 0 ? sessions : cachedSessions;
-  const effectiveReminders = reminders.length > 0 ? reminders : cachedReminders;
-  const effectiveDeadlines = deadlines.length > 0 ? deadlines : cachedDeadlines;
+  // Use cached data as fallback when props are empty
+  const effectiveEvents = events.length > 0 ? events : cachedData.events;
+  const effectiveTasks = tasks.length > 0 ? tasks : cachedData.tasks;
+  const effectiveSessions = sessions.length > 0 ? sessions : cachedData.sessions;
+  const effectiveReminders = reminders.length > 0 ? reminders : cachedData.reminders;
+  const effectiveDeadlines = deadlines.length > 0 ? deadlines : cachedData.deadlines;
   
   // Debug data at the component level
-  console.log(`CalendarGrid rendered with: ${effectiveEvents.length} events, ${effectiveTasks.length} tasks, ${effectiveSessions.length} sessions`);
+  console.log(`CalendarGrid rendered with: ${effectiveEvents.length} events, ${effectiveTasks.length} tasks, ${effectiveSessions.length} sessions, view: ${viewType}`);
+  
+  // Store previous view type to detect changes
+  const prevViewTypeRef = useRef(viewType);
+  
+  // Keep track of whether we've initialized the view
+  const initializedRef = useRef(false);
+  
+  // Ensure we don't lose data when switching between views
+  useEffect(() => {
+    // If view type changed, log it
+    if (prevViewTypeRef.current !== viewType) {
+      console.log(`View changed from ${prevViewTypeRef.current} to ${viewType}`);
+      prevViewTypeRef.current = viewType;
+    }
+    
+    // Make sure we're initialized
+    initializedRef.current = true;
+  }, [viewType]);
   
   // Get current view dates
   const viewDates = useMemo(() => {
@@ -152,21 +200,79 @@ export function CalendarGrid({
   }, [isMobile]); // Only depend on isMobile, not viewType
 
   const getAllItemsForDate = (date: Date) => {
-    // Force input date to midnight in local timezone for consistent comparison
-    const targetDateStr = format(date, "yyyy-MM-dd");
-    console.log(`Searching for events on: ${targetDateStr}`);
+    // Standardize the date format for consistent comparison
+    // Use start of day in user's local timezone
+    const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
+    const targetTimestamp = targetDate.getTime();
+    
+    // End of day timestamp for range checks
+    const endOfDayTimestamp = targetDate.getTime() + 24 * 60 * 60 * 1000 - 1;
+    
+    // Get YYYY-MM-DD format for string comparisons
+    const targetDateStr = format(targetDate, "yyyy-MM-dd");
+    
+    console.log(`Searching for events on: ${targetDateStr} (timestamp: ${targetTimestamp})`);
+    
+    // Debug available items count
     console.log(`Available events: ${effectiveEvents.length}, tasks: ${effectiveTasks.length}, sessions: ${effectiveSessions.length}`);
     
-    // Debug all events
-    effectiveEvents.forEach(event => {
-      const eventDate = new Date(event.startTime);
-      console.log(`Event: ${event.name}, Date: ${format(eventDate, "yyyy-MM-dd")}, Matches: ${format(eventDate, "yyyy-MM-dd") === targetDateStr}`);
-    });
-    
-    // Get events for this day by comparing string dates (most reliable)
+    // Get events for this day with improved date comparison logic
     const dayEvents = effectiveEvents.filter(event => {
-      const eventDate = new Date(event.startTime);
-      return format(eventDate, "yyyy-MM-dd") === targetDateStr;
+      if (!event.startTime) return false;
+      
+      // Print details for debugging
+      console.log(`Processing event: ${event.name}, isAllDay: ${event.isAllDay}, startTime: ${event.startTime}, endTime: ${event.endTime || 'none'}`);
+      
+      // For all-day events, we need special handling
+      if (event.isAllDay) {
+        // Extract date parts without time components to avoid timezone issues
+        // Handle both YYYY-MM-DD format and ISO format with time
+        const eventStartDateStr = event.startTime.includes('T') ? event.startTime.split('T')[0] : event.startTime;
+        
+        // If the event has an end date (multi-day all-day event)
+        if (event.endTime) {
+          const eventEndDateStr = event.endTime.includes('T') ? event.endTime.split('T')[0] : event.endTime;
+          
+          // Event is visible on this day if:
+          // 1. Event starts on or before this day AND
+          // 2. Event ends on or after this day
+          const result = (
+            eventStartDateStr <= targetDateStr && 
+            (eventEndDateStr > targetDateStr || eventEndDateStr === targetDateStr)
+          );
+          console.log(`All-day multi-day event "${event.name}": Start=${eventStartDateStr}, End=${eventEndDateStr}, Target=${targetDateStr}, Visible=${result}`);
+          return result;
+        }
+        
+        // Single day all-day event
+        const result = eventStartDateStr === targetDateStr;
+        console.log(`All-day single-day event "${event.name}": Date=${eventStartDateStr}, Target=${targetDateStr}, Visible=${result}`);
+        return result;
+      }
+      
+      // For timed events, we need to check if the event spans this day
+      const eventStart = new Date(event.startTime);
+      const eventStartTimestamp = eventStart.getTime();
+      
+      // For events with start and end times
+      if (event.endTime) {
+        const eventEnd = new Date(event.endTime);
+        const eventEndTimestamp = eventEnd.getTime();
+        
+        // Event spans this day if:
+        // 1. Event starts before end of day AND
+        // 2. Event ends after start of day
+        return (
+          eventStartTimestamp <= endOfDayTimestamp && 
+          eventEndTimestamp >= targetTimestamp
+        );
+      }
+      
+      // For events with only start time, check if they start on this day
+      const eventStartDate = new Date(eventStart);
+      eventStartDate.setHours(0, 0, 0, 0);
+      return eventStartDate.getTime() === targetTimestamp;
     }).map(event => ({
       id: event.id,
       title: event.name,
@@ -175,20 +281,104 @@ export function CalendarGrid({
       type: "event" as const,
       isAllDay: event.isAllDay,
       color: "blue",
+      priority: event.priority || "Low",
       item: event
     }));
 
-    // Use the same robust string comparison for tasks
-    const dayTasks = effectiveTasks.filter(task => 
-      task.timeSlots?.some(slot => {
-        const slotDate = new Date(slot.startDate);
-        return format(slotDate, "yyyy-MM-dd") === targetDateStr;
-      })
-    ).flatMap(task => 
-      task.timeSlots
+    console.log(`Found ${dayEvents.length} events for ${targetDateStr}`);
+    
+    // Apply similar logic to tasks - add all-day handling for tasks
+    const dayTasks = effectiveTasks.filter(task => {
+      // For Google Calendar tasks that are due at midnight, treat them as all-day
+      if (task.source === 'google_calendar' || task.source === 'google_tasks') {
+        if (task.deadline) {
+          const deadlineDate = new Date(task.deadline);
+          // If time is set to midnight (12:00 AM), treat as all-day task
+          if (deadlineDate.getHours() === 0 && deadlineDate.getMinutes() === 0) {
+            // Extract date part for comparison
+            const deadlineDateStr = task.deadline.split('T')[0];
+            const result = deadlineDateStr === targetDateStr;
+            console.log(`Google task "${task.title}" at midnight: Date=${deadlineDateStr}, Target=${targetDateStr}, Visible=${result}`);
+            
+            // Create a special "all-day" flag that we'll use later in the rendering
+            if (result) {
+              task.isAllDayTask = true;
+            }
+            
+            return result;
+          }
+        }
+      }
+      
+      // For normal tasks with time slots, use existing logic
+      if (!task.timeSlots?.length) return false;
+      return task.timeSlots.some(slot => {
+        if (!slot.startDate) return false;
+        
+        const slotStart = new Date(slot.startDate);
+        const slotStartTimestamp = slotStart.getTime();
+        
+        // For slots with end times
+        if (slot.endDate) {
+          const slotEnd = new Date(slot.endDate);
+          const slotEndTimestamp = slotEnd.getTime();
+          
+          // Slot spans this day if:
+          // 1. Slot starts before end of day AND
+          // 2. Slot ends after start of day
+          return (
+            slotStartTimestamp <= endOfDayTimestamp && 
+            slotEndTimestamp >= targetTimestamp
+          );
+        }
+        
+        // For slots with only start time, check if they start on this day
+        const slotStartDate = new Date(slotStart);
+        slotStartDate.setHours(0, 0, 0, 0);
+        return slotStartDate.getTime() === targetTimestamp;
+      });
+    }).flatMap(task => {
+      // For tasks that we identified as all-day tasks
+      if (task.isAllDayTask) {
+        return [{
+          id: task.id,
+          title: task.title,
+          start: new Date(task.deadline),
+          end: addMinutes(new Date(task.deadline), 30),
+          type: "task" as const,
+          isAllDay: true, // Mark as all-day
+          color: "green",
+          priority: task.priority,
+          item: task
+        }];
+      }
+      
+      // For normal tasks with time slots
+      return task.timeSlots
         .filter(slot => {
-          const slotDate = new Date(slot.startDate);
-          return format(slotDate, "yyyy-MM-dd") === targetDateStr;
+          if (!slot.startDate) return false;
+          
+          const slotStart = new Date(slot.startDate);
+          const slotStartTimestamp = slotStart.getTime();
+          
+          // For slots with end times
+          if (slot.endDate) {
+            const slotEnd = new Date(slot.endDate);
+            const slotEndTimestamp = slotEnd.getTime();
+            
+            // Slot spans this day if:
+            // 1. Slot starts before end of day AND
+            // 2. Slot ends after start of day
+            return (
+              slotStartTimestamp <= endOfDayTimestamp && 
+              slotEndTimestamp >= targetTimestamp
+            );
+          }
+          
+          // For slots with only start time, check if they start on this day
+          const slotStartDate = new Date(slotStart);
+          slotStartDate.setHours(0, 0, 0, 0);
+          return slotStartDate.getTime() === targetTimestamp;
         })
         .map(slot => ({
           id: `${task.id}-${slot.startDate}`,
@@ -198,29 +388,51 @@ export function CalendarGrid({
           type: "task" as const,
           isAllDay: false,
           color: "green",
+          priority: task.priority,
           item: task
-        }))
-    );
+        }));
+    });
 
-    // Use string comparison for sessions
+    // Apply similar logic to study sessions
     const daySessions = effectiveSessions.filter(session => {
-      const sessionDate = new Date(session.scheduledFor);
-      return format(sessionDate, "yyyy-MM-dd") === targetDateStr;
+      if (!session.scheduledFor) return false;
+      
+      const sessionStart = new Date(session.scheduledFor);
+      const sessionStartTimestamp = sessionStart.getTime();
+      
+      // Calculate session end time based on duration
+      const sessionEnd = addMinutes(sessionStart, session.duration || 60);
+      const sessionEndTimestamp = sessionEnd.getTime();
+      
+      // Session spans this day if:
+      // 1. Session starts before end of day AND
+      // 2. Session ends after start of day
+      return (
+        sessionStartTimestamp <= endOfDayTimestamp && 
+        sessionEndTimestamp >= targetTimestamp
+      );
     }).map(session => ({
       id: session.id,
       title: session.subject,
       start: new Date(session.scheduledFor),
-      end: addMinutes(new Date(session.scheduledFor), session.duration),
+      end: addMinutes(new Date(session.scheduledFor), session.duration || 60),
       type: "session" as const,
       isAllDay: false,
       color: "purple",
+      priority: "Medium", // Default priority for sessions
       item: session
     }));
 
-    // Use string comparison for reminders
+    // Standard logic for point-in-time reminders
     const dayReminders = effectiveReminders.filter(reminder => {
-      const reminderDate = new Date(reminder.reminderTime);
-      return format(reminderDate, "yyyy-MM-dd") === targetDateStr;
+      if (!reminder.reminderTime) return false;
+      
+      const reminderTime = new Date(reminder.reminderTime);
+      const reminderDate = new Date(reminderTime);
+      reminderDate.setHours(0, 0, 0, 0);
+      
+      // Reminders should only appear on their exact day
+      return reminderDate.getTime() === targetTimestamp;
     }).map(reminder => ({
       id: reminder.id,
       title: reminder.title,
@@ -230,14 +442,20 @@ export function CalendarGrid({
       isAllDay: false,
       isReminder: true,
       color: "yellow",
+      priority: "Medium", // Default priority for reminders
       item: reminder
     }));
 
-    // Use string comparison for deadlines
+    // Standard logic for point-in-time deadlines
     const dayDeadlines = effectiveDeadlines.filter(deadline => {
       if (!deadline.deadline) return false;
-      const deadlineDate = new Date(deadline.deadline);
-      return format(deadlineDate, "yyyy-MM-dd") === targetDateStr;
+      
+      const deadlineTime = new Date(deadline.deadline);
+      const deadlineDate = new Date(deadlineTime);
+      deadlineDate.setHours(0, 0, 0, 0);
+      
+      // Deadlines should only appear on their exact day
+      return deadlineDate.getTime() === targetTimestamp;
     }).map(deadline => ({
       id: deadline.id,
       title: deadline.title,
@@ -246,6 +464,7 @@ export function CalendarGrid({
       type: "deadline" as const,
       isAllDay: false,
       color: "red",
+      priority: deadline.priority, // Use deadline's priority
       item: deadline
     }));
 
@@ -266,21 +485,60 @@ export function CalendarGrid({
     }, 0);
   }, [viewDates, viewType, effectiveEvents, effectiveTasks, effectiveSessions, effectiveReminders, effectiveDeadlines]);
 
-  const getTypeStyles = (type: string) => {
+  // Get styling based on item type and priority
+  const getTypeStyles = (type: string, priority?: string) => {
+    // Base styles for each type
+    let typeStyles = "";
     switch (type) {
       case "event":
-        return "bg-blue-100 dark:bg-blue-900/20 border-blue-400 text-blue-800 dark:text-blue-300";
+        typeStyles = "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300";
+        break;
       case "task":
-        return "bg-green-100 dark:bg-green-900/20 border-green-400 text-green-800 dark:text-green-300";
+        typeStyles = "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300";
+        break;
       case "session":
-        return "bg-purple-100 dark:bg-purple-900/20 border-purple-400 text-purple-800 dark:text-purple-300";
+        typeStyles = "bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300";
+        break;
       case "reminder":
-        return "bg-yellow-100 dark:bg-yellow-900/20 border-yellow-400 text-yellow-800 dark:text-yellow-300";
+        typeStyles = "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300";
+        break;
       case "deadline":
-        return "bg-red-100 dark:bg-red-900/20 border-red-400 text-red-800 dark:text-red-300";
+        typeStyles = "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300";
+        break;
       default:
-        return "bg-gray-100 dark:bg-gray-900/20 border-gray-400 text-gray-800 dark:text-gray-300";
+        typeStyles = "bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-300";
     }
+    
+    // Priority-based border color
+    let priorityStyles = "";
+    if (priority) {
+      switch (priority) {
+        case "High":
+          priorityStyles = "border-red-500";
+          break;
+        case "Medium":
+          priorityStyles = "border-amber-500";
+          break;
+        case "Low":
+          priorityStyles = "border-green-500";
+          break;
+        default:
+          priorityStyles = type === "event" ? "border-blue-400" :
+                          type === "task" ? "border-green-400" :
+                          type === "session" ? "border-purple-400" :
+                          type === "reminder" ? "border-yellow-400" :
+                          type === "deadline" ? "border-red-400" : "border-gray-400";
+      }
+    } else {
+      // Default border if no priority is specified
+      priorityStyles = type === "event" ? "border-blue-400" :
+                      type === "task" ? "border-green-400" :
+                      type === "session" ? "border-purple-400" :
+                      type === "reminder" ? "border-yellow-400" :
+                      type === "deadline" ? "border-red-400" : "border-gray-400";
+    }
+    
+    return `${typeStyles} ${priorityStyles}`;
   };
 
   // Navigation handlers
@@ -540,17 +798,18 @@ export function CalendarGrid({
                       
                       return (
                         <div className="space-y-1">
-                          <h4 className="text-xs font-medium mb-1 text-muted-foreground">All-day</h4>
                           {allDayEvents.map(item => (
                             <div 
                               key={item.id}
                               className={cn(
                                 "px-2 py-1 rounded-md text-xs cursor-pointer border-l-2 overflow-hidden",
-                                getTypeStyles(item.type)
+                                getTypeStyles(item.type, item.priority),
+                                "bg-blue-200 dark:bg-blue-800 font-medium shadow-sm" // Darker blue for all-day events
                               )}
                               onClick={() => onItemClick(item.item)}
                             >
-                              {item.title}
+                              <div className="font-medium">{item.title}</div>
+                              <div className="text-xs opacity-70">All-day</div>
                             </div>
                           ))}
                         </div>
@@ -610,7 +869,7 @@ export function CalendarGrid({
                               key={event.id}
                               className={cn(
                                 "absolute rounded-md border-l-4 p-1 overflow-hidden shadow-sm cursor-pointer",
-                                getTypeStyles(event.type)
+                                getTypeStyles(event.type, event.priority)
                               )}
                               style={{
                                 top: `${top}px`,
@@ -643,7 +902,9 @@ export function CalendarGrid({
                                   ? "All-day" 
                                   : event.isReminder
                                     ? `Reminder at ${format(event.start, "h:mm a")}`
-                                    : `${format(event.start, "h:mm a")} - ${format(event.end, "h:mm a")}`
+                                    : event.type === "task" || event.type === "deadline"
+                                      ? `Due: ${format(event.start, "h:mm a")}`
+                                      : `${format(event.start, "h:mm a")} - ${format(event.end, "h:mm a")}`
                                 }
                               </div>
                             </div>
@@ -709,7 +970,7 @@ export function CalendarGrid({
                         
                         return (
                           <>
-                            {/* All-day events at the top */}
+                            {/* All-day events at the top with enhanced styling */}
                             {allDay.length > 0 && (
                               <div className="mb-2">
                                 {allDay.map((item: any) => (
@@ -717,7 +978,8 @@ export function CalendarGrid({
                                     key={item.id}
                                     className={cn(
                                       "px-2 py-1 mb-1 rounded-md text-xs cursor-pointer border-l-2",
-                                      getTypeStyles(item.type)
+                                      getTypeStyles(item.type, item.priority),
+                                      "bg-blue-200 dark:bg-blue-800 shadow-sm font-medium" // Darker blue for all-day events
                                     )}
                                     onClick={() => onItemClick(item.item)}
                                   >
@@ -728,32 +990,43 @@ export function CalendarGrid({
                               </div>
                             )}
                             
+                            {/* Separator line if both all-day and timed events exist */}
+                            {allDay.length > 0 && timed.length > 0 && (
+                              <div className="border-t border-gray-200 dark:border-gray-800 my-2"></div>
+                            )}
+                            
                             {/* Timed events below */}
-                            {timed.map((item: any) => (
-                              <div
-                                key={item.id}
-                                className={cn(
-                                  "px-2 py-1 mb-1 rounded-md text-xs cursor-pointer border-l-2",
-                                  getTypeStyles(item.type),
-                                  conflictMap.get(item.id) && "border-red-500 border"
-                                )}
-                                onClick={
-                                  conflictMap.get(item.id) && conflictPairs.has(item.id)
-                                    ? () => onConflictClick && onConflictClick(conflictPairs.get(item.id) || [])
-                                    : () => onItemClick(item.item)
-                                }
-                              >
-                                <div className="font-medium truncate">{item.title}</div>
-                                <div className="text-xs opacity-70">
-                                  {item.isAllDay 
-                                    ? "All-day" 
-                                    : item.isReminder
-                                      ? `Reminder at ${format(item.start, "h:mm a")}`
-                                      : `${format(item.start, "h:mm a")} - ${format(item.end, "h:mm a")}`
-                                  }
-                                </div>
-                              </div>
-                            ))}
+                            {timed.length > 0 && (
+                              <>
+                                {timed.map((item: any) => (
+                                  <div
+                                    key={item.id}
+                                    className={cn(
+                                      "px-2 py-1 mb-1 rounded-md text-xs cursor-pointer border-l-2",
+                                      getTypeStyles(item.type, item.priority),
+                                      conflictMap.get(item.id) && "border-red-500 border"
+                                    )}
+                                    onClick={
+                                      conflictMap.get(item.id) && conflictPairs.has(item.id)
+                                        ? () => onConflictClick && onConflictClick(conflictPairs.get(item.id) || [])
+                                        : () => onItemClick(item.item)
+                                    }
+                                  >
+                                    <div className="font-medium truncate">{item.title}</div>
+                                    <div className="text-xs opacity-70">
+                                      {item.isAllDay 
+                                        ? "All-day" 
+                                        : item.isReminder
+                                          ? `Reminder at ${format(item.start, "h:mm a")}`
+                                          : item.type === "task" || item.type === "deadline"
+                                            ? `Due: ${format(item.start, "h:mm a")}`
+                                            : `${format(item.start, "h:mm a")} - ${format(item.end, "h:mm a")}`
+                                      }
+                                    </div>
+                                  </div>
+                                ))}
+                              </>
+                            )}
 
                             {/* Show empty state if no events */}
                             {items.length === 0 && (
@@ -824,7 +1097,7 @@ export function CalendarGrid({
                             key={event.id}
                             className={cn(
                               "truncate rounded border-l-2",
-                              getTypeStyles(event.type),
+                              getTypeStyles(event.type, event.priority),
                               isMobile ? "px-0.5 text-[8px]" : "px-1 text-xs"
                             )}
                             onClick={() => onItemClick(event.item)}
@@ -912,21 +1185,84 @@ function ScheduleView({
   reminders: Reminder[];
   deadlines: Task[];
   onItemClick: (item: any) => void;
-  getTypeStyles: (type: string) => string;
+  getTypeStyles: (type: string, priority?: string) => string;
   detectConflicts: (items: any[], ignoredIds: Set<string>) => { conflictMap: Map<string, boolean>; conflictPairs: Map<string, any[]> };
   onConflictClick?: (items: (Task | Event | StudySession)[]) => void;
   ignoredConflictIds: Set<string>;
 }) {
-  // Force a re-evaluation of the available events in this render context
+  // Log component rendering
   console.log(`Schedule view rendering with: ${events.length} events, ${tasks.length} tasks, ${sessions.length} sessions`);
-  const targetDateStr = format(date, "yyyy-MM-dd");
   
-  // Get events with direct filtering to ensure data is processed
+  // Standardize date comparison using the exact same approach as getAllItemsForDate
+  const targetDate = new Date(date);
+  targetDate.setHours(0, 0, 0, 0);
+  const targetTimestamp = targetDate.getTime();
+  
+  // End of day timestamp for range checks
+  const endOfDayTimestamp = targetDate.getTime() + 24 * 60 * 60 * 1000 - 1;
+  
+  // Get YYYY-MM-DD format for string comparisons
+  const targetDateStr = format(targetDate, "yyyy-MM-dd");
+  
+  console.log(`Schedule view searching for date: ${targetDateStr}`);
+  
+  // All event processing uses the exact same logic as getAllItemsForDate 
+  // for consistency across views
   const dayEvents = events
     .filter(event => {
-      const eventDate = new Date(event.startTime);
-      const matches = format(eventDate, "yyyy-MM-dd") === targetDateStr;
-      console.log(`Schedule view event check: ${event.name}, Date: ${format(eventDate, "yyyy-MM-dd")}, Matches: ${matches}`);
+      if (!event.startTime) return false;
+      
+      // For all-day events, we need special handling
+      if (event.isAllDay) {
+        // Extract date parts without time components to avoid timezone issues
+        const eventStartDateStr = event.startTime.includes('T') ? event.startTime.split('T')[0] : event.startTime;
+        
+        // If the event has an end date (multi-day all-day event)
+        if (event.endTime) {
+          const eventEndDateStr = event.endTime.includes('T') ? event.endTime.split('T')[0] : event.endTime;
+          
+          // Event is visible on this day if:
+          // 1. Event starts on or before this day AND
+          // 2. Event ends on or after this day
+          const matches = (
+            eventStartDateStr <= targetDateStr && 
+            (eventEndDateStr > targetDateStr || eventEndDateStr === targetDateStr)
+          );
+          console.log(`Schedule view all-day event check: ${event.name}, Start: ${eventStartDateStr}, End: ${eventEndDateStr}, Matches: ${matches}`);
+          return matches;
+        }
+        
+        // Single day all-day event
+        const matches = eventStartDateStr === targetDateStr;
+        console.log(`Schedule view all-day event check: ${event.name}, Date: ${eventStartDateStr}, Matches: ${matches}`);
+        return matches;
+      }
+      
+      // For timed events
+      const eventStart = new Date(event.startTime);
+      const eventStartTimestamp = eventStart.getTime();
+      
+      // For events with end times
+      if (event.endTime) {
+        const eventEnd = new Date(event.endTime);
+        const eventEndTimestamp = eventEnd.getTime();
+        
+        // Event spans this day if:
+        // 1. Event starts before end of day AND
+        // 2. Event ends after start of day
+        const matches = (
+          eventStartTimestamp <= endOfDayTimestamp && 
+          eventEndTimestamp >= targetTimestamp
+        );
+        console.log(`Schedule view timed event check: ${event.name}, Start: ${format(eventStart, "yyyy-MM-dd HH:mm")}, End: ${format(eventEnd, "yyyy-MM-dd HH:mm")}, Matches: ${matches}`);
+        return matches;
+      }
+      
+      // For events with only start time
+      const eventStartDate = new Date(eventStart);
+      eventStartDate.setHours(0, 0, 0, 0);
+      const matches = eventStartDate.getTime() === targetTimestamp;
+      console.log(`Schedule view event check: ${event.name}, Date: ${format(eventStart, "yyyy-MM-dd")}, Matches: ${matches}`);
       return matches;
     })
     .map(event => ({
@@ -937,22 +1273,67 @@ function ScheduleView({
       type: "event" as const,
       isAllDay: event.isAllDay,
       color: "blue",
+      priority: event.priority || "Low",
       item: event
     }));
+    
+  console.log(`Schedule view found ${dayEvents.length} events for ${targetDateStr}`);
   
-  // Similar direct processing for other item types
+  // Process tasks with the same logic
   const dayTasks = tasks
     .filter(task => 
       task.timeSlots?.some(slot => {
-        const slotDate = new Date(slot.startDate);
-        return format(slotDate, "yyyy-MM-dd") === targetDateStr;
+        if (!slot.startDate) return false;
+        
+        const slotStart = new Date(slot.startDate);
+        const slotStartTimestamp = slotStart.getTime();
+        
+        // For slots with end times
+        if (slot.endDate) {
+          const slotEnd = new Date(slot.endDate);
+          const slotEndTimestamp = slotEnd.getTime();
+          
+          // Slot spans this day if:
+          // 1. Slot starts before end of day AND
+          // 2. Slot ends after start of day
+          return (
+            slotStartTimestamp <= endOfDayTimestamp && 
+            slotEndTimestamp >= targetTimestamp
+          );
+        }
+        
+        // For slots with only start time
+        const slotStartDate = new Date(slotStart);
+        slotStartDate.setHours(0, 0, 0, 0);
+        return slotStartDate.getTime() === targetTimestamp;
       })
     )
     .flatMap(task => 
       task.timeSlots
         .filter(slot => {
-          const slotDate = new Date(slot.startDate);
-          return format(slotDate, "yyyy-MM-dd") === targetDateStr;
+          if (!slot.startDate) return false;
+          
+          const slotStart = new Date(slot.startDate);
+          const slotStartTimestamp = slotStart.getTime();
+          
+          // For slots with end times
+          if (slot.endDate) {
+            const slotEnd = new Date(slot.endDate);
+            const slotEndTimestamp = slotEnd.getTime();
+            
+            // Slot spans this day if:
+            // 1. Slot starts before end of day AND
+            // 2. Slot ends after start of day
+            return (
+              slotStartTimestamp <= endOfDayTimestamp && 
+              slotEndTimestamp >= targetTimestamp
+            );
+          }
+          
+          // For slots with only start time
+          const slotStartDate = new Date(slotStart);
+          slotStartDate.setHours(0, 0, 0, 0);
+          return slotStartDate.getTime() === targetTimestamp;
         })
         .map(slot => ({
           id: `${task.id}-${slot.startDate}`,
@@ -962,30 +1343,54 @@ function ScheduleView({
           type: "task" as const,
           isAllDay: false,
           color: "green",
+          priority: task.priority,
           item: task
         }))
     );
   
+  // Process study sessions with the same logic
   const daySessions = sessions
     .filter(session => {
-      const sessionDate = new Date(session.scheduledFor);
-      return format(sessionDate, "yyyy-MM-dd") === targetDateStr;
+      if (!session.scheduledFor) return false;
+      
+      const sessionStart = new Date(session.scheduledFor);
+      const sessionStartTimestamp = sessionStart.getTime();
+      
+      // Calculate session end time based on duration
+      const sessionEnd = addMinutes(sessionStart, session.duration || 60);
+      const sessionEndTimestamp = sessionEnd.getTime();
+      
+      // Session spans this day if:
+      // 1. Session starts before end of day AND
+      // 2. Session ends after start of day
+      return (
+        sessionStartTimestamp <= endOfDayTimestamp && 
+        sessionEndTimestamp >= targetTimestamp
+      );
     })
     .map(session => ({
       id: session.id,
       title: session.subject,
       start: new Date(session.scheduledFor),
-      end: addMinutes(new Date(session.scheduledFor), session.duration),
+      end: addMinutes(new Date(session.scheduledFor), session.duration || 60),
       type: "session" as const,
       isAllDay: false,
       color: "purple",
+      priority: "Medium", // Default priority for sessions
       item: session
     }));
   
+  // Process reminders with the same logic
   const dayReminders = reminders
     .filter(reminder => {
-      const reminderDate = new Date(reminder.reminderTime);
-      return format(reminderDate, "yyyy-MM-dd") === targetDateStr;
+      if (!reminder.reminderTime) return false;
+      
+      const reminderTime = new Date(reminder.reminderTime);
+      const reminderDate = new Date(reminderTime);
+      reminderDate.setHours(0, 0, 0, 0);
+      
+      // Reminders appear only on their exact day
+      return reminderDate.getTime() === targetTimestamp;
     })
     .map(reminder => ({
       id: reminder.id,
@@ -996,14 +1401,21 @@ function ScheduleView({
       isAllDay: false,
       isReminder: true,
       color: "yellow",
+      priority: "Medium", // Default priority for reminders
       item: reminder
     }));
   
+  // Process deadlines with the same logic
   const dayDeadlines = deadlines
     .filter(deadline => {
       if (!deadline.deadline) return false;
-      const deadlineDate = new Date(deadline.deadline);
-      return format(deadlineDate, "yyyy-MM-dd") === targetDateStr;
+      
+      const deadlineTime = new Date(deadline.deadline);
+      const deadlineDate = new Date(deadlineTime);
+      deadlineDate.setHours(0, 0, 0, 0);
+      
+      // Deadlines appear only on their exact day
+      return deadlineDate.getTime() === targetTimestamp;
     })
     .map(deadline => ({
       id: deadline.id,
@@ -1013,43 +1425,53 @@ function ScheduleView({
       type: "deadline" as const,
       isAllDay: false,
       color: "red",
+      priority: deadline.priority, // Use deadline's priority
       item: deadline
     }));
   
+  // Combine all items 
   const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines];
-  
-  console.log(`Schedule view direct calculation - items found for ${targetDateStr}: ${allItems.length}`);
+  console.log(`Schedule view - total items found for ${targetDateStr}: ${allItems.length}`);
   
   if (allItems.length === 0) {
     return (
       <div className="text-muted-foreground text-center py-4">
-        No items scheduled for this day
+        No events for this day
       </div>
     );
   }
   
-  // Separate all-day from timed events using the helper function
+  // Separate all-day from timed events
+  function processItems(items: any[]) {
+    return {
+      allDay: items.filter(item => item.isAllDay),
+      timed: items.filter(item => !item.isAllDay)
+    };
+  }
+  
+  // Separate all-day from timed events
   const { allDay, timed } = processItems(allItems);
   
   // Sort timed events by start time
   const sortedTimedItems = [...timed].sort((a, b) => a.start.getTime() - b.start.getTime());
   
-  // Detect conflicts for schedule view, passing ignored IDs
+  // Detect conflicts
   const { conflictMap, conflictPairs } = detectConflicts(allItems, ignoredConflictIds);
-  
+
+  // Rest of the component remains the same...
   return (
     <>
-      {/* All-day events section */}
+      {/* All-day events section with enhanced styling */}
       {allDay.length > 0 && (
         <div className="mb-4">
-          <h4 className="text-sm font-semibold mb-2 text-muted-foreground">All-day Events</h4>
           <div className="space-y-2">
             {allDay.map((item: any) => (
               <div
                 key={item.id}
                 className={cn(
                   "flex items-center border-l-4 rounded-md p-3 cursor-pointer",
-                  getTypeStyles(item.type)
+                  getTypeStyles(item.type, item.priority),
+                  "bg-blue-200 dark:bg-blue-800 shadow-sm" // Darker blue background for all-day events
                 )}
                 onClick={() => onItemClick(item.item)}
               >
@@ -1080,17 +1502,21 @@ function ScheduleView({
         </div>
       )}
       
+      {/* Separator line if both types of events exist */}
+      {allDay.length > 0 && sortedTimedItems.length > 0 && (
+        <div className="border-t border-gray-200 dark:border-gray-800 my-4"></div>
+      )}
+      
       {/* Timed events section */}
       {sortedTimedItems.length > 0 && (
         <div>
-          {allDay.length > 0 && <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Timed Events</h4>}
           <div className="space-y-2">
             {sortedTimedItems.map((item: any) => (
               <div
                 key={item.id}
                 className={cn(
                   "flex items-center border-l-4 rounded-md p-3 cursor-pointer",
-                  getTypeStyles(item.type)
+                  getTypeStyles(item.type, item.priority)
                 )}
                 onClick={() => onItemClick(item.item)}
               >
@@ -1118,7 +1544,9 @@ function ScheduleView({
                       ? "All-day" 
                       : item.isReminder
                         ? `Reminder at ${format(item.start, "h:mm a")}`
-                        : `${format(item.start, "h:mm a")} - ${format(item.end, "h:mm a")}`
+                        : item.type === "task" || item.type === "deadline"
+                          ? `Due: ${format(item.start, "h:mm a")}`
+                          : `${format(item.start, "h:mm a")} - ${format(item.end, "h:mm a")}`
                     }
                   </div>
                 </div>

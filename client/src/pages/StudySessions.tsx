@@ -477,9 +477,7 @@ export function StudySessions() {
       activeSession.sections.length > 0;
     
     // Set currentSection if appropriate
-    const currentSection = usingMultipleSections && 
-      activeSession.sections && 
-      activeSession.currentSectionIndex !== undefined 
+    const currentSection = usingMultipleSections && activeSession.currentSectionIndex !== undefined 
       ? activeSession.sections[activeSession.currentSectionIndex] 
       : null;
     
@@ -531,7 +529,6 @@ export function StudySessions() {
             }}
             onSettings={() => {
               setSessionToEdit(activeSession);
-              setCreateSessionOpen(true);
             }}
             onPostpone={() => {
               setSessionToPostpone(activeSession.id);
@@ -545,9 +542,9 @@ export function StudySessions() {
               (sectionIndex) => handleSectionChange(activeSession.id, sectionIndex) : 
               undefined
             }
-            sections={activeSession.sections || []}
+            sections={activeSession.sections}
             currentSectionIndex={activeSession.currentSectionIndex}
-            sessionMode={activeSession.sessionMode === 'single' ? 'basic' : activeSession.sessionMode}
+            sessionMode={activeSession.sessionMode}
           />
           
           <div className="mt-4">
@@ -1100,6 +1097,7 @@ export function StudySessions() {
                   onPhaseChange={handlePhaseChange}
                   onComplete={() => handleEndSession(session.id)}
                   onSettings={() => {
+                    console.log("Opening edit dialog for mobile active session:", session.id);
                     setSessionToEdit(session);
                     setCreateSessionOpen(true);
                   }}
@@ -1398,7 +1396,6 @@ export function StudySessions() {
     
     // TODO: Send to AI and get response
     // For now, simulate a response
-    
     setTimeout(() => {
       const aiResponse = {
         id: (Date.now() + 1).toString(),
@@ -1423,7 +1420,7 @@ export function StudySessions() {
         open={createSessionOpen}
         onOpenChange={setCreateSessionOpen}
         initialType="session"
-        initialItem={sessionToEdit ? ({
+        initialItem={sessionToEdit ? {
           id: sessionToEdit.id,
           title: sessionToEdit.subject,
           description: sessionToEdit.goal,
@@ -1432,13 +1429,12 @@ export function StudySessions() {
           duration: sessionToEdit.duration,
           technique: sessionToEdit.technique,
           status: sessionToEdit.status,
-          startTime: sessionToEdit.scheduledFor,
+          startTime: sessionToEdit.startTime, // Pass active session start time
           endTime: sessionToEdit.endTime,
           scheduledFor: sessionToEdit.scheduledFor,
           priority: sessionToEdit.priority || 'Medium',
           notes: sessionToEdit.notes || '',
           itemType: 'session',
-          type: 'studySession',
           breakInterval: sessionToEdit.breakInterval,
           breakDuration: sessionToEdit.breakDuration,
           materials: sessionToEdit.materials || '',
@@ -1446,7 +1442,7 @@ export function StudySessions() {
           completion: sessionToEdit.completion || 0,
           userId: 'current-user',
           createdAt: new Date().toISOString()
-        } as unknown as UnifiedStudySession) : undefined}
+        } as UnifiedStudySession : undefined}
         mode={sessionToEdit ? "edit" : "create"}
         onSave={(item: SchedulableItem) => {
           // Convert back from UnifiedStudySession to StudySession
