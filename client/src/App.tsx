@@ -6,7 +6,6 @@ import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
-import { Calendar } from "./pages/Calendar";
 import { StudySessions } from "./pages/StudySessions";
 import { Analytics } from "./pages/Analytics";
 import { Settings } from "./pages/Settings";
@@ -104,7 +103,6 @@ function App() {
                     }
                   >
                     <Route path="dashboard" element={<Dashboard />} />
-                    <Route path="calendar" element={<Calendar />} />
                     <Route path="study" element={<StudySessions />} />
                     <Route path="analytics" element={<Analytics />} />
                     <Route path="settings" element={<Settings />} />

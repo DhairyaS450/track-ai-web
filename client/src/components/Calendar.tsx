@@ -1,47 +1,56 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { Task, StudySession, Event, Deadline, Reminder } from "@/types";
+import { useState, useMemo, useCallback } from "react";
+import { Task, StudySession, Event, Reminder } from "@/types";
 import { addDays, startOfWeek, format } from "date-fns";
-import { useData } from '@/contexts/DataProvider';
-import { getIgnoredConflicts, getConflictCheckId } from "@/api/conflicts";
-import { auth } from '@/config/firebase';
+import { useToast } from "@/hooks/useToast";
+import { useItemManager } from "@/hooks/useItemManager";
+import { Loader2 } from "lucide-react";
 import {
   SchedulableItem,
   ItemType,
   convertToUnified
 } from "@/types/unified";
 
-import {
-  Loader2,
-} from "lucide-react";
-import { useToast } from "@/hooks/useToast";
-import { useItemManager } from "@/hooks/useItemManager";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { UnifiedItemDialog } from "@/components/UnifiedItemDialog";
 import { CalendarConflictPopup } from "@/components/calendar/CalendarConflictPopup";
 
-export function Calendar() {
+interface CalendarProps {
+  tasks?: Task[];
+  events?: Event[];
+  sessions?: StudySession[];
+  reminders?: Reminder[];
+  loading?: boolean;
+  ignoredConflictIds?: Set<string>;
+  deleteReminder?: (id: string) => Promise<any>;
+  deleteTask?: (id: string) => Promise<any>;
+  deleteEvent?: (id: string) => Promise<any>;
+  deleteSession?: (id: string) => Promise<any>;
+  updateTask?: (id: string, data: Partial<Task>) => Promise<any>;
+  updateEvent?: (id: string, data: Partial<Event>) => Promise<any>;
+  updateSession?: (id: string, data: Partial<StudySession>) => Promise<any>;
+}
+
+export function Calendar({
+  tasks: allTasks = [],
+  events: allEvents = [],
+  sessions: allSessions = [],
+  reminders: allReminders = [],
+  loading = false,
+  ignoredConflictIds = new Set<string>(),
+  deleteReminder = async () => {},
+  deleteTask = async () => {},
+  deleteEvent = async () => {},
+  deleteSession = async () => {},
+  updateTask = async () => {},
+  updateEvent = async () => {},
+  updateSession = async () => {},
+}: CalendarProps) {
   const [date, setDate] = useState<Date>(new Date());
   const [dateRange, setDateRange] = useState<{ start: Date, end: Date }>({
     start: startOfWeek(new Date(), { weekStartsOn: 1 }),
     end: addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 6)
   });
   
-  const { 
-    tasks: allTasks,
-    events: allEvents,
-    sessions: allSessions,
-    reminders: allReminders,
-    loading,
-    deleteReminder,
-    deleteTask,
-    deleteEvent,
-    deleteSession,
-    updateTask,
-    updateEvent,
-    updateSession,
-    updateReminder,
-  } = useData();
-
   // State for UnifiedItemDialog
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SchedulableItem | null>(null);
@@ -50,27 +59,12 @@ export function Calendar() {
   // State for conflict handling
   const [conflictPopupOpen, setConflictPopupOpen] = useState(false);
   const [conflictingItems, setConflictingItems] = useState<SchedulableItem[]>([]);
-  const [ignoredConflictIds, setIgnoredConflictIds] = useState<Set<string>>(new Set());
   
   const { toast } = useToast();
   const { handleSaveItem } = useItemManager();
 
-  // Fetch ignored conflicts on mount/user change
-  useEffect(() => {
-    const userId = auth.currentUser?.uid;
-    if (userId) {
-        getIgnoredConflicts(userId)
-            .then(ids => {
-                console.log("Fetched ignored conflict IDs:", ids);
-                setIgnoredConflictIds(ids);
-            })
-            .catch(error => {
-                console.error("Error fetching ignored conflicts:", error);
-                // Optionally show a toast
-            });
-    }
-    // Consider adding a listener for auth state changes if not handled by DataProvider
-  }, [auth.currentUser]);
+  // Removed the useEffect for fetching ignored conflicts since we don't have direct Firebase access here
+  // The parent component (Dashboard) should handle this if needed
 
   // Optimize data filtering with proper memoization
   const filteredData = useMemo(() => {
@@ -238,7 +232,7 @@ export function Calendar() {
     setItemDialogOpen(true);
   }, []);
 
-  const handleItemClick = useCallback((item: Task | Event | StudySession | Deadline | Reminder) => {
+  const handleItemClick = useCallback((item: Task | Event | StudySession | Reminder) => {
     let itemType: "task" | "event" | "session" | "reminder";
     
     if ('name' in item) {
