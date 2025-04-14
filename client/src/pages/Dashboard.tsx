@@ -45,7 +45,7 @@ import {
   convertFromUnified,
   convertToUnified
 } from "@/types/unified";
-import { Calendar } from "../components/Calendar";
+import { Calendar } from "../components/calendar/Calendar";
 
 export function Dashboard() {
   console.log('Dashboard');
