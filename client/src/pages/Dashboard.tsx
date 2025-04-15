@@ -299,8 +299,7 @@ export function Dashboard() {
     (task) =>
       task.deadline &&
       isValidDate(task.deadline) &&
-      isPastSafe(task.deadline) &&
-      !isTodaySafe(task.deadline) &&
+      Date.now() > new Date(task.deadline).getTime() &&
       task.status !== "completed"
   );
 
@@ -308,6 +307,7 @@ export function Dashboard() {
     (task) =>
       task.deadline &&
       isValidDate(task.deadline) &&
+      new Date(task.deadline).getTime() >= Date.now() &&
       isTodaySafe(task.deadline) &&
       task.status !== "completed"
   );
