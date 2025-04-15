@@ -21,6 +21,19 @@ import { TestNotifications } from "@/components/notifications/TestNotifications"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
 import { PushNotificationTester } from "@/components/notifications/PushNotificationTester";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { deleteCurrentUserAccount, logout } from "@/api/auth";
+import { useNavigate } from "react-router-dom";
 
 export function Settings() {
   const [notifications, setNotifications] = useState({
@@ -60,6 +73,9 @@ export function Settings() {
   const [timeConstraints, setTimeConstraints] = useState<TimeConstraint[]>([]);
   const [isTimeConstraintDialogOpen, setIsTimeConstraintDialogOpen] = useState(false);
   const [editingConstraint, setEditingConstraint] = useState<TimeConstraint | undefined>();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false); // State for delete dialog
+  const [isDeleting, setIsDeleting] = useState(false); // State for loading indicator
+  const navigate = useNavigate();
 
   const handleTempProfileChange = (field: string, value: string) => {
     setTempProfile((prev) => ({ ...prev, [field]: value }));
@@ -218,6 +234,26 @@ export function Settings() {
       toast({ title: "Success", description: "Time constraint deleted successfully" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteCurrentUserAccount();
+      toast({ title: "Account Deleted", description: "Your account has been successfully deleted." });
+      // Perform logout after deletion
+      await logout(); 
+      navigate("/auth"); // Redirect to login/auth page
+    } catch (error: any) {
+      toast({ 
+        title: "Deletion Failed", 
+        description: error.message || "Could not delete account. Please try logging out and back in.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false); // Close dialog regardless of outcome
     }
   };
 
@@ -612,6 +648,50 @@ export function Settings() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Delete Account Section */}
+      <div className="mt-12 pt-8 border-t border-destructive/20">
+        <Card className="border-destructive bg-destructive/5">
+          <CardHeader>
+            <CardTitle className="text-destructive">Danger Zone</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-destructive/80">
+              Deleting your account is permanent and cannot be undone. All your data, including tasks, sessions, events, and settings, will be irrevocably lost.
+            </p>
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="destructive"
+                  className="w-full sm:w-auto"
+                  disabled={isDeleting} // Disable button while deleting
+                >
+                  {isDeleting ? "Deleting..." : "Delete Account"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete your 
+                    account and remove your data from our servers.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleConfirmDelete} 
+                    disabled={isDeleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {isDeleting ? "Deleting..." : "Yes, delete account"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </CardContent>
+        </Card>
       </div>
 
       <TimeConstraintDialog

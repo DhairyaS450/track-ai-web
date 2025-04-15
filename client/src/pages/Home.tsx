@@ -1210,7 +1210,7 @@ export function Home() {
                 </li>
                 <li>
                   <a 
-                    href="mailto:support@tidaltasks.ai"
+                    href="mailto:tidaltasks.app@gmail.com"
                     className="hover:text-primary transition-colors"
                   >
                     Contact Us
