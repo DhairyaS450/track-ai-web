@@ -7,7 +7,16 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Bell, Calendar, Moon, User, Clock, Edit, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  Calendar, 
+  User, 
+  Clock,
+  Moon,
+  Bell,
+  Edit,
+  Trash2
+} from "lucide-react";
 import { connectGoogleCalendar, getGoogleCalendarStatus } from "@/api/calendar";
 import { useToast } from "@/hooks/useToast";
 import api from "@/api/Api";
@@ -67,6 +76,18 @@ export function Settings() {
     weaknesses: "",
     goals: "",
     preferredStudyTimes: "",
+    schoolStartTime: "08:00",
+    schoolEndTime: "15:00",
+    sleepSchedule: {
+      monday: { wakeUp: "06:30", sleep: "22:00" },
+      tuesday: { wakeUp: "06:30", sleep: "22:00" },
+      wednesday: { wakeUp: "06:30", sleep: "22:00" },
+      thursday: { wakeUp: "06:30", sleep: "22:00" },
+      friday: { wakeUp: "06:30", sleep: "22:00" },
+      saturday: { wakeUp: "08:00", sleep: "23:00" },
+      sunday: { wakeUp: "08:00", sleep: "22:00" }
+    },
+    studyPreferences: [] as string[]
   });
   const [tempProfile, setTempProfile] = useState(profile);
 
@@ -77,8 +98,31 @@ export function Settings() {
   const [isDeleting, setIsDeleting] = useState(false); // State for loading indicator
   const navigate = useNavigate();
 
-  const handleTempProfileChange = (field: string, value: string) => {
-    setTempProfile((prev) => ({ ...prev, [field]: value }));
+  const handleTempProfileChange = (field: string, value: string | string[]) => {
+    if (field.includes('.')) {
+      // Handle nested objects (like sleepSchedule.monday.wakeUp)
+      const keys = field.split('.');
+      setTempProfile((prev) => {
+        // Deep clone the previous state
+        const updated = JSON.parse(JSON.stringify(prev));
+        
+        // Navigate through the object structure
+        let current = updated;
+        for (let i = 0; i < keys.length - 1; i++) {
+          if (!current[keys[i]]) {
+            current[keys[i]] = {};
+          }
+          current = current[keys[i]];
+        }
+        
+        // Set the value at the final key
+        current[keys[keys.length - 1]] = value;
+        return updated;
+      });
+    } else {
+      // Handle simple fields
+      setTempProfile((prev) => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleNotificationChange = (type: string, value: boolean) => {
@@ -358,14 +402,133 @@ export function Settings() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="studyTimes">Preferred Study Times</Label>
+              <Label>When do you prefer to study?</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "mornings", label: "Mornings (Before school)" },
+                  { id: "afternoons", label: "Afternoons" },
+                  { id: "evenings", label: "Evenings" },
+                  { id: "night", label: "Night" },
+                  { id: "flexible", label: "Flexible" }
+                ].map((preference) => (
+                  <div key={preference.id} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`study-pref-${preference.id}`} 
+                      checked={tempProfile.studyPreferences?.includes(preference.id)}
+                      onCheckedChange={(checked) => {
+                        const currentPrefs = tempProfile.studyPreferences || [];
+                        if (checked) {
+                          handleTempProfileChange(
+                            'studyPreferences', 
+                            [...currentPrefs, preference.id]
+                          );
+                        } else {
+                          handleTempProfileChange(
+                            'studyPreferences', 
+                            currentPrefs.filter(p => p !== preference.id)
+                          );
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`study-pref-${preference.id}`}>{preference.label}</Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="schoolStartTime">School Start Time</Label>
               <Input
-                id="studyTimes"
-                value={tempProfile?.preferredStudyTimes || ''}
+                id="schoolStartTime"
+                type="time"
+                value={tempProfile?.schoolStartTime || '08:00'}
                 onChange={(e) =>
-                  handleTempProfileChange('preferredStudyTimes', e.target.value)
+                  handleTempProfileChange('schoolStartTime', e.target.value)
                 }
-                placeholder="e.g., Mornings 9-11 AM, Evenings 6-8 PM"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="schoolEndTime">School End Time</Label>
+              <Input
+                id="schoolEndTime"
+                type="time"
+                value={tempProfile?.schoolEndTime || '15:00'}
+                onChange={(e) =>
+                  handleTempProfileChange('schoolEndTime', e.target.value)
+                }
+              />
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Label className="text-lg font-medium">Sleep Schedule</Label>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  { day: "Monday", key: "monday" as keyof typeof tempProfile.sleepSchedule },
+                  { day: "Tuesday", key: "tuesday" as keyof typeof tempProfile.sleepSchedule },
+                  { day: "Wednesday", key: "wednesday" as keyof typeof tempProfile.sleepSchedule },
+                  { day: "Thursday", key: "thursday" as keyof typeof tempProfile.sleepSchedule },
+                  { day: "Friday", key: "friday" as keyof typeof tempProfile.sleepSchedule },
+                  { day: "Saturday", key: "saturday" as keyof typeof tempProfile.sleepSchedule },
+                  { day: "Sunday", key: "sunday" as keyof typeof tempProfile.sleepSchedule }
+                ].map((dayObj) => (
+                  <Card key={dayObj.key} className="border shadow-sm hover:shadow transition-shadow">
+                    <CardHeader className="p-3 pb-0">
+                      <CardTitle className="text-sm font-medium">{dayObj.day}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-2 space-y-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor={`${dayObj.key}WakeUp`} className="text-xs text-muted-foreground flex items-center">
+                            <Clock className="h-4 w-4 mr-1.5" /> Wake up
+                          </Label>
+                          <Input
+                            id={`${dayObj.key}WakeUp`}
+                            type="time"
+                            value={tempProfile?.sleepSchedule?.[dayObj.key]?.wakeUp || 
+                              (dayObj.key === 'saturday' || dayObj.key === 'sunday' ? '08:00' : '06:30')}
+                            onChange={(e) =>
+                              handleTempProfileChange(`sleepSchedule.${dayObj.key}.wakeUp`, e.target.value)
+                            }
+                            className="w-24 h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor={`${dayObj.key}Sleep`} className="text-xs text-muted-foreground flex items-center">
+                            <Moon className="h-4 w-4 mr-1.5" /> Sleep
+                          </Label>
+                          <Input
+                            id={`${dayObj.key}Sleep`}
+                            type="time"
+                            value={tempProfile?.sleepSchedule?.[dayObj.key]?.sleep || 
+                              (dayObj.key === 'saturday' ? '23:00' : '22:00')}
+                            onChange={(e) =>
+                              handleTempProfileChange(`sleepSchedule.${dayObj.key}.sleep`, e.target.value)
+                            }
+                            className="w-24 h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Study Preferences</Label>
+              <Textarea
+                id="studyPreferences"
+                value={tempProfile?.studyPreferences.join(', ') || ''}
+                onChange={(e) =>
+                  handleTempProfileChange('studyPreferences', e.target.value.split(','))
+                }
+                placeholder="List your study preferences"
               />
             </div>
           </CardContent>

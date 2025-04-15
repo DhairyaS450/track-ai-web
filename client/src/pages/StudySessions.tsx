@@ -1442,7 +1442,7 @@ export function StudySessions() {
           completion: sessionToEdit.completion || 0,
           userId: 'current-user',
           createdAt: new Date().toISOString()
-        } as UnifiedStudySession : undefined}
+        } as unknown as UnifiedStudySession : undefined}
         mode={sessionToEdit ? "edit" : "create"}
         onSave={(item: SchedulableItem) => {
           // Convert back from UnifiedStudySession to StudySession
