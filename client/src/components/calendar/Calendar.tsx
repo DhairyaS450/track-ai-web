@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Task, StudySession, Event, Reminder } from "@/types";
+import { Task, StudySession, Event, Reminder } from "@/types"; // SchedulableItem is likely local
 import { addDays, startOfWeek, format } from "date-fns";
 import { useToast } from "@/hooks/useToast";
 import { useItemManager } from "@/hooks/useItemManager";
@@ -55,7 +55,8 @@ export function Calendar({
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SchedulableItem | null>(null);
   const [initialItemType, setInitialItemType] = useState<"task" | "event" | "session" | "reminder">("task");
-  
+  const [initialDialogDate, setInitialDialogDate] = useState<Date | null>(null);
+
   // State for conflict handling
   const [conflictPopupOpen, setConflictPopupOpen] = useState(false);
   const [conflictingItems, setConflictingItems] = useState<SchedulableItem[]>([]);
@@ -256,6 +257,13 @@ export function Calendar({
     setItemDialogOpen(true);
   }, []);
 
+  const handleGridTimeSlotClick = useCallback((date: Date) => {
+    setInitialDialogDate(date); // Set the date/time clicked
+    setSelectedItem(null);      // No item selected, creating new
+    setItemDialogOpen(true); // Open the dialog
+    console.log('Empty time slot clicked:', date);
+  }, []);
+
   // Handle delete item from UnifiedItemDialog
   const handleDeleteItem = useCallback(async (itemId: string) => {
     try {
@@ -403,9 +411,10 @@ export function Calendar({
       onAddItem={() => handleAddItem()}
       onItemClick={handleItemClick}
       onConflictClick={handleConflictClick}
+      onTimeSlotClick={handleGridTimeSlotClick}
       ignoredConflictIds={ignoredConflictIds}
     />
-  ), [date, deadlines, events, handleAddItem, handleConflictClick, handleDateRangeChange, handleDateSelect, handleItemClick, reminders, sessions, tasks, ignoredConflictIds]);
+  ), [date, deadlines, events, handleAddItem, handleConflictClick, handleDateRangeChange, handleDateSelect, handleGridTimeSlotClick, handleItemClick, reminders, sessions, tasks, ignoredConflictIds]);
 
   return (
     <div className="space-y-6">
@@ -429,6 +438,7 @@ export function Calendar({
         onOpenChange={setItemDialogOpen}
         initialItem={selectedItem}
         initialType={initialItemType}
+        initialDate={initialDialogDate}
         onSave={handleSaveItem}
         onDelete={handleDeleteItem}
         mode={selectedItem ? "edit" : "create"}

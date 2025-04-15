@@ -23,7 +23,15 @@ import {
   UnifiedReminder 
 } from "@/types/unified";
 import { useToast } from "@/hooks/useToast";
-import { format, addMinutes, isBefore, setMinutes, getMinutes } from "date-fns";
+import { 
+  addMinutes, 
+  format, 
+  parseISO, 
+  setMinutes, 
+  getMinutes, 
+  isValid, 
+  isBefore 
+} from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar } from "./ui/calendar";
 import { Checkbox } from "./ui/checkbox";
@@ -48,6 +56,7 @@ interface UnifiedItemDialogProps {
   onOpenChange: (open: boolean) => void;
   initialItem?: SchedulableItem | null;
   initialType?: ItemType;
+  initialDate?: Date | null;
   onSave: (item: SchedulableItem) => void;
   onDelete?: (itemId: string) => void;
   mode?: "create" | "edit";
@@ -58,12 +67,14 @@ export function UnifiedItemDialog({
   onOpenChange,
   initialItem,
   initialType = "task",
+  initialDate,
   onSave,
   onDelete,
   mode = "create"
 }: UnifiedItemDialogProps) { 
   const [itemType, setItemType] = useState<ItemType>(initialType);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [activeTab, setActiveTab] = useState(itemType); // Add activeTab state
   const { toast } = useToast();
 
   // Common fields
@@ -108,26 +119,46 @@ export function UnifiedItemDialog({
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | undefined>(undefined);
 
+  // Determine the effective mode if not explicitly passed (fallback)
+  const effectiveMode = mode || (initialItem ? 'edit' : 'create');
+
   // Reset form when dialog opens/closes or item type changes
   useEffect(() => {
     if (open) {
-      if (initialItem) {
-        // Populate form with initial item data
+      if (effectiveMode === 'edit' && initialItem) {
+        // Edit mode: Populate form with item data
         setItemType(initialItem.itemType);
         setTitle(initialItem.title);
         setDescription(initialItem.description);
-        setPriority(initialItem.priority as "High" | "Medium" | "Low");
-        setStartTime(initialItem.startTime);
-        setEndTime(initialItem.endTime || "");
-        
-        if (initialItem.startTime) {
-          setStartDate(new Date(initialItem.startTime));
+        setPriority((initialItem.priority as "High" | "Medium" | "Low") || 'Medium');
+
+        // Parse and set Start Date/Time
+        const parsedStartDate = initialItem.startTime ? parseISO(initialItem.startTime) : null;
+        if (parsedStartDate && isValid(parsedStartDate)) {
+          setStartDate(parsedStartDate);
+          setStartTime(format(parsedStartDate, "yyyy-MM-dd'T'HH:mm"));
+        } else {
+          // Handle invalid or missing start date (optional: set a default?)
+          setStartDate(undefined);
+          setStartTime('');
         }
-        
-        if (initialItem.endTime) {
-          setEndDate(new Date(initialItem.endTime));
+
+        // Parse and set End Date/Time
+        const parsedEndDate = initialItem.endTime ? parseISO(initialItem.endTime) : null;
+        if (parsedEndDate && isValid(parsedEndDate)) {
+          setEndDate(parsedEndDate);
+          setEndTime(format(parsedEndDate, "yyyy-MM-dd'T'HH:mm"));
+        } else if (parsedStartDate && isValid(parsedStartDate)) {
+          // Default end time if missing/invalid: 1 hour after start time
+          const defaultEndDate = addMinutes(parsedStartDate, 60);
+          setEndDate(defaultEndDate);
+          setEndTime(format(defaultEndDate, "yyyy-MM-dd'T'HH:mm"));
+        } else {
+          // Handle invalid or missing end date when start is also invalid
+          setEndDate(undefined);
+          setEndTime('');
         }
-        
+
         // Populate type-specific fields
         switch (initialItem.itemType) {
           case 'task':
@@ -168,31 +199,42 @@ export function UnifiedItemDialog({
             }
             break; }
         }
-      } else {
-        // Set default values
+      } else if (effectiveMode === 'create') {
+        // Create mode: Reset form or use initialDate
         resetForm();
         setItemType(initialType);
         
-        // Set start date to nearest 15-minute interval
-        const now = new Date();
-        const minutes = getMinutes(now);
-        const roundedMinutes = Math.ceil(minutes / 15) * 15;
-        const roundedDate = setMinutes(now, roundedMinutes % 60);
-        
-        if (roundedMinutes >= 60) {
-          roundedDate.setHours(now.getHours() + Math.floor(roundedMinutes / 60));
+        if (initialDate && isValid(initialDate)) {
+          // Use the clicked date/time from the grid
+          const start = initialDate; // Already snapped to 15 mins by CalendarGrid
+          const end = addMinutes(start, 60); // Default duration 60 mins
+          setStartDate(start);
+          setStartTime(format(start, "yyyy-MM-dd'T'HH:mm"));
+          setEndDate(end);
+          setEndTime(format(end, "yyyy-MM-dd'T'HH:mm"));
+        } else {
+          // Set default values
+          // Set start date to nearest 15-minute interval
+          const now = new Date();
+          const minutes = getMinutes(now);
+          const roundedMinutes = Math.ceil(minutes / 15) * 15;
+          const roundedDate = setMinutes(now, roundedMinutes % 60);
+          
+          if (roundedMinutes >= 60) {
+            roundedDate.setHours(now.getHours() + Math.floor(roundedMinutes / 60));
+          }
+          
+          setStartDate(roundedDate);
+          setStartTime(format(roundedDate, "yyyy-MM-dd'T'HH:mm"));
+          
+          // Set end date 1 hour after start date by default
+          const defaultEndDate = addMinutes(roundedDate, 60);
+          setEndDate(defaultEndDate);
+          setEndTime(format(defaultEndDate, "yyyy-MM-dd'T'HH:mm"));
         }
-        
-        setStartDate(roundedDate);
-        setStartTime(format(roundedDate, "yyyy-MM-dd'T'HH:mm"));
-        
-        // Set end date 1 hour after start date by default
-        const defaultEndDate = addMinutes(roundedDate, 60);
-        setEndDate(defaultEndDate);
-        setEndTime(format(defaultEndDate, "yyyy-MM-dd'T'HH:mm"));
       }
     }
-  }, [open, initialItem, initialType]);
+  }, [open, initialItem, initialType, initialDate, effectiveMode]);
 
   const resetForm = () => {
     setTitle("");
@@ -232,6 +274,7 @@ export function UnifiedItemDialog({
 
   const handleTypeChange = (type: string) => {
     setItemType(type as ItemType);
+    setActiveTab(type as ItemType); // Update activeTab
     setShowAdvanced(false);
   };
 
@@ -640,16 +683,18 @@ export function UnifiedItemDialog({
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Create" : "Edit"} {itemType.charAt(0).toUpperCase() + itemType.slice(1)}
+            {effectiveMode === 'edit' ? 
+              `Edit ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}` :
+              `Create New ${itemType.charAt(0).toUpperCase() + itemType.slice(1)}`}
           </DialogTitle>
         </DialogHeader>
 
         <Tabs value={itemType} onValueChange={handleTypeChange} className="mt-4">
           <TabsList className="grid grid-cols-4 mb-4">
-            <TabsTrigger value="task" disabled={mode === "edit"}>Task</TabsTrigger>
-            <TabsTrigger value="event" disabled={mode === "edit"}>Event</TabsTrigger>
-            <TabsTrigger value="session" disabled={mode === "edit"}>Session</TabsTrigger>
-            <TabsTrigger value="reminder" disabled={mode === "edit"}>Reminder</TabsTrigger>
+            <TabsTrigger value="task" disabled={effectiveMode === 'edit'}>Task</TabsTrigger>
+            <TabsTrigger value="event" disabled={effectiveMode === 'edit'}>Event</TabsTrigger>
+            <TabsTrigger value="session" disabled={effectiveMode === 'edit'}>Session</TabsTrigger>
+            <TabsTrigger value="reminder" disabled={effectiveMode === 'edit'}>Reminder</TabsTrigger>
           </TabsList>
 
           <ScrollArea className="h-[60vh] pr-4 overflow-y-auto">
@@ -1371,7 +1416,7 @@ export function UnifiedItemDialog({
             Cancel
           </Button>
           <Button onClick={handleSubmit}>
-            {mode === "create" ? "Create" : "Save Changes"}
+            {effectiveMode === "create" ? "Create" : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -43,6 +43,7 @@ interface CalendarGridProps {
   onItemClick: (item: Task | Event | StudySession | Reminder) => void;
   onConflictClick?: (items: (Task | Event | StudySession)[]) => void;
   ignoredConflictIds: Set<string>;
+  onTimeSlotClick?: (date: Date) => void; // Add prop for time slot clicks
 }
 
 type CalendarViewType = "day" | "week" | "month" | "schedule";
@@ -73,6 +74,7 @@ export function CalendarGrid({
   onItemClick,
   onConflictClick,
   ignoredConflictIds,
+  onTimeSlotClick, // Add prop to component
 }: CalendarGridProps) {
   const [viewType, setViewType] = useState<CalendarViewType>("week");
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -209,20 +211,10 @@ export function CalendarGrid({
     // End of day timestamp for range checks
     const endOfDayTimestamp = targetDate.getTime() + 24 * 60 * 60 * 1000 - 1;
     
-    // Get YYYY-MM-DD format for string comparisons
-    const targetDateStr = format(targetDate, "yyyy-MM-dd");
-    
-    console.log(`Searching for events on: ${targetDateStr} (timestamp: ${targetTimestamp})`);
-    
-    // Debug available items count
-    console.log(`Available events: ${effectiveEvents.length}, tasks: ${effectiveTasks.length}, sessions: ${effectiveSessions.length}`);
-    
+
     // Get events for this day with improved date comparison logic
     const dayEvents = effectiveEvents.filter(event => {
       if (!event.startTime) return false;
-      
-      // Print details for debugging
-      console.log(`Processing event: ${event.name}, isAllDay: ${event.isAllDay}, startTime: ${event.startTime}, endTime: ${event.endTime || 'none'}`);
       
       // For all-day events, we need special handling
       if (event.isAllDay) {
@@ -238,16 +230,16 @@ export function CalendarGrid({
           // 1. Event starts on or before this day AND
           // 2. Event ends on or after this day
           const result = (
-            eventStartDateStr <= targetDateStr && 
-            (eventEndDateStr > targetDateStr || eventEndDateStr === targetDateStr)
+            eventStartDateStr <= format(targetDate, "yyyy-MM-dd") && 
+            (eventEndDateStr > format(targetDate, "yyyy-MM-dd") || eventEndDateStr === format(targetDate, "yyyy-MM-dd"))
           );
-          console.log(`All-day multi-day event "${event.name}": Start=${eventStartDateStr}, End=${eventEndDateStr}, Target=${targetDateStr}, Visible=${result}`);
+          console.log(`All-day multi-day event "${event.name}": Start=${eventStartDateStr}, End=${eventEndDateStr}, Target=${format(targetDate, "yyyy-MM-dd")}, Visible=${result}`);
           return result;
         }
         
         // Single day all-day event
-        const result = eventStartDateStr === targetDateStr;
-        console.log(`All-day single-day event "${event.name}": Date=${eventStartDateStr}, Target=${targetDateStr}, Visible=${result}`);
+        const result = eventStartDateStr === format(targetDate, "yyyy-MM-dd");
+        console.log(`All-day single-day event "${event.name}": Date=${eventStartDateStr}, Target=${format(targetDate, "yyyy-MM-dd")}, Visible=${result}`);
         return result;
       }
       
@@ -285,7 +277,7 @@ export function CalendarGrid({
       item: event
     }));
 
-    console.log(`Found ${dayEvents.length} events for ${targetDateStr}`);
+    console.log(`Found ${dayEvents.length} events for ${format(targetDate, "yyyy-MM-dd")}`);
     
     // Apply similar logic to tasks - add all-day handling for tasks
     const dayTasks = effectiveTasks.filter(task => {
@@ -297,8 +289,8 @@ export function CalendarGrid({
           if (deadlineDate.getHours() === 0 && deadlineDate.getMinutes() === 0) {
             // Extract date part for comparison
             const deadlineDateStr = task.deadline.split('T')[0];
-            const result = deadlineDateStr === targetDateStr;
-            console.log(`Google task "${task.title}" at midnight: Date=${deadlineDateStr}, Target=${targetDateStr}, Visible=${result}`);
+            const result = deadlineDateStr === format(targetDate, "yyyy-MM-dd");
+            console.log(`Google task "${task.title}" at midnight: Date=${deadlineDateStr}, Target=${format(targetDate, "yyyy-MM-dd")}, Visible=${result}`);
             
             // Create a special "all-day" flag that we'll use later in the rendering
             if (result) {
@@ -471,75 +463,35 @@ export function CalendarGrid({
     const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines]
       .sort((a, b) => a.start.getTime() - b.start.getTime());
     
-    console.log(`Total items found for ${targetDateStr}: ${allItems.length}`);
+    console.log(`Total items found for ${format(targetDate, "yyyy-MM-dd")}: ${allItems.length}`);
     return allItems;
   };
 
-  // Function to calculate the max number of events for any day in the week
-  const getMaxEventsForWeek = useMemo(() => {
-    if (viewType !== "week") return 0;
-    
-    return viewDates.reduce((maxCount, day) => {
-      const dayItems = getAllItemsForDate(day);
-      return Math.max(maxCount, dayItems.length);
-    }, 0);
-  }, [viewDates, viewType, effectiveEvents, effectiveTasks, effectiveSessions, effectiveReminders, effectiveDeadlines]);
-
-  // Get styling based on item type and priority
-  const getTypeStyles = (type: string, priority?: string) => {
-    // Base styles for each type
-    let typeStyles = "";
-    switch (type) {
-      case "event":
-        typeStyles = "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300";
-        break;
-      case "task":
-        typeStyles = "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300";
-        break;
-      case "session":
-        typeStyles = "bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300";
-        break;
-      case "reminder":
-        typeStyles = "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300";
-        break;
-      case "deadline":
-        typeStyles = "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300";
-        break;
-      default:
-        typeStyles = "bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-300";
+  // Handler for clicking on an empty time slot in Day or Week view
+  const handleTimeSlotClick = (day: Date, event: React.MouseEvent<HTMLDivElement>) => {
+    console.log("handleTimeSlotClick triggered for day:", day);
+    if (!onTimeSlotClick) {
+      console.log("handleTimeSlotClick skipped: No handler");
+      return;
     }
-    
-    // Priority-based border color
-    let priorityStyles = "";
-    if (priority) {
-      switch (priority) {
-        case "High":
-          priorityStyles = "border-red-500";
-          break;
-        case "Medium":
-          priorityStyles = "border-amber-500";
-          break;
-        case "Low":
-          priorityStyles = "border-green-500";
-          break;
-        default:
-          priorityStyles = type === "event" ? "border-blue-400" :
-                          type === "task" ? "border-green-400" :
-                          type === "session" ? "border-purple-400" :
-                          type === "reminder" ? "border-yellow-400" :
-                          type === "deadline" ? "border-red-400" : "border-gray-400";
-      }
-    } else {
-      // Default border if no priority is specified
-      priorityStyles = type === "event" ? "border-blue-400" :
-                      type === "task" ? "border-green-400" :
-                      type === "session" ? "border-purple-400" :
-                      type === "reminder" ? "border-yellow-400" :
-                      type === "deadline" ? "border-red-400" : "border-gray-400";
-    }
-    
-    return `${typeStyles} ${priorityStyles}`;
-  };
+ 
+     const rect = event.currentTarget.getBoundingClientRect();
+     const offsetY = event.clientY - rect.top; // Use clientY relative to viewport top
+     console.log("Click details:", { offsetY, clientY: event.clientY, rectTop: rect.top });
+ 
+     // Calculate hour and snap minute to nearest 15-min interval
+     const hour = Math.floor(offsetY / HOUR_HEIGHT);
+     const minuteFraction = (offsetY % HOUR_HEIGHT) / HOUR_HEIGHT;
+     const minute = Math.floor(minuteFraction * 4) * 15; // Snap to 0, 15, 30, 45
+     console.log("Calculated time:", { hour, minute });
+ 
+     if (hour >= 0 && hour < 24) { // Ensure click is within valid hours
+       const clickedDate = new Date(day);
+       clickedDate.setHours(hour, minute, 0, 0);
+       console.log("Calculated date:", clickedDate);
+       console.log("Calling onTimeSlotClick...");       onTimeSlotClick(clickedDate);
+     }
+   };
 
   // Navigation handlers
   const navigatePrevious = () => {
@@ -683,6 +635,62 @@ export function CalendarGrid({
     return eventColumns;
   };
 
+  // Get styling based on item type and priority
+  const getTypeStyles = (type: string, priority?: string) => {
+    // Base styles for each type
+    let typeStyles = "";
+    switch (type) {
+      case "event":
+        typeStyles = "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300";
+        break;
+      case "task":
+        typeStyles = "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300";
+        break;
+      case "session":
+        typeStyles = "bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300";
+        break;
+      case "reminder":
+        typeStyles = "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300";
+        break;
+      case "deadline":
+        typeStyles = "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300";
+        break;
+      default:
+        typeStyles = "bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-300";
+    }
+    
+    // Priority-based border color
+    let priorityStyles = "";
+    if (priority) {
+      switch (priority) {
+        case "High":
+          priorityStyles = "border-red-500";
+          break;
+        case "Medium":
+          priorityStyles = "border-amber-500";
+          break;
+        case "Low":
+          priorityStyles = "border-green-500";
+          break;
+        default:
+          priorityStyles = type === "event" ? "border-blue-400" :
+                          type === "task" ? "border-green-400" :
+                          type === "session" ? "border-purple-400" :
+                          type === "reminder" ? "border-yellow-400" :
+                          type === "deadline" ? "border-red-400" : "border-gray-400";
+      }
+    } else {
+      // Default border if no priority is specified
+      priorityStyles = type === "event" ? "border-blue-400" :
+                      type === "task" ? "border-green-400" :
+                      type === "session" ? "border-purple-400" :
+                      type === "reminder" ? "border-yellow-400" :
+                      type === "deadline" ? "border-red-400" : "border-gray-400";
+    }
+    
+    return `${typeStyles} ${priorityStyles}`;
+  };
+
   // Render the calendar view
   return (
     <div className="space-y-4">
@@ -788,7 +796,6 @@ export function CalendarGrid({
                   {/* All Day Events Section */}
                   <div className="border-b border-gray-200 dark:border-gray-800 p-2">
                     {(() => {
-                      const targetDateStr = format(date, "yyyy-MM-dd");
                       const allDayEvents = getAllItemsForDate(date)
                         .filter(item => item.isAllDay);
                         
@@ -817,7 +824,10 @@ export function CalendarGrid({
                     })()}
                   </div>
                   
-                  <div className="relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
+                  <div className="relative" 
+                    style={{ height: `${24 * HOUR_HEIGHT}px` }} 
+                    onClick={(e) => handleTimeSlotClick(date, e)}
+                  >
                     {/* Time slots */}
                     {TIME_SLOTS.map((hour) => (
                       <div 
@@ -835,14 +845,11 @@ export function CalendarGrid({
                     {(() => {
                       // Force a re-evaluation of the available events in this render context
                       console.log(`Day view rendering with: ${effectiveEvents.length} events, ${effectiveTasks.length} tasks, ${effectiveSessions.length} sessions`);
-                      const targetDateStr = format(date, "yyyy-MM-dd");
-                      
-                      // Get events with direct filtering to ensure data is processed
                       const dayEvents = getAllItemsForDate(date)
                         .filter(item => {
                           const eventDate = new Date(item.start);
                           // Only show non-all-day events in the timed grid
-                          return format(eventDate, "yyyy-MM-dd") === targetDateStr && !item.isAllDay;
+                          return format(eventDate, "yyyy-MM-dd") === format(date, "yyyy-MM-dd") && !item.isAllDay;
                         });
                       
                       if (dayEvents.length === 0) {
@@ -983,7 +990,7 @@ export function CalendarGrid({
                                     )}
                                     onClick={() => onItemClick(item.item)}
                                   >
-                                    <div className="font-medium truncate">{item.title}</div>
+                                    <div className="font-medium">{item.title}</div>
                                     <div className="text-xs opacity-70">All-day</div>
                                   </div>
                                 ))}
@@ -1202,9 +1209,9 @@ function ScheduleView({
   const endOfDayTimestamp = targetDate.getTime() + 24 * 60 * 60 * 1000 - 1;
   
   // Get YYYY-MM-DD format for string comparisons
-  const targetDateStr = format(targetDate, "yyyy-MM-dd");
+  // const targetDateStr = format(targetDate, "yyyy-MM-dd");
   
-  console.log(`Schedule view searching for date: ${targetDateStr}`);
+  console.log(`Schedule view searching for date: ${format(targetDate, "yyyy-MM-dd")}`);
   
   // All event processing uses the exact same logic as getAllItemsForDate 
   // for consistency across views
@@ -1215,6 +1222,7 @@ function ScheduleView({
       // For all-day events, we need special handling
       if (event.isAllDay) {
         // Extract date parts without time components to avoid timezone issues
+        // Handle both YYYY-MM-DD format and ISO format with time
         const eventStartDateStr = event.startTime.includes('T') ? event.startTime.split('T')[0] : event.startTime;
         
         // If the event has an end date (multi-day all-day event)
@@ -1225,15 +1233,15 @@ function ScheduleView({
           // 1. Event starts on or before this day AND
           // 2. Event ends on or after this day
           const matches = (
-            eventStartDateStr <= targetDateStr && 
-            (eventEndDateStr > targetDateStr || eventEndDateStr === targetDateStr)
+            eventStartDateStr <= format(targetDate, "yyyy-MM-dd") && 
+            (eventEndDateStr > format(targetDate, "yyyy-MM-dd") || eventEndDateStr === format(targetDate, "yyyy-MM-dd"))
           );
           console.log(`Schedule view all-day event check: ${event.name}, Start: ${eventStartDateStr}, End: ${eventEndDateStr}, Matches: ${matches}`);
           return matches;
         }
         
         // Single day all-day event
-        const matches = eventStartDateStr === targetDateStr;
+        const matches = eventStartDateStr === format(targetDate, "yyyy-MM-dd");
         console.log(`Schedule view all-day event check: ${event.name}, Date: ${eventStartDateStr}, Matches: ${matches}`);
         return matches;
       }
@@ -1277,7 +1285,7 @@ function ScheduleView({
       item: event
     }));
     
-  console.log(`Schedule view found ${dayEvents.length} events for ${targetDateStr}`);
+  console.log(`Schedule view found ${dayEvents.length} events for ${format(targetDate, "yyyy-MM-dd")}`);
   
   // Process tasks with the same logic
   const dayTasks = tasks
@@ -1431,7 +1439,7 @@ function ScheduleView({
   
   // Combine all items 
   const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines];
-  console.log(`Schedule view - total items found for ${targetDateStr}: ${allItems.length}`);
+  console.log(`Schedule view - total items found for ${format(targetDate, "yyyy-MM-dd")}: ${allItems.length}`);
   
   if (allItems.length === 0) {
     return (
@@ -1484,8 +1492,8 @@ function ScheduleView({
                         onClick={(e) => {
                           e.stopPropagation();
                           const conflicts = conflictPairs.get(item.id) || [];
-                          const items = conflicts.map((i: any) => i.item).filter(
-                            (i: any) => i.type !== 'deadline' && i.type !== 'reminder'
+                          const items = conflicts.map(item => item.item).filter(
+                            item => item.type !== 'deadline' && item.type !== 'reminder'
                           );
                           onConflictClick(items);
                         }}
@@ -1529,8 +1537,8 @@ function ScheduleView({
                         onClick={(e) => {
                           e.stopPropagation();
                           const conflicts = conflictPairs.get(item.id) || [];
-                          const items = conflicts.map((i: any) => i.item).filter(
-                            (i: any) => i.type !== 'deadline' && i.type !== 'reminder'
+                          const items = conflicts.map(item => item.item).filter(
+                            item => item.type !== 'deadline' && item.type !== 'reminder'
                           );
                           onConflictClick(items);
                         }}
