@@ -4,12 +4,13 @@ importScripts('https://www.gstatic.com/firebasejs/9.6.0/firebase-messaging-compa
 
 // Your Firebase configuration - this must match your Firebase config in the main app
 firebase.initializeApp({
-  apiKey: "AIzaSyCrkxDMQZR9B0urCV_yQLnorWYnmWvW-p4",
-  authDomain: "track-ai-app.firebaseapp.com",
-  projectId: "track-ai-app",
-  storageBucket: "track-ai-app.firebasestorage.app",
-  messagingSenderId: "519011897064",
-  appId: "1:519011897064:web:1533e6585b1072d745435d",
+  apiKey: "AIzaSyAlchEmQ-aXaWoUgMXHZ70--b0v2Jcc5Sk",
+  authDomain: "tidaltasks-app.firebaseapp.com",
+  projectId: "tidaltasks-app",
+  storageBucket: "tidaltasks-app.firebasestorage.app",
+  messagingSenderId: "953882206050",
+  appId: "1:953882206050:web:342fdce829bffb6c73563b",
+  measurementId: "G-V4XPE4D9MJ"
 });
 
 // Initialize Firebase Cloud Messaging
