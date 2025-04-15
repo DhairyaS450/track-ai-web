@@ -131,10 +131,7 @@ export function CalendarGrid({
   const effectiveSessions = sessions.length > 0 ? sessions : cachedData.sessions;
   const effectiveReminders = reminders.length > 0 ? reminders : cachedData.reminders;
   const effectiveDeadlines = deadlines.length > 0 ? deadlines : cachedData.deadlines;
-  
-  // Debug data at the component level
-  console.log(`CalendarGrid rendered with: ${effectiveEvents.length} events, ${effectiveTasks.length} tasks, ${effectiveSessions.length} sessions, view: ${viewType}`);
-  
+
   // Store previous view type to detect changes
   const prevViewTypeRef = useRef(viewType);
   
@@ -145,7 +142,6 @@ export function CalendarGrid({
   useEffect(() => {
     // If view type changed, log it
     if (prevViewTypeRef.current !== viewType) {
-      console.log(`View changed from ${prevViewTypeRef.current} to ${viewType}`);
       prevViewTypeRef.current = viewType;
     }
     
@@ -469,7 +465,6 @@ export function CalendarGrid({
 
   // Handler for clicking on an empty time slot in Day or Week view
   const handleTimeSlotClick = (day: Date, event: React.MouseEvent<HTMLDivElement>) => {
-    console.log("handleTimeSlotClick triggered for day:", day);
     if (!onTimeSlotClick) {
       console.log("handleTimeSlotClick skipped: No handler");
       return;
@@ -477,21 +472,28 @@ export function CalendarGrid({
  
      const rect = event.currentTarget.getBoundingClientRect();
      const offsetY = event.clientY - rect.top; // Use clientY relative to viewport top
-     console.log("Click details:", { offsetY, clientY: event.clientY, rectTop: rect.top });
- 
      // Calculate hour and snap minute to nearest 15-min interval
      const hour = Math.floor(offsetY / HOUR_HEIGHT);
      const minuteFraction = (offsetY % HOUR_HEIGHT) / HOUR_HEIGHT;
      const minute = Math.floor(minuteFraction * 4) * 15; // Snap to 0, 15, 30, 45
-     console.log("Calculated time:", { hour, minute });
  
      if (hour >= 0 && hour < 24) { // Ensure click is within valid hours
        const clickedDate = new Date(day);
        clickedDate.setHours(hour, minute, 0, 0);
-       console.log("Calculated date:", clickedDate);
-       console.log("Calling onTimeSlotClick...");       onTimeSlotClick(clickedDate);
+       onTimeSlotClick(clickedDate);
      }
    };
+
+  // Handler for clicking on a day header in Week view
+  const handleWeekDayHeaderClick = (day: Date) => {
+    if (!onTimeSlotClick) {
+      return;
+    }
+
+    const clickedDate = new Date(day);
+    clickedDate.setHours(9, 0, 0, 0); // Default to 9:00 AM for week view click
+    onTimeSlotClick(clickedDate);
+  };
 
   // Navigation handlers
   const navigatePrevious = () => {
@@ -947,10 +949,7 @@ export function CalendarGrid({
                       isSameMonth(day, date) ? "bg-muted" : "bg-muted/50",
                       isMobile ? "py-2 px-3" : "p-2"
                     )}
-                    onClick={() => {
-                      onDateSelect(day);
-                      setViewType("day");
-                    }}
+                    onClick={() => handleWeekDayHeaderClick(day)} // Use new handler for week view header clicks
                   >
                     <div className={cn(
                       "flex items-center justify-between",
@@ -964,7 +963,17 @@ export function CalendarGrid({
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-3">
+                  <CardContent 
+                    className={cn(
+                      "p-3 cursor-pointer min-h-[100px]", // Add cursor and min-height
+                    )}
+                    onClick={(e) => {
+                      // Only trigger if the click is directly on the CardContent, not on an item inside it
+                      if (e.target === e.currentTarget) {
+                        handleWeekDayHeaderClick(day);
+                      }
+                    }}
+                  >
                     <div className="space-y-1">
                       {(() => {
                         const items = getAllItemsForDate(day);
@@ -988,7 +997,10 @@ export function CalendarGrid({
                                       getTypeStyles(item.type, item.priority),
                                       "bg-blue-200 dark:bg-blue-800 shadow-sm font-medium" // Darker blue for all-day events
                                     )}
-                                    onClick={() => onItemClick(item.item)}
+                                    onClick={(e) => { // Add stopPropagation
+                                      e.stopPropagation();
+                                      onItemClick(item.item);
+                                    }}
                                   >
                                     <div className="font-medium">{item.title}</div>
                                     <div className="text-xs opacity-70">All-day</div>
@@ -1013,11 +1025,14 @@ export function CalendarGrid({
                                       getTypeStyles(item.type, item.priority),
                                       conflictMap.get(item.id) && "border-red-500 border"
                                     )}
-                                    onClick={
-                                      conflictMap.get(item.id) && conflictPairs.has(item.id)
-                                        ? () => onConflictClick && onConflictClick(conflictPairs.get(item.id) || [])
-                                        : () => onItemClick(item.item)
-                                    }
+                                    onClick={(e) => { // Add stopPropagation
+                                      e.stopPropagation();
+                                      if (conflictMap.get(item.id) && conflictPairs.has(item.id)) {
+                                        onConflictClick && onConflictClick(conflictPairs.get(item.id) || []);
+                                      } else {
+                                        onItemClick(item.item);
+                                      }
+                                    }}
                                   >
                                     <div className="font-medium truncate">{item.title}</div>
                                     <div className="text-xs opacity-70">
