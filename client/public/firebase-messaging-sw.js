@@ -3,7 +3,7 @@ importScripts('https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/9.6.0/firebase-messaging-compat.js');
 
 // Your Firebase configuration - this must match your Firebase config in the main app
-firebase.initializeApp({
+firebase.initializeApp({ 
   apiKey: "AIzaSyAlchEmQ-aXaWoUgMXHZ70--b0v2Jcc5Sk",
   authDomain: "tidaltasks-app.firebaseapp.com",
   projectId: "tidaltasks-app",
