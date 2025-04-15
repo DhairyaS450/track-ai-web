@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { ScrollArea } from "./ui/scroll-area";
-import { CalendarIcon, ChevronDown, ChevronUp, Plus, Trash2, X, Timer, LayoutGrid } from "lucide-react";
 import { 
   SchedulableItem, 
   ItemType, 
@@ -24,7 +23,15 @@ import {
   UnifiedReminder 
 } from "@/types/unified";
 import { useToast } from "@/hooks/useToast";
-import { format } from "date-fns";
+import { 
+  addMinutes, 
+  format, 
+  parseISO, 
+  setMinutes, 
+  getMinutes, 
+  isValid, 
+  isBefore 
+} from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar } from "./ui/calendar";
 import { Checkbox } from "./ui/checkbox";
@@ -32,13 +39,26 @@ import { cn } from "@/lib/utils";
 import { Slider } from "./ui/slider";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { BookOpen } from "lucide-react";
+import { 
+  CalendarIcon, 
+  ChevronDown, 
+  ChevronUp, 
+  Plus, 
+  Trash2, 
+  X, 
+  Timer, 
+  LayoutGrid, 
+  Clock 
+} from "lucide-react";
 
 interface UnifiedItemDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialItem?: SchedulableItem | null;
   initialType?: ItemType;
+  initialDate?: Date | null;
   onSave: (item: SchedulableItem) => void;
+  onDelete?: (itemId: string) => void;
   mode?: "create" | "edit";
 }
 
@@ -47,11 +67,14 @@ export function UnifiedItemDialog({
   onOpenChange,
   initialItem,
   initialType = "task",
+  initialDate,
   onSave,
+  onDelete,
   mode = "create"
 }: UnifiedItemDialogProps) { 
   const [itemType, setItemType] = useState<ItemType>(initialType);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [activeTab, setActiveTab] = useState(itemType); // Add activeTab state
   const { toast } = useToast();
 
   // Common fields
@@ -60,6 +83,10 @@ export function UnifiedItemDialog({
   const [priority, setPriority] = useState<"High" | "Medium" | "Low">("Medium");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [startTimeError, setStartTimeError] = useState("");
+  const [endTimeError, setEndTimeError] = useState("");
   
   // Task-specific fields
   const [completion, setCompletion] = useState(0);
@@ -92,18 +119,46 @@ export function UnifiedItemDialog({
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | undefined>(undefined);
 
+  // Determine the effective mode if not explicitly passed (fallback)
+  const effectiveMode = mode || (initialItem ? 'edit' : 'create');
+
   // Reset form when dialog opens/closes or item type changes
   useEffect(() => {
     if (open) {
-      if (initialItem) {
-        // Populate form with initial item data
+      if (effectiveMode === 'edit' && initialItem) {
+        // Edit mode: Populate form with item data
         setItemType(initialItem.itemType);
         setTitle(initialItem.title);
         setDescription(initialItem.description);
-        setPriority(initialItem.priority as "High" | "Medium" | "Low");
-        setStartTime(initialItem.startTime);
-        setEndTime(initialItem.endTime || "");
-        
+        setPriority((initialItem.priority as "High" | "Medium" | "Low") || 'Medium');
+
+        // Parse and set Start Date/Time
+        const parsedStartDate = initialItem.startTime ? parseISO(initialItem.startTime) : null;
+        if (parsedStartDate && isValid(parsedStartDate)) {
+          setStartDate(parsedStartDate);
+          setStartTime(format(parsedStartDate, "yyyy-MM-dd'T'HH:mm"));
+        } else {
+          // Handle invalid or missing start date (optional: set a default?)
+          setStartDate(undefined);
+          setStartTime('');
+        }
+
+        // Parse and set End Date/Time
+        const parsedEndDate = initialItem.endTime ? parseISO(initialItem.endTime) : null;
+        if (parsedEndDate && isValid(parsedEndDate)) {
+          setEndDate(parsedEndDate);
+          setEndTime(format(parsedEndDate, "yyyy-MM-dd'T'HH:mm"));
+        } else if (parsedStartDate && isValid(parsedStartDate)) {
+          // Default end time if missing/invalid: 1 hour after start time
+          const defaultEndDate = addMinutes(parsedStartDate, 60);
+          setEndDate(defaultEndDate);
+          setEndTime(format(defaultEndDate, "yyyy-MM-dd'T'HH:mm"));
+        } else {
+          // Handle invalid or missing end date when start is also invalid
+          setEndDate(undefined);
+          setEndTime('');
+        }
+
         // Populate type-specific fields
         switch (initialItem.itemType) {
           case 'task':
@@ -144,13 +199,42 @@ export function UnifiedItemDialog({
             }
             break; }
         }
-      } else {
-        // Set default values
+      } else if (effectiveMode === 'create') {
+        // Create mode: Reset form or use initialDate
         resetForm();
         setItemType(initialType);
+        
+        if (initialDate && isValid(initialDate)) {
+          // Use the clicked date/time from the grid
+          const start = initialDate; // Already snapped to 15 mins by CalendarGrid
+          const end = addMinutes(start, 60); // Default duration 60 mins
+          setStartDate(start);
+          setStartTime(format(start, "yyyy-MM-dd'T'HH:mm"));
+          setEndDate(end);
+          setEndTime(format(end, "yyyy-MM-dd'T'HH:mm"));
+        } else {
+          // Set default values
+          // Set start date to nearest 15-minute interval
+          const now = new Date();
+          const minutes = getMinutes(now);
+          const roundedMinutes = Math.ceil(minutes / 15) * 15;
+          const roundedDate = setMinutes(now, roundedMinutes % 60);
+          
+          if (roundedMinutes >= 60) {
+            roundedDate.setHours(now.getHours() + Math.floor(roundedMinutes / 60));
+          }
+          
+          setStartDate(roundedDate);
+          setStartTime(format(roundedDate, "yyyy-MM-dd'T'HH:mm"));
+          
+          // Set end date 1 hour after start date by default
+          const defaultEndDate = addMinutes(roundedDate, 60);
+          setEndDate(defaultEndDate);
+          setEndTime(format(defaultEndDate, "yyyy-MM-dd'T'HH:mm"));
+        }
       }
     }
-  }, [open, initialItem, initialType]);
+  }, [open, initialItem, initialType, initialDate, effectiveMode]);
 
   const resetForm = () => {
     setTitle("");
@@ -158,6 +242,10 @@ export function UnifiedItemDialog({
     setPriority("Medium");
     setStartTime("");
     setEndTime("");
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setStartTimeError("");
+    setEndTimeError("");
     setCompletion(0);
     setSubject("");
     setResources("");
@@ -186,6 +274,7 @@ export function UnifiedItemDialog({
 
   const handleTypeChange = (type: string) => {
     setItemType(type as ItemType);
+    setActiveTab(type as ItemType); // Update activeTab
     setShowAdvanced(false);
   };
 
@@ -234,17 +323,14 @@ export function UnifiedItemDialog({
       // Helper function to format event times
       function formatEventTimes(start: string, end: string | undefined, allDay: boolean): { startTime: string; endTime: string } {
         if (allDay) {
-          // For all-day events, ensure startTime is just the date part.
-          // The backend expects YYYY-MM-DD for all-day start time.
-          // We set endTime to the same date for consistency in Firestore, though Google uses an exclusive end date.
-          const datePart = start.split('T')[0];
+          // For all-day events, use YYYY-MM-DD format.
+          const datePart = format(new Date(start), 'yyyy-MM-dd');
           return { startTime: datePart, endTime: datePart };
         } else {
           // For timed events, ensure both start and end are valid datetime-local strings.
-          // Add seconds if missing, though HTML input type=datetime-local might not include them.
           const formatDateTime = (dateTimeStr: string | undefined) => {
-             if (!dateTimeStr) return new Date().toISOString().slice(0, 16); // Fallback
-             return dateTimeStr.length === 16 ? dateTimeStr : new Date(dateTimeStr).toISOString().slice(0, 16);
+            const date = dateTimeStr ? new Date(dateTimeStr) : new Date(); // Use current date as fallback
+            return format(date, "yyyy-MM-dd'T'HH:mm");
           };
           
           let formattedStart = formatDateTime(start);
@@ -254,7 +340,7 @@ export function UnifiedItemDialog({
           if (new Date(formattedEnd) <= new Date(formattedStart)) {
               // Set end time to one hour after start time as a default
               const startDateObj = new Date(formattedStart);
-              formattedEnd = new Date(startDateObj.getTime() + 60 * 60 * 1000).toISOString().slice(0, 16);
+              formattedEnd = format(addMinutes(startDateObj, 60), "yyyy-MM-dd'T'HH:mm");
           }
           
           return { startTime: formattedStart, endTime: formattedEnd };
@@ -271,7 +357,7 @@ export function UnifiedItemDialog({
         if (isAllDay) {
           // For all-day events, ensure we're using just the date
           // If there's no T in the startTime, it's already a date string
-          finalStartTime = startTime.includes('T') ? startTime.split('T')[0] : startTime;
+          finalStartTime = format(new Date(startTime), 'yyyy-MM-dd');
           // For all-day events, endTime should match the start date or be empty
           finalEndTime = finalStartTime;
         } else {
@@ -351,7 +437,7 @@ export function UnifiedItemDialog({
             recurring: isRecurring ? {
               frequency: recurrenceFrequency,
               interval: recurrenceInterval,
-              endDate: recurrenceEndDate?.toISOString(),
+              endDate: recurrenceEndDate ? format(recurrenceEndDate, "yyyy-MM-dd'T'HH:mm") : undefined,
             } : undefined,
           } as UnifiedReminder;
           break;
@@ -400,21 +486,215 @@ export function UnifiedItemDialog({
     return sections.reduce((total, section) => total + section.duration, 0);
   };
 
+  // Update start time and validate
+  const handleStartTimeChange = (date: Date | undefined) => {
+    if (!date) return;
+    
+    setStartDate(date);
+    setStartTime(format(date, "yyyy-MM-dd'T'HH:mm"));
+    setStartTimeError("");
+    
+    // Validate end time is after start time
+    if (endDate && isBefore(endDate, date)) {
+      const newEndDate = addMinutes(date, 60);
+      setEndDate(newEndDate);
+      setEndTime(format(newEndDate, "yyyy-MM-dd'T'HH:mm"));
+      setEndTimeError("End time must be after start time");
+    }
+  };
+  
+  // Update end time and validate
+  const handleEndTimeChange = (date: Date | undefined) => {
+    if (!date) return;
+    
+    if (startDate && isBefore(date, startDate)) {
+      setEndTimeError("End time must be after start time");
+      return;
+    }
+    
+    setEndDate(date);
+    setEndTime(format(date, "yyyy-MM-dd'T'HH:mm"));
+    setEndTimeError("");
+  };
+  
+  // Custom time picker component
+  const TimePicker = ({ 
+    selectedTime: selectedTimeProp, 
+    onChange 
+  }: { 
+    selectedTime: Date | undefined; 
+    onChange: (date: Date) => void;
+  }) => {
+    const timeSlots = [];
+    const baseDate = selectedTimeProp || new Date();
+    const startOfDay = new Date(baseDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    // Generate time slots in 15-minute intervals
+    for (let i = 0; i < 24 * 4; i++) {
+      const slotTime = addMinutes(startOfDay, i * 15);
+      timeSlots.push({
+        value: slotTime,
+        label: format(slotTime, "h:mm a")
+      });
+    }
+    
+    // Reference to the scrollable viewport
+    const viewportRef = useRef<HTMLDivElement>(null);
+    
+    // Scroll to the selected time when the component mounts
+    useEffect(() => {
+      if (!viewportRef.current || !selectedTimeProp) return;
+      
+      // Format the selected time to match the data-time attribute
+      const selectedTimeStr = format(selectedTimeProp, "HH:mm");
+
+      // Find the element matching the selected time
+      const selectedElement = viewportRef.current.querySelector(`[data-time="${selectedTimeStr}"]`);
+      
+      // Allow time for the component to render before scrolling
+      if (selectedElement) {
+        // Use standard scrollIntoView for robustness
+        setTimeout(() => {
+          selectedElement.scrollIntoView({
+            block: 'center', // Centers the element vertically
+            behavior: 'auto' // Use 'smooth' for smooth scrolling, 'auto' for instant
+          });
+        }, 50); // Keep the short delay
+      }
+    }, [selectedTimeProp]); // Depend only on selectedTimeProp
+    
+    return (
+      <ScrollArea className="h-[200px] w-full">
+        {/* Apply ref directly to the content div */}
+        <div ref={viewportRef} className="h-full w-full"> {/* Ensure div fills height */}
+          {timeSlots.map((slot) => {
+            // Check if this slot is the selected one
+            const isSelected = selectedTimeProp && 
+                               selectedTimeProp.getHours() === slot.value.getHours() && 
+                               Math.floor(selectedTimeProp.getMinutes() / 15) * 15 === slot.value.getMinutes();
+            // Format time for the data attribute (e.g., "14:30")
+            const timeStr = format(slot.value, "HH:mm");
+
+            return (
+              <div 
+                key={slot.label}
+                // Add data-time attribute for easy selection
+                data-time={timeStr}
+                className={`px-3 py-1.5 cursor-pointer hover:bg-gray-100 ${
+                  isSelected
+                    ? "bg-primary text-primary-foreground" 
+                    : ""
+                }`}
+                onClick={() => {
+                  const newDate = new Date(selectedTimeProp || baseDate);
+                  newDate.setHours(slot.value.getHours(), slot.value.getMinutes());
+                  onChange(newDate);
+                }}
+              >
+                {slot.label}
+              </div>
+            );
+          })}
+        </div>
+        {/* ScrollBar is now handled internally by the ScrollArea component */}
+      </ScrollArea>
+    );
+  };
+  
+  // DateTimePicker component that combines Calendar and TimePicker
+  const DateTimePicker = ({ 
+    date: dateProp, 
+    onDateChange, 
+    errorMessage,
+    label,
+    description
+  }: { 
+    date: Date | undefined; 
+    onDateChange: (date: Date | undefined) => void;
+    errorMessage?: string;
+    label: string;
+    description?: string;
+  }) => {
+    return (
+      <div className="grid gap-2">
+        <Label>{label}</Label>
+        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        <div className="grid gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={"outline"}
+                className={`w-full ${errorMessage ? "border-red-500" : ""}`}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateProp ? format(dateProp, "PPP") : <span>Select date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateProp}
+                onSelect={(date: Date | null) => {
+                  if (date) {
+                    const newDate = date;
+                    if (date && date instanceof Date) {
+                      // Preserve time when changing date
+                      if (date && date instanceof Date) {
+                        newDate.setHours(
+                          dateProp?.getHours() || 0,
+                          dateProp?.getMinutes() || 0
+                        );
+                      }
+                    }
+                    onDateChange(newDate);
+                  }
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button 
+                variant={"outline"}
+                className={`w-full ${errorMessage ? "border-red-500" : ""}`}
+              >
+                <Clock className="mr-2 h-4 w-4" />
+                {dateProp ? format(dateProp, "h:mm a") : <span>Select time</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="start">
+              <TimePicker
+                selectedTime={dateProp}
+                onChange={(selectedTime) => onDateChange(selectedTime)}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+        {errorMessage && <p className="text-sm text-red-500">{errorMessage}</p>}
+      </div>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Create" : "Edit"} {itemType.charAt(0).toUpperCase() + itemType.slice(1)}
+            {effectiveMode === 'edit' ? 
+              `Edit ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}` :
+              `Create New ${itemType.charAt(0).toUpperCase() + itemType.slice(1)}`}
           </DialogTitle>
         </DialogHeader>
 
         <Tabs value={itemType} onValueChange={handleTypeChange} className="mt-4">
           <TabsList className="grid grid-cols-4 mb-4">
-            <TabsTrigger value="task">Task</TabsTrigger>
-            <TabsTrigger value="event">Event</TabsTrigger>
-            <TabsTrigger value="session">Session</TabsTrigger>
-            <TabsTrigger value="reminder">Reminder</TabsTrigger>
+            <TabsTrigger value="task" disabled={effectiveMode === 'edit'}>Task</TabsTrigger>
+            <TabsTrigger value="event" disabled={effectiveMode === 'edit'}>Event</TabsTrigger>
+            <TabsTrigger value="session" disabled={effectiveMode === 'edit'}>Session</TabsTrigger>
+            <TabsTrigger value="reminder" disabled={effectiveMode === 'edit'}>Reminder</TabsTrigger>
           </TabsList>
 
           <ScrollArea className="h-[60vh] pr-4 overflow-y-auto">
@@ -475,16 +755,12 @@ export function UnifiedItemDialog({
                 />
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="startTime">Deadline</Label>
-                <Input
-                  id="startTime"
-                  type="datetime-local"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  step={600}
-                />
-              </div>
+              <DateTimePicker
+                label="Deadline"
+                date={startDate}
+                onDateChange={handleStartTimeChange}
+                errorMessage={startTimeError}
+              />
               
               <div className="grid gap-2">
                 <div className="flex items-center justify-between">
@@ -526,7 +802,17 @@ export function UnifiedItemDialog({
                             <Input
                               type="datetime-local"
                               value={slot.startDate}
-                              onChange={(e) => updateTimeSlot(index, 'startDate', e.target.value)}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                updateTimeSlot(index, 'startDate', value);
+                                
+                                // Validate end time is after start time
+                                if (slot.endDate && new Date(value) > new Date(slot.endDate)) {
+                                  const newEndDate = new Date(value);
+                                  newEndDate.setHours(newEndDate.getHours() + 1);
+                                  updateTimeSlot(index, 'endDate', format(newEndDate, "yyyy-MM-dd'T'HH:mm"));
+                                }
+                              }}
                               step={600}
                             />
                           </div>
@@ -535,7 +821,21 @@ export function UnifiedItemDialog({
                             <Input
                               type="datetime-local"
                               value={slot.endDate}
-                              onChange={(e) => updateTimeSlot(index, 'endDate', e.target.value)}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                
+                                // Validate end time is after start time
+                                if (slot.startDate && new Date(value) <= new Date(slot.startDate)) {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Invalid time",
+                                    description: "End time must be after start time",
+                                  });
+                                  return;
+                                }
+                                
+                                updateTimeSlot(index, 'endDate', value);
+                              }}
                               step={600}
                             />
                           </div>
@@ -595,7 +895,7 @@ export function UnifiedItemDialog({
                       // When turning on All Day, strip any time component
                       if (checked && startTime) {
                         // Extract just the date part and update the startTime
-                        const datePart = startTime.split('T')[0];
+                        const datePart = format(new Date(startTime), 'yyyy-MM-dd');
                         setStartTime(datePart);
                         // Since all-day events don't need end time, we can clear it
                         setEndTime('');
@@ -621,38 +921,51 @@ export function UnifiedItemDialog({
                 {isAllDay ? (
                   <div className="grid gap-2">
                     <Label htmlFor="event-date">Date</Label>
-                    <Input
-                      id="event-date"
-                      type="date"
-                      value={startTime.split('T')[0] || startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className="w-full"
+                          id="event-date"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {startDate ? format(startDate, "PPP") : <span>Select date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={startDate}
+                          onSelect={(date: Date | null) => {
+                            if (date) {
+                              setStartDate(date);
+                              setStartTime(format(date, "yyyy-MM-dd"));
+                              setEndDate(date);
+                              setEndTime(format(date, "yyyy-MM-dd"));
+                            }
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 ) : (
                   <>
                     {/* Start Time input for regular events */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="event-startTime">Start Time</Label>
-                      <Input
-                        id="event-startTime"
-                        type="datetime-local"
-                        value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
-                        step={600}
-                      />
-                    </div>
+                    <DateTimePicker
+                      label="Start Time"
+                      date={startDate}
+                      onDateChange={handleStartTimeChange}
+                      errorMessage={startTimeError}
+                    />
+                    
                     {/* End Time input for regular events */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="event-endTime">End Time</Label>
-                      <Input
-                        id="event-endTime"
-                        type="datetime-local"
-                        value={endTime}
-                        onChange={(e) => setEndTime(e.target.value)}
-                        min={startTime}
-                        step={600}
-                      />
-                    </div>
+                    <DateTimePicker
+                      label="End Time"
+                      date={endDate}
+                      onDateChange={handleEndTimeChange}
+                      errorMessage={endTimeError}
+                    />
                   </>
                 )}
               </div>
@@ -773,16 +1086,12 @@ export function UnifiedItemDialog({
                 </div>
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="startTime">Start Time</Label>
-                <Input
-                  id="startTime"
-                  type="datetime-local"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  step={600}
-                />
-              </div>
+              <DateTimePicker
+                label="Start Time"
+                date={startDate}
+                onDateChange={handleStartTimeChange}
+                errorMessage={startTimeError}
+              />
 
               <div className="grid gap-3 items-start md:grid-cols-2">
                 <div className="grid gap-2">
@@ -998,12 +1307,11 @@ export function UnifiedItemDialog({
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div className="grid gap-2">
                     <Label htmlFor="reminderTime">Reminder Time</Label>
-                    <Input
-                      id="reminderTime"
-                      type="datetime-local"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      step={600}
+                    <DateTimePicker
+                      label="Reminder Time"
+                      date={startDate}
+                      onDateChange={handleStartTimeChange}
+                      errorMessage={startTimeError}
                     />
                   </div>
                </div>
@@ -1075,7 +1383,7 @@ export function UnifiedItemDialog({
                          <Calendar
                            mode="single"
                            selected={recurrenceEndDate}
-                           onSelect={setRecurrenceEndDate}
+                           onSelect={(date: Date | null) => setRecurrenceEndDate(date || undefined)}
                            disabled={(date: Date) =>
                              date < new Date(new Date().setHours(0, 0, 0, 0))
                            }
@@ -1091,11 +1399,24 @@ export function UnifiedItemDialog({
         </Tabs>
 
         <DialogFooter className="mt-6">
+          {mode === "edit" && initialItem?.id && onDelete && (
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                onDelete(initialItem.id as string);
+                onOpenChange(false);
+              }}
+              className="mr-auto"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleSubmit}>
-            {mode === "create" ? "Create" : "Save Changes"}
+            {effectiveMode === "create" ? "Create" : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>

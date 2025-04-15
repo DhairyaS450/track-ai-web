@@ -1,6 +1,6 @@
 {
   "name": "Track AI Web",
-  "version": "1.0.0",
+  "version": "0.1.0-beta",
   "main": "index.js",
   "scripts": {
     "postinstall": "concurrently -n \"client,lib\" \"npm run client-install\" \"npm run lib-install\"",
@@ -9,7 +9,8 @@
     "client-install": "cd client && npm install",
     "lib": "cd lib && npm run dev",
     "lib-install": "cd lib && npm install",
-    "start": "concurrently -n \"client,lib\" \"npm run client\" \"npm run lib\""
+    "start": "concurrently -n \"client,lib\" \"npm run client\" \"npm run lib\"",
+    "generate-invite-codes": "node lib/scripts/generateInviteCodes.js"
   },
   "author": "",
   "license": "ISC",

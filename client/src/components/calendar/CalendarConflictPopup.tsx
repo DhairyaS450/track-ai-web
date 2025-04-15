@@ -5,11 +5,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "./ui/dialog";
-import { Button } from "./ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Label } from "./ui/label";
-import { Input } from "./ui/input";
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { SchedulableItem, ItemType, UnifiedStudySession, UnifiedTask, UnifiedReminder } from "@/types/unified";
 import { AlertCircle, CheckCircle } from "lucide-react";
 
@@ -23,7 +23,7 @@ import { saveConflictResolution, saveAiSuggestion, getSavedAiSuggestion } from "
 import { auth } from '@/config/firebase'; // <-- Make sure this path is correct
 
 import { useToast } from "@/hooks/useToast";
-import { Spinner } from "./ui/spinner";
+import { Spinner } from "@/components/ui/spinner";
 
 interface CalendarConflictPopupProps {
   open: boolean;

@@ -19,6 +19,7 @@ export interface Task {
   taskListId?: string;
   calendarId?: string;
   googleEventId?: string;
+  isAllDayTask?: boolean;
 }
 
 export interface StudySession {

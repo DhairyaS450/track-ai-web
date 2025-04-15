@@ -9,9 +9,11 @@ import {
   User,
   GoogleAuthProvider,
   signInWithPopup,
+  deleteUser,
+  getAuth,
 } from "firebase/auth";
 import { db, auth } from "@/config/firebase";
-import { doc, setDoc, collection, query, where, getDocs, updateDoc, getDoc } from "@firebase/firestore";
+import { doc, setDoc, collection, query, where, getDocs, updateDoc, getDoc, deleteDoc } from "@firebase/firestore";
 
 // Login
 // POST /auth/login
@@ -98,11 +100,36 @@ export const logout = async () => {
   }
 };
 
+// Delete Current User Account
+export const deleteCurrentUserAccount = async () => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("No user is currently signed in.");
+  }
+
+  try {
+    await deleteUser(user);
+    console.log("Successfully deleted user account from Firebase Auth.");
+    
+    // Delete user data from Firestore
+    const userDoc = doc(db, "users", user.uid);
+    await deleteDoc(userDoc);
+    console.log("Successfully deleted user data from Firestore.");
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error deleting user account:", error);
+    // Handle specific errors like 'auth/requires-recent-login'
+    if (error.code === 'auth/requires-recent-login') {
+      throw new Error("This operation is sensitive and requires recent authentication. Please log out and log back in before retrying.");
+    } 
+    throw new Error(`Failed to delete user account: ${error.message}`);
+  }
+};
 
 // Verify Email
-// POST /auth/verify-email
-// Request: { email: string }
-// Response: { success: boolean }
 export const verifyEmail = async (user: User | null) =>  { 
   try {
     if (!user) {

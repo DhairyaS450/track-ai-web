@@ -11,21 +11,17 @@ import {
   isTomorrow,
 } from "date-fns";
 import {
-  Plus,
-  Edit,
-  Trash2,
-  ChevronRight,
   AlertTriangle,
   Clock,
   Bell,
   ChevronDown,
-  CalendarDays,
-  Play,
-  MoreVertical,
-  Sparkles,
   Check,
-  CheckCircle,
   CircleX,
+  CheckCircle,
+  Plus,
+  Trash2,
+  ChevronRight,
+  Edit,
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 import { ViewAllTasksDialog } from "@/components/ViewAllTasksDialog";
@@ -37,14 +33,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { EventsTimeline } from "@/components/EventsTimeline";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { DeleteStudySessionDialog } from "@/components/DeleteStudySessionDialog";
 import { useData } from "@/contexts/DataProvider";
 import { UnifiedItemDialog } from "@/components/UnifiedItemDialog";
@@ -54,9 +42,10 @@ import {
   UnifiedTask,
   UnifiedEvent,
   UnifiedStudySession,
-  convertToUnified,
-  convertFromUnified
+  convertFromUnified,
+  convertToUnified
 } from "@/types/unified";
+import { Calendar } from "../components/calendar/Calendar";
 
 export function Dashboard() {
   console.log('Dashboard');
@@ -74,9 +63,9 @@ export function Dashboard() {
     addSession,
     updateSession,
     deleteSession,
-    startSession,
     markTaskComplete: markAsComplete,
-    dismissReminder,
+    deleteEvent,
+    deleteReminder,
   } = useData();
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -96,6 +85,7 @@ export function Dashboard() {
   );
   const setDeadlines = useState<Task[]>([])[1];
   const setReminders = useState<Reminder[]>([])[1];
+  const [sliderValues, setSliderValues] = useState<Record<string, number>>({});
   const { toast } = useToast();
   
   // State for UnifiedItemDialog
@@ -234,18 +224,6 @@ export function Dashboard() {
     setDeleteTaskOpen(false);
   };
 
-  // Calculate completion metrics for all tasks
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter((task) => task.status === "completed").length;
-  
-  // Calculate the average completion percentage across all tasks
-  const totalCompletion = tasks.reduce((acc, task) => acc + (task.completion || 0), 0);
-  const averageCompletion = totalTasks > 0 ? Math.round(totalCompletion / totalTasks) : 0;
-
-  // Calculate task groups by completion range
-  const notStartedTasks = tasks.filter((task) => (task.completion || 0) === 0).length;
-  const inProgressTasks = tasks.filter((task) => (task.completion || 0) > 0 && (task.completion || 0) < 100).length;
-
   const motivationalQuotes = [
     "Success is not final, failure is not fatal: it is the courage to continue that counts.",
     "The future depends on what you do today.",
@@ -268,7 +246,7 @@ export function Dashboard() {
     "Don't stop when you're tired. Stop when you're done.",
     "Work hard in silence, let success make the noise.",
     "Do something today that your future self will thank you for.",
-    "You are stronger than you think.",
+    "You are never too old to set another goal or to dream a new dream.",
     "Stay focused and never give up.",
     "Difficult roads often lead to beautiful destinations.",
     "Success doesn't just find you. You have to go out and get it.",
@@ -321,8 +299,7 @@ export function Dashboard() {
     (task) =>
       task.deadline &&
       isValidDate(task.deadline) &&
-      isPastSafe(task.deadline) &&
-      !isTodaySafe(task.deadline) &&
+      Date.now() > new Date(task.deadline).getTime() &&
       task.status !== "completed"
   );
 
@@ -330,6 +307,7 @@ export function Dashboard() {
     (task) =>
       task.deadline &&
       isValidDate(task.deadline) &&
+      new Date(task.deadline).getTime() >= Date.now() &&
       isTodaySafe(task.deadline) &&
       task.status !== "completed"
   );
@@ -402,41 +380,6 @@ export function Dashboard() {
     }
   };
 
-  const formatTime = (dateStr: string | null | undefined, formatString: string = "h:mm a") => {
-    try {
-      if (!dateStr) {
-        return "No time";
-      }
-      
-      const date = new Date(dateStr);
-      if (!isValid(date)) {
-        return "Invalid time";
-      }
-      
-      return format(date, formatString);
-    } catch (error) {
-      console.error("Error formatting time:", error);
-      return "Invalid time";
-    }
-  };
-
-  const handleStartSession = async (sessionId: string) => {
-    try {
-      await startSession(sessionId);
-      toast({
-        title: "Success",
-        description: "Study session started",
-      });
-    } catch (error) {
-      console.error("Error starting session:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to start session",
-      });
-    }
-  };
-
   const handlePostponeSession = async (data: {
     minutes?: number;
     hours?: number;
@@ -484,24 +427,6 @@ export function Dashboard() {
     setDeleteSessionOpen(false);
   };
 
-  // Filter deadlines and reminders
-  const filteredDeadlines = allTasks.filter(
-    (task) =>
-      task.deadline &&
-      isValidDate(task.deadline) &&
-      !isPastSafe(task.deadline) &&
-      task.status !== "completed" &&
-      (isTodaySafe(task.deadline) || isTomorrowSafe(task.deadline))
-  );
-
-  const filteredReminders = allReminders.filter(
-    (reminder) =>
-      reminder.reminderTime &&
-      isValidDate(reminder.reminderTime) &&
-      !isPastSafe(reminder.reminderTime) &&
-      (isTodaySafe(reminder.reminderTime) || isTomorrowSafe(reminder.reminderTime))
-  );
-
   const handleMarkDeadlineComplete = async (deadlineId: string) => {
     try {
       await markAsComplete(deadlineId);
@@ -518,77 +443,6 @@ export function Dashboard() {
       });
     }
   };
-
-  const handleDismissReminder = async (reminderId: string) => {
-    try {
-      await dismissReminder(reminderId);
-      toast({
-        title: "Success",
-        description: "Reminder dismissed",
-      });
-    } catch (error) {
-      console.error("Error dismissing reminder:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to dismiss reminder",
-      });
-    }
-  };
-
-  const [sliderValues, setSliderValues] = useState<Record<string, number>>({});
-  
-  // Function to update task completion in Firestore
-  const updateTaskCompletion = async (taskId: string, newCompletion: number) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-    
-    const newStatus: 'todo' | 'in-progress' | 'completed' = 
-      newCompletion === 100 ? 'completed' : 
-      newCompletion > 0 ? 'in-progress' : 'todo';
-    
-    const updatedTask = {
-      ...task,
-      completion: newCompletion,
-      status: newStatus
-    };
-    
-    await updateTask(taskId, updatedTask);
-    
-    // If completion is 100%, toast showing task is completed
-    if (newCompletion === 100) {
-      toast({
-        title: "Task completed",
-        description: `"${task.title}" has been marked as complete!`,
-      });
-    }
-  };
-
-  // New handlers for UnifiedItemDialog
-  const handleOpenCreateDialog = useCallback((type: ItemType) => {
-    setSelectedItem(null);
-    setInitialItemType(type);
-    setItemDialogOpen(true);
-  }, []);
-
-  const handleEditItem = useCallback((item: Task | Event | StudySession) => {
-    let itemType: ItemType;
-    if ('deadline' in item) {
-      itemType = 'task';
-    } else if ('isAllDay' in item) {
-      itemType = 'event';
-    } else if ('scheduledFor' in item) {
-      itemType = 'session';
-    } else {
-      console.warn("Unknown item type for editing:", item);
-      // Default or throw error? For now, default to task.
-      itemType = 'task'; 
-    }
-    const unifiedItem = convertToUnified(item, itemType);
-    setSelectedItem(unifiedItem);
-    setInitialItemType(itemType); // Set type in case conversion misses it
-    setItemDialogOpen(true);
-  }, []);
 
   const handleSaveItem = useCallback(async (item: SchedulableItem) => {
     try {
@@ -644,12 +498,127 @@ export function Dashboard() {
     }
   }, [addTask, updateTask, addEvent, updateEvent, addSession, updateSession, toast]);
 
+  const handleDeleteItem = useCallback(async (itemId: string) => {
+    try {
+      // First, find the item to determine its type
+      if (selectedItem) {
+        switch (selectedItem.itemType) {
+          case 'task':
+            await deleteTask(itemId);
+            toast({ title: "Success", description: "Task deleted successfully" });
+            break;
+          case 'event':
+            await deleteEvent(itemId);
+            toast({ title: "Success", description: "Event deleted successfully" });
+            break;
+          case 'session':
+            await deleteSession(itemId);
+            toast({ title: "Success", description: "Study session deleted successfully" });
+            break;
+          // Add other cases as needed
+        }
+        // Close dialog after deleting
+        setItemDialogOpen(false);
+        setSelectedItem(null);
+      }
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete item",
+      });
+    }
+  }, [selectedItem, deleteTask, deleteEvent, deleteSession, toast]);
+
+  const handleOpenCreateDialog = useCallback((type: ItemType) => {
+    setSelectedItem(null);
+    setInitialItemType(type);
+    setItemDialogOpen(true);
+  }, []);
+
+  // Calculate completion metrics for all tasks
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((task) => task.status === "completed").length;
+  
+  // Calculate the average completion percentage across all tasks
+  const totalCompletion = tasks.reduce((acc, task) => acc + (task.completion || 0), 0);
+  const averageCompletion = totalTasks > 0 ? Math.round(totalCompletion / totalTasks) : 0;
+
+  // Calculate task groups by completion range
+  const notStartedTasks = tasks.filter((task) => (task.completion || 0) === 0).length;
+  const inProgressTasks = tasks.filter((task) => (task.completion || 0) > 0 && (task.completion || 0) < 100).length;
+
+  const formatTime = (dateStr: string | null | undefined, formatString: string = "h:mm a") => {
+    try {
+      if (!dateStr) {
+        return "No time";
+      }
+      
+      const date = new Date(dateStr);
+      if (!isValid(date)) {
+        return "Invalid time";
+      }
+      
+      return format(date, formatString);
+    } catch (error) {
+      console.error("Error formatting time:", error);
+      return "Invalid time";
+    }
+  };
+
+  const handleEditItem = useCallback((item: Task | Event | StudySession) => {
+    let itemType: ItemType;
+    if ('deadline' in item) {
+      itemType = 'task';
+    } else if ('isAllDay' in item) {
+      itemType = 'event';
+    } else if ('scheduledFor' in item) {
+      itemType = 'session';
+    } else {
+      console.warn("Unknown item type for editing:", item);
+      // Default or throw error? For now, default to task.
+      itemType = 'task'; 
+    }
+    const unifiedItem = convertToUnified(item, itemType);
+    setSelectedItem(unifiedItem);
+    setInitialItemType(itemType); // Set type in case conversion misses it
+    setItemDialogOpen(true);
+  }, []);
+
+  const updateTaskCompletion = async (taskId: string, newCompletion: number) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const newStatus: 'todo' | 'in-progress' | 'completed' = 
+      newCompletion === 100 ? 'completed' : 
+      newCompletion > 0 ? 'in-progress' : 'todo';
+    
+    const updatedTask = {
+      ...task,
+      completion: newCompletion,
+      status: newStatus
+    };
+    
+    await updateTask(taskId, updatedTask);
+    
+    // If completion is 100%, toast showing task is completed
+    if (newCompletion === 100) {
+      toast({
+        title: "Task completed",
+        description: `"${task.title}" has been marked as complete!`,
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="pb-2 border-b border-brand-primary/40">
         <h1 className="text-4xl font-bold text-brand-primary">Welcome back!</h1>
       </div>
-
+      
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Priority Items Card - Full Width */}
       <Card className="border-brand-primary/30 bg-white dark:bg-gray-900">
         <CardHeader>
@@ -810,11 +779,8 @@ export function Dashboard() {
           </Collapsible>
         </CardContent>
       </Card>
-
-      {/* Three Column Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Tasks Card */}
-        <Card className="border-brand-primary/20 shadow-sm">
+      {/* Tasks Card */}
+      <Card className="border-brand-primary/20 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Pending Tasks
@@ -985,209 +951,22 @@ export function Dashboard() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Study Sessions Card */}
-        <Card className="border-brand-primary/20 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Today's Study Sessions
-            </CardTitle>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                handleOpenCreateDialog('session');
-              }}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {sessions.map((session) => (
-                <div
-                  key={session.id}
-                  className={`relative rounded-lg border p-4 transition-all hover:shadow-md
-                    ${
-                      session.isAIRecommended
-                        ? "border-l-4 border-l-purple-500 dark:border-l-purple-400 bg-white dark:bg-gray-800"
-                        : "bg-white dark:bg-gray-800"
-                    }`}
-                >
-                  {session.isAIRecommended && (
-                    <div className="absolute -top-3 -right-2">
-                      <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                        <Sparkles className="mr-1 h-3 w-3" />
-                        AI Recommended
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <h3 className="font-medium">{session.subject}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {session.goal}
-                      </p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        {session.scheduledFor ? formatTime(session.scheduledFor) : "No time"} (
-                        {session.duration} min)
-                      </div>
-                      {session.isAIRecommended && (
-                        <p className="text-sm italic text-muted-foreground mt-2">
-                          {session.aiReason}
-                        </p>
-                      )}
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            handleEditItem(session);
-                          }}
-                        >
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleStartSession(session.id)}
-                        >
-                          <Play className="mr-2 h-4 w-4" />
-                          Start Session
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSessionToPostpone(session.id);
-                            setPostponeSessionOpen(true);
-                          }}
-                        >
-                          <CalendarDays className="mr-2 h-4 w-4" />
-                          Postpone
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-red-600 dark:text-red-400"
-                          onClick={() => {
-                            setSessionToDelete(session.id);
-                            setDeleteSessionOpen(true);
-                          }}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ))}
-              {sessions.length === 0 && (
-                <div className="text-center text-muted-foreground py-6">
-                  No study sessions scheduled for today
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Events Timeline Card */}
-        <Card className="border-brand-primary/20 shadow-sm h-full flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              Upcoming Events
-            </CardTitle>
-            {events.length > 0 && (
-              <Badge variant="outline" className="font-normal">
-                {events.length} {events.length === 1 ? 'event' : 'events'}
-              </Badge>
-            )}
-          </CardHeader>
-          <CardContent className="p-0 flex-1">
-            <EventsTimeline
-              events={events}
-              onEventClick={handleEditItem}
-            />
-          </CardContent>
-        </Card>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Upcoming Deadlines & Reminders
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {filteredDeadlines.map((deadline) => (
-              <div
-                key={deadline.id}
-                className="flex items-center justify-between rounded-lg border p-4"
-              >
-                <div>
-                  <h3 className="font-medium">{deadline.title}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Due: {formatDate(deadline.deadline)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleMarkDeadlineComplete(deadline.id)}
-                  >
-                    <Check className="h-4 w-4" />
-                  </Button>
-                  <Badge
-                    variant={
-                      deadline.priority === "High"
-                        ? "destructive"
-                        : deadline.priority === "Medium"
-                        ? "default"
-                        : "secondary"
-                    }
-                  >
-                    {deadline.priority}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-
-            {filteredReminders.map((reminder) => (
-              <div
-                key={reminder.id}
-                className="flex items-center justify-between rounded-lg border p-4 bg-blue-50 dark:bg-blue-900/20"
-              >
-                <div>
-                  <h3 className="font-medium">{reminder.title}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    At: {formatDate(reminder.reminderTime)}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDismissReminder(reminder.id)}
-                >
-                  Dismiss
-                </Button>
-              </div>
-            ))}
-
-            {filteredDeadlines.length === 0 &&
-              filteredReminders.length === 0 && (
-                <p className="text-center text-muted-foreground py-4">
-                  No upcoming deadlines or reminders
-                </p>
-              )}
-          </div>
-        </CardContent>
-      </Card>
+      <Calendar 
+        tasks={allTasks}
+        events={allEvents}
+        sessions={allSessions}
+        reminders={allReminders}
+        loading={loading}
+        deleteReminder={deleteReminder}
+        deleteTask={deleteTask}
+        deleteEvent={deleteEvent}
+        deleteSession={deleteSession}
+        updateTask={updateTask}
+        updateEvent={updateEvent}
+        updateSession={updateSession}
+      />
 
       {/* Motivational Quote */}
       <div className="pt-6 text-center italic">
@@ -1226,6 +1005,7 @@ export function Dashboard() {
         initialItem={selectedItem}
         initialType={initialItemType}
         onSave={handleSaveItem}
+        onDelete={handleDeleteItem}
         mode={selectedItem ? "edit" : "create"}
       />
     </div>

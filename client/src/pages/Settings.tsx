@@ -16,6 +16,24 @@ import { useTheme } from "@/components/ui/theme-provider";
 import { TimeConstraintDialog } from "@/components/TimeConstraintDialog";
 import { TimeConstraint } from "@/types";
 import { Badge } from "@/components/ui/badge";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { TestNotifications } from "@/components/notifications/TestNotifications";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
+import { PushNotificationTester } from "@/components/notifications/PushNotificationTester";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { deleteCurrentUserAccount, logout } from "@/api/auth";
+import { useNavigate } from "react-router-dom";
 
 export function Settings() {
   const [notifications, setNotifications] = useState({
@@ -23,6 +41,7 @@ export function Settings() {
     push: true,
     tasks: true,
     sessions: true,
+    system: true,
   });
 
   const { theme, setTheme } = useTheme();
@@ -31,6 +50,14 @@ export function Settings() {
   const [isConnecting, setIsConnecting] = useState(false);
   const setLoading = useState(true)[1]; // Add loading state
   const { toast } = useToast();
+  const { 
+    createNotification, 
+    isPushSupported, 
+    pushPermissionStatus, 
+    isPushEnabled,
+    enablePushNotifications,
+    disablePushNotifications 
+  } = useNotifications();
 
   const [profile, setProfile] = useState({
     studyLevel: "highschool",
@@ -46,6 +73,9 @@ export function Settings() {
   const [timeConstraints, setTimeConstraints] = useState<TimeConstraint[]>([]);
   const [isTimeConstraintDialogOpen, setIsTimeConstraintDialogOpen] = useState(false);
   const [editingConstraint, setEditingConstraint] = useState<TimeConstraint | undefined>();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false); // State for delete dialog
+  const [isDeleting, setIsDeleting] = useState(false); // State for loading indicator
+  const navigate = useNavigate();
 
   const handleTempProfileChange = (field: string, value: string) => {
     setTempProfile((prev) => ({ ...prev, [field]: value }));
@@ -73,6 +103,13 @@ export function Settings() {
       setProfile(tempProfile);
       await saveSettings({ userProfile: tempProfile }, {});
       toast({ title: "Success", description: "Profile saved successfully" });
+      
+      // Create a notification to demonstrate the notification system
+      await createNotification({
+        title: "Profile Updated",
+        message: "Your profile information has been successfully updated.",
+        type: "success",
+      });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
@@ -200,6 +237,26 @@ export function Settings() {
     }
   };
 
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteCurrentUserAccount();
+      toast({ title: "Account Deleted", description: "Your account has been successfully deleted." });
+      // Perform logout after deletion
+      await logout(); 
+      navigate("/auth"); // Redirect to login/auth page
+    } catch (error: any) {
+      toast({ 
+        title: "Deletion Failed", 
+        description: error.message || "Could not delete account. Please try logging out and back in.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false); // Close dialog regardless of outcome
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Settings</h1>
@@ -314,51 +371,131 @@ export function Settings() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Notifications
-            </CardTitle>
+        <Card className="mb-8">
+          <CardHeader className="flex flex-row items-center">
+            <Bell className="mr-2 h-5 w-5" />
+            <CardTitle>Notifications</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="email-notifications">Email Notifications</Label>
+              <div>
+                <Label htmlFor="email-notifications" className="font-medium">
+                  Email Notifications
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Receive notifications via email
+                </p>
+              </div>
               <Switch
                 id="email-notifications"
-                checked={notifications?.email}
-                onCheckedChange={(checked) =>
-                  handleNotificationChange("email", checked)
+                checked={notifications.email}
+                onCheckedChange={(value) =>
+                  handleNotificationChange("email", value)
                 }
               />
             </div>
+
             <div className="flex items-center justify-between">
-              <Label htmlFor="push-notifications">Push Notifications</Label>
+              <div>
+                <Label htmlFor="push-notifications" className="font-medium">
+                  Push Notifications
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Receive notifications in-app and on browser
+                </p>
+              </div>
+              {isPushSupported ? (
+                <Switch
+                  id="push-notifications"
+                  checked={isPushEnabled}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      enablePushNotifications();
+                      handleNotificationChange("push", true);
+                    } else {
+                      disablePushNotifications();
+                      handleNotificationChange("push", false);
+                    }
+                  }}
+                  disabled={pushPermissionStatus === 'denied'}
+                />
+              ) : (
+                <Badge variant="outline" className="text-muted-foreground">
+                  Not supported
+                </Badge>
+              )}
+            </div>
+
+            {isPushSupported && pushPermissionStatus === 'denied' && (
+              <Alert variant="destructive" className="mt-2">
+                <InfoIcon className="h-4 w-4" />
+                <AlertTitle>Notifications blocked</AlertTitle>
+                <AlertDescription>
+                  You've blocked notifications in your browser. Please update your browser settings to enable push notifications.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {isPushSupported && !isPushEnabled && pushPermissionStatus !== 'denied' && (
+              <Alert className="mt-2">
+                <InfoIcon className="h-4 w-4" />
+                <AlertTitle>Enable notifications</AlertTitle>
+                <AlertDescription>
+                  Enable push notifications to receive important updates even when you're not using the app.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="task-notifications" className="font-medium">
+                  Task Notifications
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Get notified about upcoming and overdue tasks
+                </p>
+              </div>
               <Switch
-                id="push-notifications"
-                checked={notifications?.push}
-                onCheckedChange={(checked) =>
-                  handleNotificationChange("push", checked)
+                id="task-notifications"
+                checked={notifications.tasks}
+                onCheckedChange={(value) =>
+                  handleNotificationChange("tasks", value)
                 }
               />
             </div>
+
             <div className="flex items-center justify-between">
-              <Label htmlFor="task-reminders">Task Reminders</Label>
+              <div>
+                <Label htmlFor="session-notifications" className="font-medium">
+                  Study Session Notifications
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Get notified about upcoming study sessions
+                </p>
+              </div>
               <Switch
-                id="task-reminders"
-                checked={notifications?.tasks}
-                onCheckedChange={(checked) =>
-                  handleNotificationChange("tasks", checked)
+                id="session-notifications"
+                checked={notifications.sessions}
+                onCheckedChange={(value) =>
+                  handleNotificationChange("sessions", value)
                 }
               />
             </div>
+
             <div className="flex items-center justify-between">
-              <Label htmlFor="session-reminders">Study Session Reminders</Label>
+              <div>
+                <Label htmlFor="system-notifications" className="font-medium">
+                  System Updates
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Get notified about new features and updates
+                </p>
+              </div>
               <Switch
-                id="session-reminders"
-                checked={notifications?.sessions}
-                onCheckedChange={(checked) =>
-                  handleNotificationChange("sessions", checked)
+                id="system-notifications"
+                checked={notifications.system}
+                onCheckedChange={(value) =>
+                  handleNotificationChange("system", value)
                 }
               />
             </div>
@@ -496,6 +633,63 @@ export function Settings() {
                   ? "Connecting..."
                   : "Connect Calendar"}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* For development and testing purposes */}
+        <div className="mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Development & Testing</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TestNotifications />
+              <PushNotificationTester />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Delete Account Section */}
+      <div className="mt-12 pt-8 border-t border-destructive/20">
+        <Card className="border-destructive bg-destructive/5">
+          <CardHeader>
+            <CardTitle className="text-destructive">Danger Zone</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-destructive/80">
+              Deleting your account is permanent and cannot be undone. All your data, including tasks, sessions, events, and settings, will be irrevocably lost.
+            </p>
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="destructive"
+                  className="w-full sm:w-auto"
+                  disabled={isDeleting} // Disable button while deleting
+                >
+                  {isDeleting ? "Deleting..." : "Delete Account"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete your 
+                    account and remove your data from our servers.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleConfirmDelete} 
+                    disabled={isDeleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {isDeleting ? "Deleting..." : "Yes, delete account"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
       </div>
