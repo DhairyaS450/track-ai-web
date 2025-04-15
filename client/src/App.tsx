@@ -10,6 +10,7 @@ import { StudySessions } from "./pages/StudySessions";
 import { Analytics } from "./pages/Analytics";
 import { Settings } from "./pages/Settings";
 import { Chatbot } from "./pages/Chatbot";
+import { Onboarding } from "./pages/Onboarding";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useState, useEffect } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
@@ -92,8 +93,19 @@ function App() {
                     path="/verify-email"
                     element={<EmailVerification user={user} />}
                   />
-                  {/* abviously this is a demo page so it should be public */}
+                  {/* obviously this is a demo page so it should be public */}
                   <Route path="demo" element={<DemoPage />} />
+                  
+                  {/* Onboarding route - protected */}
+                  <Route
+                    path="/onboarding"
+                    element={
+                      <ProtectedRoute>
+                        <Onboarding />
+                      </ProtectedRoute>
+                    }
+                  />
+                  
                   <Route
                     path="/"
                     element={

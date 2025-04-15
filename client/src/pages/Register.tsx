@@ -38,12 +38,20 @@ export function Register() {
   const onSubmit = async (data: RegisterForm) => {
     try {
       setLoading(true)
-      await registerUser(data);
+      const response = await registerUser(data);
       toast({
         title: "Success",
         description: "Account created successfully",
       })
-      navigate("/login")
+      
+      // If registration automatically logs the user in (depends on your API implementation)
+      if (response?.user) {
+        // Redirect to onboarding for new users
+        navigate("/onboarding");
+      } else {
+        // Otherwise navigate to login
+        navigate("/login");
+      }
     } catch (error: any) {
       console.log("Register error:", error)
       toast({
@@ -68,12 +76,14 @@ export function Register() {
         });
         return;
       }
-      await signInWithGoogle(inviteCode);
+      const response = await signInWithGoogle(inviteCode);
       toast({
         title: "Success",
         description: "Account created successfully with Google",
       });
-      navigate("/dashboard");
+      
+      // Redirect to onboarding for new users
+      navigate("/onboarding");
     } catch (error) {
       console.error('Google registration error:', error);
       toast({

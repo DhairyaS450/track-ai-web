@@ -17,6 +17,7 @@ import { LogIn } from "lucide-react"
 import { login, signInWithGoogle } from "@/api/auth"
 import { getAuth } from "firebase/auth"
 import { ModernBackground } from "@/components/ModernBackground"
+import { getUserProfile } from "@/api/settings"
 
 type LoginForm = {
   email: string
@@ -30,11 +31,28 @@ export function Login() {
   const auth = getAuth()
   const { register, handleSubmit } = useForm<LoginForm>()
 
-  // If already logged in, direct them to home page
+  // If already logged in, check if onboarding is needed
   useEffect(() => {
-    if (auth.currentUser != null) {
-      navigate('/dashboard')
-    }
+    const checkUserStatus = async () => {
+      if (auth.currentUser != null) {
+        try {
+          // Check if user has completed onboarding
+          const { userProfile } = await getUserProfile();
+          
+          if (userProfile?.onboardingCompleted) {
+            navigate('/dashboard');
+          } else {
+            // Redirect to onboarding if not completed
+            navigate('/onboarding');
+          }
+        } catch (error) {
+          console.error("Error checking user profile:", error);
+          navigate('/dashboard'); // Default to dashboard on error
+        }
+      }
+    };
+    
+    checkUserStatus();
   }, [auth, navigate])
 
   const onSubmit = async (data: LoginForm) => {
@@ -51,7 +69,21 @@ export function Login() {
           title: "Success",
           description: "Logged in successfully",
         })
-        navigate("/dashboard")
+        
+        try {
+          // Check if user has completed onboarding
+          const { userProfile } = await getUserProfile();
+          
+          if (userProfile?.onboardingCompleted) {
+            navigate('/dashboard');
+          } else {
+            // Redirect to onboarding if not completed
+            navigate('/onboarding');
+          }
+        } catch (error) {
+          console.error("Error checking user profile after login:", error);
+          navigate('/dashboard'); // Default to dashboard on error
+        }
       } else {
         toast({
           title: "Error",
@@ -78,7 +110,21 @@ export function Login() {
         title: "Success",
         description: "Logged in successfully with Google",
       });
-      navigate("/dashboard");
+      
+      try {
+        // Check if user has completed onboarding
+        const { userProfile } = await getUserProfile();
+        
+        if (userProfile?.onboardingCompleted) {
+          navigate('/dashboard');
+        } else {
+          // Redirect to onboarding if not completed
+          navigate('/onboarding');
+        }
+      } catch (error) {
+        console.error("Error checking user profile after Google login:", error);
+        navigate('/dashboard'); // Default to dashboard on error
+      }
     } catch (error) {
       console.error('Google login error:', error);
       toast({
