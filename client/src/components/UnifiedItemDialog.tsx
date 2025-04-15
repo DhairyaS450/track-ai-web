@@ -680,7 +680,7 @@ export function UnifiedItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden">
+      <DialogContent className="sm:max-w-[600px] max-h-[100vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {effectiveMode === 'edit' ? 
@@ -697,7 +697,7 @@ export function UnifiedItemDialog({
             <TabsTrigger value="reminder" disabled={effectiveMode === 'edit'}>Reminder</TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="h-[60vh] pr-4 overflow-y-auto">
+          <ScrollArea className="h-[50vh] pr-4 overflow-y-auto">
             {/* Common fields for all items */}
             <div className="space-y-4 mb-6">
               <div className="grid gap-2">
