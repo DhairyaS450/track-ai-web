@@ -69,6 +69,9 @@ export interface UnifiedStudySession extends SchedulableItem {
   progress?: number;
   type: "studySession";
   sessionMode?: 'basic' | 'sections';
+  autoSchedule?: boolean; // Whether this session should be auto-scheduled
+  autoScheduled?: boolean; // Whether this session was auto-scheduled by AI
+  parentRequestId?: string; // ID of the parent auto-schedule request
   sections?: Array<{
     id?: string;
     subject: string;

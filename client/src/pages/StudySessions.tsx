@@ -1441,9 +1441,16 @@ export function StudySessions() {
           isFlexible: sessionToEdit.isFlexible || false,
           completion: sessionToEdit.completion || 0,
           userId: 'current-user',
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          source: sessionToEdit.source || 'manual',
+          autoScheduled: sessionToEdit.autoScheduled
         } as unknown as UnifiedStudySession : undefined}
         mode={sessionToEdit ? "edit" : "create"}
+        onDelete={(itemId) => {
+          // Set session to delete and open the confirmation dialog
+          setSessionToDelete(itemId); // Just store the ID, not the full object
+          setDeleteSessionOpen(true);
+        }}
         onSave={(item: SchedulableItem) => {
           // Convert back from UnifiedStudySession to StudySession
           const sessionItem = item as UnifiedStudySession;
@@ -1482,7 +1489,9 @@ export function StudySessions() {
         onOpenChange={setDeleteSessionOpen}
         onConfirm={() => {
           if (sessionToDelete) {
-            deleteSession(sessionToDelete);
+            // Find the session by ID first, then delete it
+            const sessionToDeleteId = sessionToDelete; // Store the ID temporarily
+            deleteSession(sessionToDeleteId);
             setSessionToDelete(null);
           }
         }}

@@ -38,18 +38,26 @@ import { Checkbox } from "./ui/checkbox";
 import { cn } from "@/lib/utils";
 import { Slider } from "./ui/slider";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
-import { BookOpen } from "lucide-react";
 import { 
-  CalendarIcon, 
-  ChevronDown, 
-  ChevronUp, 
   Plus, 
-  Trash2, 
   X, 
+  CalendarIcon, 
+  BookOpen, 
   Timer, 
   LayoutGrid, 
-  Clock 
+  Clock,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  Trash2
 } from "lucide-react";
+import { getAuth } from "firebase/auth";
+import { 
+  TooltipProvider, 
+  Tooltip, 
+  TooltipTrigger, 
+  TooltipContent
+} from "./ui/tooltip";
 
 interface UnifiedItemDialogProps {
   open: boolean;
@@ -74,7 +82,7 @@ export function UnifiedItemDialog({
 }: UnifiedItemDialogProps) { 
   const [itemType, setItemType] = useState<ItemType>(initialType);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [activeTab, setActiveTab] = useState(itemType); // Add activeTab state
+  const [activeTab, setActiveTab] = useState(itemType); 
   const { toast } = useToast();
 
   // Common fields
@@ -111,6 +119,8 @@ export function UnifiedItemDialog({
   const [notes, setNotes] = useState("");
   const [sessionMode, setSessionMode] = useState("basic");
   const [sections, setSections] = useState<Array<{ id?: string; subject: string; duration: number; breakDuration: number; materials?: string }>>([]);
+  const [autoSchedule, setAutoSchedule] = useState(true);
+  const [isAutoScheduling, setIsAutoScheduling] = useState(false);
   
   // Reminder-specific fields
   const [notificationMessage, setNotificationMessage] = useState("");
@@ -187,6 +197,7 @@ export function UnifiedItemDialog({
             setNotes(session.notes);
             setSessionMode(session.sessionMode || "basic");
             setSections(session.sections || []);
+            setAutoSchedule(session.autoSchedule || true);
             break; }
           case 'reminder':
             { const reminder = initialItem as UnifiedReminder;
@@ -270,11 +281,13 @@ export function UnifiedItemDialog({
     setShowAdvanced(false);
     setSessionMode("basic");
     setSections([]);
+    setAutoSchedule(true);
+    setIsAutoScheduling(false);
   };
 
   const handleTypeChange = (type: string) => {
     setItemType(type as ItemType);
-    setActiveTab(type as ItemType); // Update activeTab
+    setActiveTab(type as ItemType); 
     setShowAdvanced(false);
   };
 
@@ -300,7 +313,7 @@ export function UnifiedItemDialog({
     setEventReminders(eventReminders.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title) {
       toast({
         variant: "destructive",
@@ -414,18 +427,19 @@ export function UnifiedItemDialog({
         case 'session':
           itemData = {
             ...baseItem,
-            subject: subject || title,
             goal,
             duration,
             technique,
-            scheduledFor: finalStartTime,
             breakInterval,
             breakDuration,
             materials,
             notes,
-            isFlexible,
             sessionMode,
-            sections,
+            sections: sessionMode === "sections" ? sections : [],
+            autoSchedule,
+            subject: subject || title, 
+            scheduledFor: finalStartTime, 
+            type: "studySession" 
           } as UnifiedStudySession;
           break;
           
@@ -446,14 +460,109 @@ export function UnifiedItemDialog({
           itemData = baseItem as SchedulableItem;
       }
 
-      onSave(itemData);
-      onOpenChange(false);
+      // If it's a session with auto-schedule enabled, use the auto-scheduler API
+      if (itemType === 'session' && autoSchedule && itemData.status !== 'completed') {
+        try {
+          setIsAutoScheduling(true);
+          
+          // Get the Firebase auth token
+          const auth = getAuth();
+          const currentUser = auth.currentUser;
+          let authToken = '';
+          
+          if (currentUser) {
+            try {
+              authToken = await currentUser.getIdToken();
+            } catch (error) {
+              console.error('Error getting auth token:', error);
+              throw new Error('Failed to authenticate. Please try again or log out and back in.');
+            }
+          } else {
+            throw new Error('You must be logged in to auto-schedule study sessions.');
+          }
+          
+          // Call the auto-schedule API
+          console.log("Sending auto-schedule request to API");
+          const response = await fetch('/api/study-sessions/autoschedule', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+              subject: itemData.title,
+              description: itemData.description,
+              totalDurationRequired: duration,
+              deadline: itemData.startTime,
+              priority: itemData.priority,
+              autoSchedule: true
+            }),
+          });
+
+          console.log("Received response from API:", response.status);
+          // Handle API errors carefully
+          let data;
+          try {
+            const textResponse = await response.text();
+            
+            // Check if the response is valid JSON before parsing
+            if (textResponse && textResponse.trim()) {
+              try {
+                data = JSON.parse(textResponse);
+              } catch (parseError) {
+                console.error('Error parsing JSON response:', parseError);
+                console.error('Raw response:', textResponse);
+                throw new Error('Invalid response format from server. Please try again.');
+              }
+            } else {
+              throw new Error('Empty response received from server. Please try again.');
+            }
+          } catch (responseError) {
+            console.error('Response handling error:', responseError);
+            throw responseError;
+          }
+          
+          if (!response.ok) {
+            const errorMessage = data?.message || data?.error || 'Failed to auto-schedule study sessions';
+            console.error('Auto-scheduling error:', errorMessage, data);
+            throw new Error(errorMessage);
+          }
+
+          // Successfully auto-scheduled
+          // Don't save the original session when auto-scheduling - this prevents duplicate sessions
+          setIsAutoScheduling(false);
+          
+          // Show success message about auto-scheduling
+          toast({
+            title: "Auto-Scheduling Complete",
+            description: `Created ${data.sessions.length} study sessions for you!`,
+            duration: 5000,
+          });
+          
+          // Close the dialog
+          onOpenChange(false);
+          return; // Return early to prevent saving the original session
+        } catch (error) {
+          console.error('Auto-scheduling error:', error);
+          toast({
+            variant: "destructive",
+            title: "Auto-Scheduling Failed",
+            description: error instanceof Error ? error.message : 'Failed to auto-schedule study sessions',
+          });
+        } finally {
+          setIsAutoScheduling(false);
+        }
+      } else {
+        // Regular save process for other item types or non-auto-scheduled sessions
+        onSave(itemData);
+        onOpenChange(false);
+      }
     } catch (error) {
       console.error("Error saving item:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to save item",
+        description: "Failed to save item. Please try again.",
       });
     }
   };
@@ -473,7 +582,6 @@ export function UnifiedItemDialog({
     if ((field === 'duration' || field === 'breakDuration') && typeof value === 'number') {
       sectionToUpdate[field] = value;
     } else if ((field === 'subject' || field === 'materials' || field === 'id') && typeof value === 'string') {
-      // Ensure 'id' doesn't get assigned a number, though it's less likely from input
       sectionToUpdate[field] = value;
     }
     // If type mismatch, potentially log an error or handle gracefully, 
@@ -607,7 +715,7 @@ export function UnifiedItemDialog({
     date: dateProp, 
     onDateChange, 
     errorMessage,
-    label,
+    label: labelProp, 
     description
   }: { 
     date: Date | undefined; 
@@ -618,7 +726,7 @@ export function UnifiedItemDialog({
   }) => {
     return (
       <div className="grid gap-2">
-        <Label>{label}</Label>
+        <Label>{labelProp}</Label> 
         {description && <p className="text-sm text-muted-foreground">{description}</p>}
         <div className="grid gap-2">
           <Popover>
@@ -710,27 +818,7 @@ export function UnifiedItemDialog({
                 />
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="priority">Priority</Label>
-                <RadioGroup
-                  value={priority}
-                  onValueChange={(value: "High" | "Medium" | "Low") => setPriority(value)}
-                  className="flex space-x-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="High" id="priority-high" />
-                    <Label htmlFor="priority-high">High</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Medium" id="priority-medium" />
-                    <Label htmlFor="priority-medium">Medium</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Low" id="priority-low" />
-                    <Label htmlFor="priority-low">Low</Label>
-                  </div>
-                </RadioGroup>
-              </div>
+              {/* Priority selector moved to item-specific sections */}
             </div>
 
             {/* Item type specific content */}
@@ -1086,210 +1174,301 @@ export function UnifiedItemDialog({
                 </div>
               </div>
 
-              <DateTimePicker
-                label="Start Time"
-                date={startDate}
-                onDateChange={handleStartTimeChange}
-                errorMessage={startTimeError}
-              />
-
-              <div className="grid gap-3 items-start md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label>Mode</Label>
-                  <div className="flex space-x-2">
-                    <Button
-                      type="button"
-                      variant={sessionMode === "basic" ? "default" : "outline"}
-                      className="flex-1"
-                      onClick={() => setSessionMode("basic")}
+              <div className="rounded-md bg-muted p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center">
+                    <BookOpen className="mr-2 h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Smart Study Scheduling</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="ml-1 h-6 w-6 p-0">
+                            <Info className="h-4 w-4 text-muted-foreground" />
+                            <span className="sr-only">Study scheduling info</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm">
+                          <p className="text-sm">
+                            TidalTasks AI will analyze your calendar and preferences to break this study time into 
+                            optimal sessions leading up to your deadline. You can still modify or delete these sessions later.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="auto-schedule"
+                      checked={autoSchedule} 
+                      onCheckedChange={(checked) => {
+                        setAutoSchedule(checked === true);
+                      }}
+                    />
+                    <label
+                      htmlFor="auto-schedule"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
-                      <Timer className="h-4 w-4 mr-2" />
-                      Basic
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={sessionMode === "sections" ? "default" : "outline"}
-                      className="flex-1"
-                      onClick={() => setSessionMode("sections")}
-                    >
-                      <LayoutGrid className="h-4 w-4 mr-2" />
-                      Sections
-                    </Button>
+                      Auto-Schedule
+                    </label>
                   </div>
                 </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="priority">Priority</Label>
-                  <Select
-                    value={priority}
-                    onValueChange={(value) => setPriority(value as "High" | "Medium" | "Low")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="High">High</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                
+                {autoSchedule && (
+                  <>
+                    <div className="grid gap-3 items-start md:grid-cols-2 mt-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="duration">Total Required Duration (minutes)</Label>
+                        <Input
+                          id="duration"
+                          type="number"
+                          min="1"
+                          max="600"
+                          value={duration || ''}
+                          onChange={(e) => setDuration(e.target.value ? parseInt(e.target.value) : 0)}
+                          placeholder="e.g. 60"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="priority">Priority</Label>
+                        <Select
+                          value={priority}
+                          onValueChange={(value) => setPriority(value as "High" | "Medium" | "Low")}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="High">High</SelectItem>
+                            <SelectItem value="Medium">Medium</SelectItem>
+                            <SelectItem value="Low">Low</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    <div className="grid gap-2 mt-3">
+                      <Label htmlFor="deadline">Deadline</Label>
+                      <DateTimePicker
+                        date={startDate}
+                        onDateChange={handleStartTimeChange}
+                        label="" 
+                        description="When does this need to be completed by?"
+                        errorMessage={startTimeError}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
-              {sessionMode === "basic" ? (
+              {!autoSchedule && (
                 <>
-                  <div className="grid gap-3 items-start md:grid-cols-3">
+                  <DateTimePicker
+                    label="Start Time"
+                    date={startDate}
+                    onDateChange={handleStartTimeChange}
+                    errorMessage={startTimeError}
+                  />
+
+                  <div className="grid gap-3 items-start md:grid-cols-2">
                     <div className="grid gap-2">
-                      <Label htmlFor="duration">Duration (minutes)</Label>
-                      <Input
-                        id="duration"
-                        type="number"
-                        min="1"
-                        max="240"
-                        value={duration}
-                        onChange={(e) => setDuration(parseInt(e.target.value))}
-                        placeholder="e.g. 60"
-                      />
+                      <Label>Mode</Label>
+                      <div className="flex space-x-2">
+                        <Button
+                          type="button"
+                          variant={sessionMode === "basic" ? "default" : "outline"}
+                          className="flex-1"
+                          onClick={() => setSessionMode("basic")}
+                        >
+                          <Timer className="h-4 w-4 mr-2" />
+                          Basic
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={sessionMode === "sections" ? "default" : "outline"}
+                          className="flex-1"
+                          onClick={() => setSessionMode("sections")}
+                        >
+                          <LayoutGrid className="h-4 w-4 mr-2" />
+                          Sections
+                        </Button>
+                      </div>
                     </div>
+
                     <div className="grid gap-2">
-                      <Label htmlFor="breakInterval">Study Interval (minutes)</Label>
-                      <Input
-                        id="breakInterval"
-                        type="number"
-                        min="5"
-                        max="90"
-                        value={breakInterval}
-                        onChange={(e) => setBreakInterval(parseInt(e.target.value))}
-                        placeholder="e.g. 25"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="breakDuration">Break Length (minutes)</Label>
-                      <Input
-                        id="breakDuration"
-                        type="number"
-                        min="1"
-                        max="30"
-                        value={breakDuration}
-                        onChange={(e) => setBreakDuration(parseInt(e.target.value))}
-                        placeholder="e.g. 5"
-                      />
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="grid gap-3">
-                    <div className="flex justify-between items-center">
-                      <Label>Session Sections</Label>
-                      <Button 
-                        type="button" 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={handleAddSection}
+                      <Label htmlFor="priority">Priority</Label>
+                      <Select
+                        value={priority}
+                        onValueChange={(value) => setPriority(value as "High" | "Medium" | "Low")}
                       >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Section
-                      </Button>
-                    </div>
-                    
-                    <div className="space-y-3 max-h-[250px] overflow-y-auto rounded-md border p-2">
-                      {sections.length > 0 ? (
-                        sections.map((section, index) => (
-                          <div 
-                            key={section.id || index} 
-                            className="rounded-md border p-3 bg-card/50"
-                          >
-                            <div className="flex justify-between items-center mb-2">
-                              <h4 className="text-sm font-medium">Section {index + 1}</h4>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRemoveSection(index)}
-                                className="h-8 w-8 p-0 text-muted-foreground"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                            
-                            <div className="grid gap-3 mb-2">
-                              <div className="grid gap-2">
-                                <Label htmlFor={`section-${index}-subject`} className="text-xs">
-                                  Subject
-                                </Label>
-                                <Input
-                                  id={`section-${index}-subject`}
-                                  value={section.subject}
-                                  onChange={(e) => handleSectionChange(index, "subject", e.target.value)}
-                                  placeholder="e.g. Algebra"
-                                  className="h-8"
-                                />
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="grid gap-1">
-                                  <Label htmlFor={`section-${index}-duration`} className="text-xs">
-                                    Duration (min)
-                                  </Label>
-                                  <Input
-                                    id={`section-${index}-duration`}
-                                    type="number"
-                                    min="5"
-                                    max="120"
-                                    value={section.duration}
-                                    onChange={(e) => handleSectionChange(index, "duration", parseInt(e.target.value))}
-                                    placeholder="e.g. 25"
-                                    className="h-8"
-                                  />
-                                </div>
-                                <div className="grid gap-1">
-                                  <Label htmlFor={`section-${index}-break`} className="text-xs">
-                                    Break (min)
-                                  </Label>
-                                  <Input
-                                    id={`section-${index}-break`}
-                                    type="number"
-                                    min="0"
-                                    max="30"
-                                    value={section.breakDuration}
-                                    onChange={(e) => handleSectionChange(index, "breakDuration", parseInt(e.target.value))}
-                                    placeholder="e.g. 5"
-                                    className="h-8"
-                                  />
-                                </div>
-                              </div>
-                              
-                              <div className="grid gap-1">
-                                <Label htmlFor={`section-${index}-materials`} className="text-xs">
-                                  Materials (optional)
-                                </Label>
-                                <Input
-                                  id={`section-${index}-materials`}
-                                  value={section.materials}
-                                  onChange={(e) => handleSectionChange(index, "materials", e.target.value)}
-                                  placeholder="e.g. Textbook p.125-130"
-                                  className="h-8"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="py-8 text-center text-muted-foreground">
-                          <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                          <p>No sections added yet</p>
-                          <p className="text-xs mt-1">
-                            Add sections to break your study session into focused chunks
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="text-xs text-muted-foreground italic">
-                      Total duration: {calculateTotalDuration()} minutes
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select priority" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="High">High</SelectItem>
+                          <SelectItem value="Medium">Medium</SelectItem>
+                          <SelectItem value="Low">Low</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
+
+                  {sessionMode === "basic" ? (
+                    <>
+                      <div className="grid gap-3 items-start md:grid-cols-3">
+                        <div className="grid gap-2">
+                          <Label htmlFor="duration">Duration (minutes)</Label>
+                          <Input
+                            id="duration"
+                            type="number"
+                            min="1"
+                            max="240"
+                            value={duration}
+                            onChange={(e) => setDuration(parseInt(e.target.value))}
+                            placeholder="e.g. 60"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="breakInterval">Study Interval (minutes)</Label>
+                          <Input
+                            id="breakInterval"
+                            type="number"
+                            min="5"
+                            max="90"
+                            value={breakInterval}
+                            onChange={(e) => setBreakInterval(parseInt(e.target.value))}
+                            placeholder="e.g. 25"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="breakDuration">Break Length (minutes)</Label>
+                          <Input
+                            id="breakDuration"
+                            type="number"
+                            min="1"
+                            max="30"
+                            value={breakDuration}
+                            onChange={(e) => setBreakDuration(parseInt(e.target.value))}
+                            placeholder="e.g. 5"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="grid gap-3">
+                        <div className="flex justify-between items-center">
+                          <Label>Session Sections</Label>
+                          <Button 
+                            type="button" 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={handleAddSection}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add Section
+                          </Button>
+                        </div>
+                        
+                        <div className="space-y-3 max-h-[250px] overflow-y-auto rounded-md border p-2">
+                          {sections.length > 0 ? (
+                            sections.map((section, index) => (
+                              <div 
+                                key={section.id || index} 
+                                className="rounded-md border p-3 bg-card/50"
+                              >
+                                <div className="flex justify-between items-center mb-2">
+                                  <h4 className="text-sm font-medium">Section {index + 1}</h4>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemoveSection(index)}
+                                    className="h-8 w-8 p-0 text-muted-foreground"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                
+                                <div className="grid gap-3 mb-2">
+                                  <div className="grid gap-2">
+                                    <Label htmlFor={`section-${index}-subject`} className="text-xs">
+                                      Subject
+                                    </Label>
+                                    <Input
+                                      id={`section-${index}-subject`}
+                                      value={section.subject}
+                                      onChange={(e) => handleSectionChange(index, "subject", e.target.value)}
+                                      placeholder="e.g. Algebra"
+                                      className="h-8"
+                                    />
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid gap-1">
+                                      <Label htmlFor={`section-${index}-duration`} className="text-xs">
+                                        Duration (min)
+                                      </Label>
+                                      <Input
+                                        id={`section-${index}-duration`}
+                                        type="number"
+                                        min="5"
+                                        max="120"
+                                        value={section.duration}
+                                        onChange={(e) => handleSectionChange(index, "duration", parseInt(e.target.value))}
+                                        placeholder="e.g. 25"
+                                        className="h-8"
+                                      />
+                                    </div>
+                                    <div className="grid gap-1">
+                                      <Label htmlFor={`section-${index}-break`} className="text-xs">
+                                        Break (min)
+                                      </Label>
+                                      <Input
+                                        id={`section-${index}-break`}
+                                        type="number"
+                                        min="0"
+                                        max="30"
+                                        value={section.breakDuration}
+                                        onChange={(e) => handleSectionChange(index, "breakDuration", parseInt(e.target.value))}
+                                        placeholder="e.g. 5"
+                                        className="h-8"
+                                      />
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="grid gap-1">
+                                    <Label htmlFor={`section-${index}-materials`} className="text-xs">
+                                      Materials (optional)
+                                    </Label>
+                                    <Input
+                                      id={`section-${index}-materials`}
+                                      value={section.materials}
+                                      onChange={(e) => handleSectionChange(index, "materials", e.target.value)}
+                                      placeholder="e.g. Textbook p.125-130"
+                                      className="h-8"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="py-8 text-center text-muted-foreground">
+                              <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                              <p>No sections added yet</p>
+                              <p className="text-xs mt-1">
+                                Add sections to break your study session into focused chunks
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="text-xs text-muted-foreground italic">
+                          Total duration: {calculateTotalDuration()} minutes
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </TabsContent>
@@ -1398,25 +1577,32 @@ export function UnifiedItemDialog({
           </ScrollArea>
         </Tabs>
 
-        <DialogFooter className="mt-6">
-          {mode === "edit" && initialItem?.id && onDelete && (
-            <Button 
-              variant="destructive" 
+        <DialogFooter className="pt-2">
+          {effectiveMode === "edit" && onDelete && (
+            <Button
+              variant="destructive"
               onClick={() => {
-                onDelete(initialItem.id as string);
-                onOpenChange(false);
+                if (initialItem?.id) {
+                  onDelete(initialItem.id);
+                  onOpenChange(false);
+                }
               }}
-              className="mr-auto"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
               Delete
             </Button>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>
-            {effectiveMode === "create" ? "Create" : "Save Changes"}
+          <Button 
+            type="submit" 
+            disabled={isAutoScheduling}
+            onClick={handleSubmit}
+          >
+            {isAutoScheduling ? "Auto-Scheduling..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>
