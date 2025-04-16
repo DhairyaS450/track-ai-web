@@ -51,11 +51,14 @@ export interface StudySession {
   pausedAt?: number;
   resumedAt?: number;
   totalPausedTime?: number;
-  sessionMode?: 'sections' | 'single';
+  sessionMode?: 'sections' | 'basic';
   progress?: number;
-  source?: 'google_calendar' | 'manual';
+  source?: 'google_calendar' | 'manual' | 'auto-scheduler';
   sections?: StudySessionSection[];
   currentSectionIndex?: number;
+  autoSchedule?: boolean;
+  autoScheduled?: boolean;
+  parentRequestId?: string;
 }
 
 export interface StudySessionSection {
