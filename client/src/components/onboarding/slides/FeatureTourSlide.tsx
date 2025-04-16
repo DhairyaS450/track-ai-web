@@ -15,35 +15,35 @@ const featureTourItems = [
     title: "Smart Dashboard",
     description: "Your personalized command center that adapts to your learning style and schedule.",
     icon: <BarChart className="h-16 w-16 text-primary mb-4" />,
-    image: "/tour-dashboard.png"
-  },
-  {
-    id: "tasks",
-    title: "Task Management",
-    description: "Create tasks, set deadlines, and let our AI prioritize what's most important.",
-    icon: <CheckSquare className="h-16 w-16 text-primary mb-4" />,
-    image: "/tour-tasks.png"
+    image: "/tour/dashboard.png"
   },
   {
     id: "calendar",
     title: "Adaptive Calendar",
     description: "Your schedule is dynamically built to work around your constraints and optimize your study time.",
     icon: <Calendar className="h-16 w-16 text-primary mb-4" />,
-    image: "/tour-calendar.png"
+    image: "/tour/calendar.png"
   },
   {
     id: "sessions",
     title: "Study Sessions",
     description: "Plan effective study blocks using techniques like Pomodoro, with AI-generated recommendations.",
     icon: <Bookmark className="h-16 w-16 text-primary mb-4" />,
-    image: "/tour-sessions.png"
+    image: "/tour/sessions.png"
   },
   {
     id: "kai",
     title: "Meet Kai, Your AI Assistant",
     description: "Ask questions about your subjects, get help organizing your schedule, and receive personalized tips.",
     icon: <MessageSquare className="h-16 w-16 text-primary mb-4" />,
-    image: "/tour-kai.png"
+    image: "/tour/kai.png"
+  },
+  {
+    id: "auto-schedule",
+    title: "Auto Scheduling - Coming Soon",
+    description: "Let Kai fit your tasks and events into your schedule based on your preferences and constraints.",
+    icon: <CheckSquare className="h-16 w-16 text-primary mb-4" />,
+    image: "/tour/auto-schedule.png"
   }
 ];
 

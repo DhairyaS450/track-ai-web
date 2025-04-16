@@ -18,11 +18,9 @@ interface ProfileBasicsSlideProps {
 
 // Predefined list of common subjects
 const commonSubjects = [
-  "Mathematics", "English", "Physics", "Chemistry", "Biology",
-  "History", "Geography", "Computer Science", "Economics",
-  "Psychology", "Sociology", "Political Science", "Philosophy",
-  "Business", "Engineering", "Arts", "Music", "Physical Education",
-  "Foreign Languages", "Statistics"
+  "Math", "English", "Physics", "Chemistry", "Biology",
+  "History", "Computer Science", "Economics", "Psychology", "Philosophy",
+  "Business", "Engineering", "Arts", "Music", "Statistics"
 ];
 
 export function ProfileBasicsSlide({ data, updateData, onNext, onSkip }: ProfileBasicsSlideProps) {

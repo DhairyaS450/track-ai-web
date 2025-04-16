@@ -18,9 +18,9 @@ interface PersonalizationSlideProps {
 
 // Predefined extracurricular activities
 const extracurricularOptions = [
-  "Sports", "Music", "Art", "Drama/Theater", "Debate", "Academic Clubs",
-  "Student Government", "Volunteering", "Religious Activities", "Internship",
-  "Part-time Job", "Family Responsibilities", "Gaming", "Reading", "Writing"
+  "Sports", "Art", "Academic Clubs", 
+  "Volunteering", "Religious Activities", "Work", 
+  "Family Responsibilities"
 ];
 
 // Study time preference options

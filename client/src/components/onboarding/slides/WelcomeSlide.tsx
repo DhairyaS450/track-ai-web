@@ -16,7 +16,7 @@ export function WelcomeSlide({ onNext }: WelcomeSlideProps) {
       {/* App Logo */}
       <div className="mb-4">
         <img 
-          src="/tidalwave.svg" 
+          src="/logo.png" 
           alt="TidalTasks Logo" 
           className="w-32 h-32" 
         />
@@ -33,7 +33,7 @@ export function WelcomeSlide({ onNext }: WelcomeSlideProps) {
       </p>
       
       {/* Optional: video or animation */}
-      <div className="w-full max-w-xl rounded-lg overflow-hidden shadow-xl my-8">
+      {/* <div className="w-full max-w-xl rounded-lg overflow-hidden shadow-xl my-8">
         <video 
           className="w-full" 
           autoPlay 
@@ -44,7 +44,7 @@ export function WelcomeSlide({ onNext }: WelcomeSlideProps) {
           <source src="/welcome-animation.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
-      </div>
+      </div> */}
       
       {/* Get Started Button */}
       <Button 

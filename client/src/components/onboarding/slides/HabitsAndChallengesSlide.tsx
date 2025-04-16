@@ -117,20 +117,6 @@ export function HabitsAndChallengesSlide({ data, updateData, onNext, onSkip }: H
               className="min-h-[100px]"
             />
           </div>
-          
-          {/* Perfect Study Week */}
-          <div className="space-y-3">
-            <Label htmlFor="perfect-week" className="text-base font-medium">
-              What would a perfect study week look like to you?
-            </Label>
-            <Textarea
-              id="perfect-week"
-              placeholder="Describe your ideal balance of study time, classes, activities, and rest."
-              value={data.perfectStudyWeek}
-              onChange={(e) => updateData("perfectStudyWeek", e.target.value)}
-              className="min-h-[100px]"
-            />
-          </div>
         </div>
       </div>
       
