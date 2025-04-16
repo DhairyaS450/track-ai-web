@@ -1,5 +1,5 @@
-import { getUserFromRequest } from '../../lib/utils/api';
 import { autoScheduleStudySessions } from '../../lib/controllers/studySessionController';
+import { isAuthenticated } from '../../lib/middleware/auth';
 
 export default async function handler(req, res) {
   // Only allow POST requests
@@ -9,13 +9,10 @@ export default async function handler(req, res) {
 
   try {
     // Authenticate the user
-    const user = await getUserFromRequest(req);
-    if (!user) {
+    const authenticated = await isAuthenticated(req)
+    if (!authenticated) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-
-    // Set user on request object for the controller
-    req.user = user;
 
     // Call the controller function
     return autoScheduleStudySessions(req, res);

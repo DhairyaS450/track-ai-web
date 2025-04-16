@@ -58,6 +58,7 @@ import {
   TooltipTrigger, 
   TooltipContent
 } from "./ui/tooltip";
+import { autoScheduleStudySession } from "@/api/chatbot";
 
 interface UnifiedItemDialogProps {
   open: boolean;
@@ -465,69 +466,19 @@ export function UnifiedItemDialog({
         try {
           setIsAutoScheduling(true);
           
-          // Get the Firebase auth token
-          const auth = getAuth();
-          const currentUser = auth.currentUser;
-          let authToken = '';
-          
-          if (currentUser) {
-            try {
-              authToken = await currentUser.getIdToken();
-            } catch (error) {
-              console.error('Error getting auth token:', error);
-              throw new Error('Failed to authenticate. Please try again or log out and back in.');
-            }
-          } else {
-            throw new Error('You must be logged in to auto-schedule study sessions.');
-          }
-          
           // Call the auto-schedule API
           console.log("Sending auto-schedule request to API");
-          const response = await fetch('/api/study-sessions/autoschedule', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${authToken}`
-            },
-            body: JSON.stringify({
-              subject: itemData.title,
-              description: itemData.description,
-              totalDurationRequired: duration,
-              deadline: itemData.startTime,
-              priority: itemData.priority,
-              autoSchedule: true
-            }),
-          });
-
+          const response = await autoScheduleStudySession(itemData, duration);
+          
           console.log("Received response from API:", response.status);
-          // Handle API errors carefully
-          let data;
-          try {
-            const textResponse = await response.text();
-            
-            // Check if the response is valid JSON before parsing
-            if (textResponse && textResponse.trim()) {
-              try {
-                data = JSON.parse(textResponse);
-              } catch (parseError) {
-                console.error('Error parsing JSON response:', parseError);
-                console.error('Raw response:', textResponse);
-                throw new Error('Invalid response format from server. Please try again.');
-              }
-            } else {
-              throw new Error('Empty response received from server. Please try again.');
-            }
-          } catch (responseError) {
-            console.error('Response handling error:', responseError);
-            throw responseError;
+          
+          // With Axios, the data is already available in response.data
+          const data = response.data;
+          
+          if (!data || !Array.isArray(data.sessions)) {
+            throw new Error('Invalid response format from server. Missing sessions data.');
           }
           
-          if (!response.ok) {
-            const errorMessage = data?.message || data?.error || 'Failed to auto-schedule study sessions';
-            console.error('Auto-scheduling error:', errorMessage, data);
-            throw new Error(errorMessage);
-          }
-
           // Successfully auto-scheduled
           // Don't save the original session when auto-scheduling - this prevents duplicate sessions
           setIsAutoScheduling(false);
@@ -544,10 +495,25 @@ export function UnifiedItemDialog({
           return; // Return early to prevent saving the original session
         } catch (error) {
           console.error('Auto-scheduling error:', error);
+          
+          // Extract the most useful error message possible
+          let errorMessage = 'Failed to auto-schedule study sessions';
+          
+          if (error instanceof Error) {
+            errorMessage = error.message;
+          } else if (typeof error === 'object' && error !== null) {
+            // Try to extract error message from various possible formats
+            errorMessage = 
+              (error as any)?.response?.data?.message || 
+              (error as any)?.response?.data?.error || 
+              (error as any)?.message || 
+              errorMessage;
+          }
+          
           toast({
             variant: "destructive",
             title: "Auto-Scheduling Failed",
-            description: error instanceof Error ? error.message : 'Failed to auto-schedule study sessions',
+            description: errorMessage,
           });
         } finally {
           setIsAutoScheduling(false);

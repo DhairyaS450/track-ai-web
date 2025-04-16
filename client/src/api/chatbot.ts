@@ -239,3 +239,53 @@ export const getConflictSuggestion = async (
     };
   }
 };
+
+// Auto-schedule study session
+export async function autoScheduleStudySession(itemData: any, duration: number) {
+  try {
+    // Gather context data
+    const [eventsResponse, sessionsResponse, profileResponse] = await Promise.all([
+      getEvents(),
+      getStudySessions(),
+      getUserProfile()
+    ]);
+
+    // Filter and limit the context data
+    const contextData = {
+      events: filterRecentData(eventsResponse.events, 'startTime').map(filterEventData),
+      sessions: filterRecentData(sessionsResponse.sessions, 'scheduledFor').map(filterSessionData),
+      userProfile: profileResponse.userProfile,
+      timeConstraints: profileResponse.timeConstraints
+    };
+
+    console.log("Sending request to auto-schedule API with context:", {
+      contextSize: {
+        events: contextData.events.length,
+        sessions: contextData.sessions.length
+      }
+    });
+
+    const response = await api.post('/api/study-sessions/autoschedule', {
+      itemData,
+      userProfile: contextData.userProfile,
+      events: contextData.events,
+      studySessions: contextData.sessions,
+      duration,
+      autoSchedule: true
+    });
+    
+    return response;
+  } catch (error: any) {
+    console.error('Error auto-scheduling study session:', error);
+    
+    // Provide more detailed error information
+    const errorMessage = error?.response?.data?.error || error.message;
+    const statusCode = error?.response?.status;
+    
+    // Log detailed error information
+    console.error(`Auto-schedule API Error (${statusCode}): ${errorMessage}`);
+    
+    // Throw a user-friendly error
+    throw new Error(`Failed to auto-schedule: ${errorMessage}`);
+  }
+}

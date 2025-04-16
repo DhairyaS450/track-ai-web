@@ -3,10 +3,12 @@ import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BookOpen, Clock, Calendar, Sparkles } from 'lucide-react';
+import { BookOpen, Clock, Calendar, Sparkles, AlarmClock } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
+import { ScheduledNotifications } from './ScheduledNotifications';
 
 export const TestNotifications: React.FC = () => {
-  const { createNotification } = useNotifications();
+  const { createNotification, scheduleNotification } = useNotifications();
 
   // Standard notification types
   const createInfoNotification = () => {
@@ -84,6 +86,49 @@ export const TestNotifications: React.FC = () => {
       link: '/study',
     });
   };
+  
+  // Scheduled notification tests
+  const createScheduledNotification = () => {
+    // Schedule for 1 minute from now
+    const scheduledFor = new Date();
+    scheduledFor.setMinutes(scheduledFor.getMinutes() + 1);
+    
+    scheduleNotification({
+      title: 'Scheduled Notification Test',
+      message: 'This notification was scheduled for 1 minute from now.',
+      type: 'info',
+      scheduledFor: Timestamp.fromDate(scheduledFor)
+    });
+  };
+  
+  const createScheduledReminderNotification = () => {
+    // Schedule for 2 minutes from now
+    const scheduledFor = new Date();
+    scheduledFor.setMinutes(scheduledFor.getMinutes() + 2);
+    
+    scheduleNotification({
+      title: 'Study Reminder',
+      message: 'Remember to review your Physics notes for tomorrow\'s class.',
+      type: 'reminder',
+      scheduledFor: Timestamp.fromDate(scheduledFor)
+    });
+  };
+  
+  const createRecurringNotification = () => {
+    // Schedule to start 5 minutes from now and recur daily
+    const scheduledFor = new Date();
+    scheduledFor.setMinutes(scheduledFor.getMinutes() + 5);
+    
+    scheduleNotification({
+      title: 'Daily Task Reminder',
+      message: 'Don\'t forget to update your study tracker!',
+      type: 'reminder',
+      scheduledFor: Timestamp.fromDate(scheduledFor),
+      recurring: {
+        frequency: 'daily'
+      }
+    });
+  };
 
   return (
     <Card>
@@ -98,6 +143,8 @@ export const TestNotifications: React.FC = () => {
           <TabsList className="mb-4">
             <TabsTrigger value="categories">Notification Categories</TabsTrigger>
             <TabsTrigger value="types">Basic Types</TabsTrigger>
+            <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
+            <TabsTrigger value="scheduled-manager">Notification Manager</TabsTrigger>
           </TabsList>
           
           <TabsContent value="categories" className="space-y-4">
@@ -158,6 +205,33 @@ export const TestNotifications: React.FC = () => {
             <Button onClick={createErrorNotification} variant="outline" className="bg-red-50 hover:bg-red-100 border-red-200">
               Error
             </Button>
+          </TabsContent>
+          
+          <TabsContent value="scheduled" className="space-y-4">
+            <div>
+              <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+                <AlarmClock className="h-4 w-4 text-blue-500" />
+                Scheduled Notifications
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Test notifications that will be delivered at a specified time in the future.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={createScheduledNotification} variant="outline">
+                  In 1 Minute
+                </Button>
+                <Button onClick={createScheduledReminderNotification} variant="outline">
+                  Study Reminder (2 min)
+                </Button>
+                <Button onClick={createRecurringNotification} variant="outline">
+                  Daily Recurring
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="scheduled-manager">
+            <ScheduledNotifications />
           </TabsContent>
         </Tabs>
       </CardContent>

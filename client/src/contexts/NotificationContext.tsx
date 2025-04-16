@@ -11,6 +11,13 @@ import {
   unsubscribeFromPushNotifications,
   isPushNotificationSubscribed
 } from '@/services/pushNotificationService';
+import { 
+  scheduleNotification, 
+  cancelScheduledNotification, 
+  updateScheduledNotification, 
+  getScheduledNotificationsForUser,
+  ScheduledNotification
+} from '@/services/scheduledNotificationService';
 
 // Define the notification type
 export interface Notification {
@@ -32,6 +39,11 @@ interface NotificationContextType {
   markAllAsRead: () => Promise<void>;
   clearNotifications: () => Promise<void>;
   deleteNotification: (notificationId: string) => Promise<void>;
+  // Scheduled notifications
+  scheduleNotification: (notification: Omit<ScheduledNotification, 'id' | 'userId' | 'status' | 'createdAt'>) => Promise<string | null>;
+  scheduledNotifications: ScheduledNotification[];
+  cancelScheduledNotification: (notificationId: string) => Promise<boolean>;
+  updateScheduledNotification: (notificationId: string, updates: Partial<Omit<ScheduledNotification, 'id' | 'userId' | 'status' | 'createdAt'>>) => Promise<boolean>;
   // Push notification functions
   isPushSupported: boolean;
   pushPermissionStatus: string;
@@ -57,6 +69,7 @@ interface Props {
 
 export const NotificationProvider: React.FC<Props> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotification[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -89,6 +102,21 @@ export const NotificationProvider: React.FC<Props> = ({ children }) => {
     };
     
     initPushService();
+  }, [user]);
+
+  // Load scheduled notifications
+  useEffect(() => {
+    if (!user) {
+      setScheduledNotifications([]);
+      return;
+    }
+
+    const loadScheduledNotifications = async () => {
+      const notifications = await getScheduledNotificationsForUser(user.uid);
+      setScheduledNotifications(notifications);
+    };
+
+    loadScheduledNotifications();
   }, [user]);
 
   useEffect(() => {
@@ -173,6 +201,48 @@ export const NotificationProvider: React.FC<Props> = ({ children }) => {
     await markAllAsRead();
   };
 
+  // Scheduled notification functions
+  const scheduleUserNotification = async (notification: Omit<ScheduledNotification, 'id' | 'userId' | 'status' | 'createdAt'>) => {
+    if (!user) return null;
+    
+    const notificationId = await scheduleNotification(user.uid, notification);
+    
+    // Refresh scheduled notifications list
+    if (notificationId) {
+      const notifications = await getScheduledNotificationsForUser(user.uid);
+      setScheduledNotifications(notifications);
+    }
+    
+    return notificationId;
+  };
+
+  const cancelUserScheduledNotification = async (notificationId: string) => {
+    const success = await cancelScheduledNotification(notificationId);
+    
+    // Refresh scheduled notifications list
+    if (success && user) {
+      const notifications = await getScheduledNotificationsForUser(user.uid);
+      setScheduledNotifications(notifications);
+    }
+    
+    return success;
+  };
+
+  const updateUserScheduledNotification = async (
+    notificationId: string, 
+    updates: Partial<Omit<ScheduledNotification, 'id' | 'userId' | 'status' | 'createdAt'>>
+  ) => {
+    const success = await updateScheduledNotification(notificationId, updates);
+    
+    // Refresh scheduled notifications list
+    if (success && user) {
+      const notifications = await getScheduledNotificationsForUser(user.uid);
+      setScheduledNotifications(notifications);
+    }
+    
+    return success;
+  };
+
   // Push notification functions
   const requestPushPermission = async () => {
     if (!isPushSupported) return 'unsupported';
@@ -248,6 +318,11 @@ export const NotificationProvider: React.FC<Props> = ({ children }) => {
     markAllAsRead,
     clearNotifications,
     deleteNotification,
+    // Scheduled notifications
+    scheduleNotification: scheduleUserNotification,
+    scheduledNotifications,
+    cancelScheduledNotification: cancelUserScheduledNotification,
+    updateScheduledNotification: updateUserScheduledNotification,
     // Push notification functions
     isPushSupported,
     pushPermissionStatus,
