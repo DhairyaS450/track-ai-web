@@ -108,6 +108,31 @@ export function Chatbot() {
     }
   }, [location.state?.message]);
 
+  // Load chat messages from localStorage when component mounts
+  useEffect(() => {
+    const savedMessages = localStorage.getItem('chatMessages');
+    if (savedMessages) {
+      try {
+        // Parse the saved messages and convert string timestamps back to Date objects
+        const parsedMessages = JSON.parse(savedMessages).map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+        setMessages(parsedMessages);
+      } catch (error) {
+        console.error('Error loading chat messages from localStorage:', error);
+      }
+    }
+  }, []);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    // Don't save if it's just the initial welcome message
+    if (messages.length > 0) {
+      localStorage.setItem('chatMessages', JSON.stringify(messages));
+    }
+  }, [messages]);
+
   const suggestions: Suggestion[] = [
     {
       id: '1',
@@ -513,12 +538,17 @@ export function Chatbot() {
   };
 
   const handleNewChat = () => {
-    setMessages([{
-      id: '1',
-      type: 'bot',
-      content: "Hey there! I'm Kai, your AI productivity assistant. Need help scheduling, organizing, or just staying on track? Ask me anything!",
-      timestamp: new Date()
-    }]);
+    setMessages([
+      {
+        id: '1',
+        type: 'bot',
+        content: "Hey there! I'm Kai, your AI productivity assistant. Need help scheduling, organizing, or just staying on track? Ask me anything!",
+        timestamp: new Date()
+      }
+    ]);
+    setInput('');
+    // Clear the chat history from localStorage when starting a new chat
+    localStorage.removeItem('chatMessages');
   };
 
   return (

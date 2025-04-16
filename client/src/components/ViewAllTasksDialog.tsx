@@ -195,7 +195,7 @@ export function ViewAllTasksDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh]">
+      <DialogContent className="sm:max-w-[600px] max-h-[100vh]">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle>All Tasks</DialogTitle>
           <TaskFilters
