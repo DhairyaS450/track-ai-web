@@ -68,27 +68,33 @@ export function Settings() {
     disablePushNotifications 
   } = useNotifications();
 
+  // Updated profile structure to match OnboardingData interface
+  type StudyTimeOptions = "Mornings" | "Afternoons" | "Evenings" | "Night" | "Flexible";
+  
   const [profile, setProfile] = useState({
-    studyLevel: "highschool",
-    major: "",
-    extracurriculars: "",
-    strengths: "",
-    weaknesses: "",
-    goals: "",
-    preferredStudyTimes: "",
+    educationLevel: "High School" as "High School" | "College/University (Undergrad)" | "Grad School" | "Vocational/Other" | "",
+    yearOrGrade: "",
+    subjects: [] as string[],
+    
+    academicStrengths: "",
+    areasForImprovement: "",
+    academicGoals: "",
+    extracurricularActivities: [] as string[],
+    customExtracurriculars: [] as string[],
+    studyTimePreference: [] as StudyTimeOptions[],
     schoolStartTime: "08:00",
     schoolEndTime: "15:00",
-    sleepSchedule: {
-      monday: { wakeUp: "06:30", sleep: "22:00" },
-      tuesday: { wakeUp: "06:30", sleep: "22:00" },
-      wednesday: { wakeUp: "06:30", sleep: "22:00" },
-      thursday: { wakeUp: "06:30", sleep: "22:00" },
-      friday: { wakeUp: "06:30", sleep: "22:00" },
-      saturday: { wakeUp: "08:00", sleep: "23:00" },
-      sunday: { wakeUp: "08:00", sleep: "22:00" }
-    },
-    studyPreferences: [] as string[]
+    bedtime: { weekday: "22:00", weekend: "23:00" },
+    
+    timeManagementRating: 3,
+    biggestProblem: "",
+    whyImportant: "",
+    perfectStudyWeek: "",
+    
+    notificationsEnabled: true,
+    calendarIntegration: false
   });
+  
   const [tempProfile, setTempProfile] = useState(profile);
 
   const [timeConstraints, setTimeConstraints] = useState<TimeConstraint[]>([]);
@@ -98,16 +104,15 @@ export function Settings() {
   const [isDeleting, setIsDeleting] = useState(false); // State for loading indicator
   const navigate = useNavigate();
 
-  const handleTempProfileChange = (field: string, value: string | string[]) => {
+  const handleTempProfileChange = (field: string, value: string | string[] | number) => {
     if (field.includes('.')) {
-      // Handle nested objects (like sleepSchedule.monday.wakeUp)
+      // Handle nested objects (like bedtime.weekday)
       const keys = field.split('.');
       setTempProfile((prev) => {
-        // Deep clone the previous state
-        const updated = JSON.parse(JSON.stringify(prev));
+        const updated = { ...prev };
+        let current: any = updated;
         
-        // Navigate through the object structure
-        let current = updated;
+        // Navigate to the nested object
         for (let i = 0; i < keys.length - 1; i++) {
           if (!current[keys[i]]) {
             current[keys[i]] = {};
@@ -115,13 +120,16 @@ export function Settings() {
           current = current[keys[i]];
         }
         
-        // Set the value at the final key
+        // Set the value
         current[keys[keys.length - 1]] = value;
         return updated;
       });
     } else {
-      // Handle simple fields
-      setTempProfile((prev) => ({ ...prev, [field]: value }));
+      // Handle top-level fields
+      setTempProfile((prev) => ({
+        ...prev,
+        [field]: value
+      }));
     }
   };
 
@@ -130,12 +138,6 @@ export function Settings() {
     setNotifications(updatedNotifications);
     saveSettings({}, { notifications: updatedNotifications });
   };
-  
-  // const handleProfileChange = (field: string, value: string) => {
-  //   const updatedProfile = { ...profile, [field]: value };
-  //   setProfile(updatedProfile);
-  //   saveSettings({ userProfile: updatedProfile }, {});
-  // };
   
   const handleThemeChange = (value: 'light' | 'dark' | 'system') => {
     setTheme(value);
@@ -167,8 +169,21 @@ export function Settings() {
           setNotifications(settings.preferences.notifications);
         }
         if (settings.userProfile) {
-          setProfile(settings.userProfile);
-          setTempProfile(settings.userProfile);
+          // Ensure all array fields exist to prevent "Cannot read properties of undefined (reading 'join')"
+          const safeUserProfile = {
+            ...profile, // Keep default values
+            ...settings.userProfile, // Override with stored values
+            // Ensure arrays are never undefined
+            subjects: settings.userProfile.subjects || [],
+            extracurricularActivities: settings.userProfile.extracurricularActivities || [],
+            customExtracurriculars: settings.userProfile.customExtracurriculars || [],
+            studyTimePreference: settings.userProfile.studyTimePreference || [],
+            // Ensure nested objects are never undefined
+            bedtime: settings.userProfile.bedtime || { weekday: "22:00", weekend: "23:00" }
+          };
+          
+          setProfile(safeUserProfile);
+          setTempProfile(safeUserProfile);
         }
         if (settings.preferences?.theme) {
           setTheme(settings.preferences.theme);
@@ -322,115 +337,186 @@ export function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Level of Study</Label>
+              <Label>Education Level</Label>
               <RadioGroup
-                value={tempProfile?.studyLevel || 'highschool'}
+                value={tempProfile.educationLevel}
                 onValueChange={(value) =>
-                  handleTempProfileChange('studyLevel', value)
+                  handleTempProfileChange('educationLevel', value)
                 }
                 className="flex space-x-4"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="highschool" id="study-highschool" />
-                  <Label htmlFor="study-highschool">High School</Label>
+                  <RadioGroupItem value="High School" id="education-high-school" />
+                  <Label htmlFor="education-high-school">High School</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="postsecondary" id="study-postsecondary" />
-                  <Label htmlFor="study-postsecondary">Post-Secondary</Label>
+                  <RadioGroupItem value="Post-Secondary" id="education-post-secondary" />
+                  <Label htmlFor="education-post-secondary">Post-Secondary</Label>
                 </div>
               </RadioGroup>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="major">Subjects/Major</Label>
+              <Label htmlFor="yearOrGrade">Year or Grade</Label>
               <Input
-                id="major"
-                value={tempProfile?.major || ''}
+                id="yearOrGrade"
+                value={tempProfile.yearOrGrade || ''}
                 onChange={(e) =>
-                  handleTempProfileChange('major', e.target.value)
+                  handleTempProfileChange('yearOrGrade', e.target.value)
                 }
-                placeholder="e.g., Computer Science, Biology"
+                placeholder="e.g., 12, 2nd year"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="extracurriculars">Extracurricular Activities</Label>
-              <Textarea
-                id="extracurriculars"
-                value={tempProfile?.extracurriculars || ''}
-                onChange={(e) =>
-                  handleTempProfileChange('extracurriculars', e.target.value)
-                }
-                placeholder="List your extracurricular activities"
-              />
+              <Label>Subjects</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  "Mathematics",
+                  "Science",
+                  "English",
+                  "History",
+                  "Foreign Language",
+                  "Other"
+                ].map((subject) => (
+                  <div key={subject} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`subject-${subject.toLowerCase()}`} 
+                      checked={tempProfile.subjects?.includes(subject)}
+                      onCheckedChange={(checked) => {
+                        const currentSubjects = tempProfile.subjects || [];
+                        if (checked) {
+                          handleTempProfileChange(
+                            'subjects', 
+                            [...currentSubjects, subject]
+                          );
+                        } else {
+                          handleTempProfileChange(
+                            'subjects', 
+                            currentSubjects.filter(s => s !== subject)
+                          );
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`subject-${subject.toLowerCase()}`}>{subject}</Label>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="strengths">Academic Strengths</Label>
+              <Label htmlFor="academicStrengths">Academic Strengths</Label>
               <Textarea
-                id="strengths"
-                value={tempProfile?.strengths || ''}
+                id="academicStrengths"
+                value={tempProfile.academicStrengths || ''}
                 onChange={(e) =>
-                  handleTempProfileChange('strengths', e.target.value)
+                  handleTempProfileChange('academicStrengths', e.target.value)
                 }
                 placeholder="What are your academic strengths?"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="weaknesses">Areas for Improvement</Label>
+              <Label htmlFor="areasForImprovement">Areas for Improvement</Label>
               <Textarea
-                id="weaknesses"
-                value={tempProfile?.weaknesses || ''}
+                id="areasForImprovement"
+                value={tempProfile.areasForImprovement || ''}
                 onChange={(e) =>
-                  handleTempProfileChange('weaknesses', e.target.value)
+                  handleTempProfileChange('areasForImprovement', e.target.value)
                 }
                 placeholder="What areas would you like to improve?"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="goals">Academic Goals</Label>
+              <Label htmlFor="academicGoals">Academic Goals</Label>
               <Textarea
-                id="goals"
-                value={tempProfile?.goals || ''}
+                id="academicGoals"
+                value={tempProfile.academicGoals || ''}
                 onChange={(e) =>
-                  handleTempProfileChange('goals', e.target.value)
+                  handleTempProfileChange('academicGoals', e.target.value)
                 }
                 placeholder="What are your academic goals?"
               />
             </div>
 
             <div className="space-y-2">
-              <Label>When do you prefer to study?</Label>
+              <Label>Extracurricular Activities</Label>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { id: "mornings", label: "Mornings (Before school)" },
-                  { id: "afternoons", label: "Afternoons" },
-                  { id: "evenings", label: "Evenings" },
-                  { id: "night", label: "Night" },
-                  { id: "flexible", label: "Flexible" }
-                ].map((preference) => (
-                  <div key={preference.id} className="flex items-center space-x-2">
+                  "Sports",
+                  "Music",
+                  "Art",
+                  "Volunteering",
+                  "Other"
+                ].map((activity) => (
+                  <div key={activity} className="flex items-center space-x-2">
                     <Checkbox 
-                      id={`study-pref-${preference.id}`} 
-                      checked={tempProfile.studyPreferences?.includes(preference.id)}
+                      id={`activity-${activity.toLowerCase()}`} 
+                      checked={tempProfile.extracurricularActivities?.includes(activity)}
                       onCheckedChange={(checked) => {
-                        const currentPrefs = tempProfile.studyPreferences || [];
+                        const currentActivities = tempProfile.extracurricularActivities || [];
                         if (checked) {
                           handleTempProfileChange(
-                            'studyPreferences', 
-                            [...currentPrefs, preference.id]
+                            'extracurricularActivities', 
+                            [...currentActivities, activity]
                           );
                         } else {
                           handleTempProfileChange(
-                            'studyPreferences', 
-                            currentPrefs.filter(p => p !== preference.id)
+                            'extracurricularActivities', 
+                            currentActivities.filter(a => a !== activity)
                           );
                         }
                       }}
                     />
-                    <Label htmlFor={`study-pref-${preference.id}`}>{preference.label}</Label>
+                    <Label htmlFor={`activity-${activity.toLowerCase()}`}>{activity}</Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Custom Extracurricular Activities</Label>
+              <Textarea
+                id="customExtracurriculars"
+                value={(tempProfile.customExtracurriculars || []).join(', ')}
+                onChange={(e) =>
+                  handleTempProfileChange('customExtracurriculars', e.target.value.split(',').map(item => item.trim()).filter(item => item !== ''))
+                }
+                placeholder="List your custom extracurricular activities"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Study Time Preference</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  "Mornings" as StudyTimeOptions,
+                  "Afternoons" as StudyTimeOptions,
+                  "Evenings" as StudyTimeOptions,
+                  "Night" as StudyTimeOptions,
+                  "Flexible" as StudyTimeOptions
+                ].map((preference) => (
+                  <div key={preference} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`study-pref-${preference.toLowerCase()}`} 
+                      checked={tempProfile.studyTimePreference?.includes(preference)}
+                      onCheckedChange={(checked) => {
+                        const currentPrefs = [...(tempProfile.studyTimePreference || [])];
+                        if (checked) {
+                          setTempProfile(prev => ({
+                            ...prev,
+                            studyTimePreference: [...currentPrefs, preference]
+                          }));
+                        } else {
+                          setTempProfile(prev => ({
+                            ...prev,
+                            studyTimePreference: currentPrefs.filter(p => p !== preference)
+                          }));
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`study-pref-${preference.toLowerCase()}`}>{preference}</Label>
                   </div>
                 ))}
               </div>
@@ -441,7 +527,7 @@ export function Settings() {
               <Input
                 id="schoolStartTime"
                 type="time"
-                value={tempProfile?.schoolStartTime || '08:00'}
+                value={tempProfile.schoolStartTime || '08:00'}
                 onChange={(e) =>
                   handleTempProfileChange('schoolStartTime', e.target.value)
                 }
@@ -453,7 +539,7 @@ export function Settings() {
               <Input
                 id="schoolEndTime"
                 type="time"
-                value={tempProfile?.schoolEndTime || '15:00'}
+                value={tempProfile.schoolEndTime || '15:00'}
                 onChange={(e) =>
                   handleTempProfileChange('schoolEndTime', e.target.value)
                 }
@@ -462,18 +548,13 @@ export function Settings() {
 
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <Label className="text-lg font-medium">Sleep Schedule</Label>
+                <Label className="text-lg font-medium">Bedtime</Label>
               </div>
               
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {[
-                  { day: "Monday", key: "monday" as keyof typeof tempProfile.sleepSchedule },
-                  { day: "Tuesday", key: "tuesday" as keyof typeof tempProfile.sleepSchedule },
-                  { day: "Wednesday", key: "wednesday" as keyof typeof tempProfile.sleepSchedule },
-                  { day: "Thursday", key: "thursday" as keyof typeof tempProfile.sleepSchedule },
-                  { day: "Friday", key: "friday" as keyof typeof tempProfile.sleepSchedule },
-                  { day: "Saturday", key: "saturday" as keyof typeof tempProfile.sleepSchedule },
-                  { day: "Sunday", key: "sunday" as keyof typeof tempProfile.sleepSchedule }
+                  { day: "Weekday", key: "weekday" as keyof typeof tempProfile.bedtime },
+                  { day: "Weekend", key: "weekend" as keyof typeof tempProfile.bedtime }
                 ].map((dayObj) => (
                   <Card key={dayObj.key} className="border shadow-sm hover:shadow transition-shadow">
                     <CardHeader className="p-3 pb-0">
@@ -482,33 +563,15 @@ export function Settings() {
                     <CardContent className="p-3 pt-2 space-y-3">
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <Label htmlFor={`${dayObj.key}WakeUp`} className="text-xs text-muted-foreground flex items-center">
-                            <Clock className="h-4 w-4 mr-1.5" /> Wake up
+                          <Label htmlFor={`${dayObj.key}Bedtime`} className="text-xs text-muted-foreground flex items-center">
+                            <Moon className="h-4 w-4 mr-1.5" /> Bedtime
                           </Label>
                           <Input
-                            id={`${dayObj.key}WakeUp`}
+                            id={`${dayObj.key}Bedtime`}
                             type="time"
-                            value={tempProfile?.sleepSchedule?.[dayObj.key]?.wakeUp || 
-                              (dayObj.key === 'saturday' || dayObj.key === 'sunday' ? '08:00' : '06:30')}
+                            value={tempProfile.bedtime[dayObj.key] || '22:00'}
                             onChange={(e) =>
-                              handleTempProfileChange(`sleepSchedule.${dayObj.key}.wakeUp`, e.target.value)
-                            }
-                            className="w-24 h-8 text-xs"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor={`${dayObj.key}Sleep`} className="text-xs text-muted-foreground flex items-center">
-                            <Moon className="h-4 w-4 mr-1.5" /> Sleep
-                          </Label>
-                          <Input
-                            id={`${dayObj.key}Sleep`}
-                            type="time"
-                            value={tempProfile?.sleepSchedule?.[dayObj.key]?.sleep || 
-                              (dayObj.key === 'saturday' ? '23:00' : '22:00')}
-                            onChange={(e) =>
-                              handleTempProfileChange(`sleepSchedule.${dayObj.key}.sleep`, e.target.value)
+                              handleTempProfileChange(`bedtime.${dayObj.key}`, e.target.value)
                             }
                             className="w-24 h-8 text-xs"
                           />
@@ -521,14 +584,74 @@ export function Settings() {
             </div>
 
             <div className="space-y-2">
-              <Label>Study Preferences</Label>
+              <Label>Time Management Rating</Label>
+              <RadioGroup
+                value={String(tempProfile.timeManagementRating)}
+                onValueChange={(value) => {
+                  const numValue = parseInt(value, 10);
+                  setTempProfile(prev => ({
+                    ...prev,
+                    timeManagementRating: numValue
+                  }));
+                }}
+                className="flex space-x-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="1" id="time-management-1" />
+                  <Label htmlFor="time-management-1">1 (Poor)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="2" id="time-management-2" />
+                  <Label htmlFor="time-management-2">2 (Fair)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="3" id="time-management-3" />
+                  <Label htmlFor="time-management-3">3 (Good)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="4" id="time-management-4" />
+                  <Label htmlFor="time-management-4">4 (Very Good)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="5" id="time-management-5" />
+                  <Label htmlFor="time-management-5">5 (Excellent)</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="biggestProblem">Biggest Problem</Label>
               <Textarea
-                id="studyPreferences"
-                value={tempProfile?.studyPreferences.join(', ') || ''}
+                id="biggestProblem"
+                value={tempProfile.biggestProblem || ''}
                 onChange={(e) =>
-                  handleTempProfileChange('studyPreferences', e.target.value.split(','))
+                  handleTempProfileChange('biggestProblem', e.target.value)
                 }
-                placeholder="List your study preferences"
+                placeholder="What is your biggest problem?"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="whyImportant">Why is it Important?</Label>
+              <Textarea
+                id="whyImportant"
+                value={tempProfile.whyImportant || ''}
+                onChange={(e) =>
+                  handleTempProfileChange('whyImportant', e.target.value)
+                }
+                placeholder="Why is it important to you?"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="perfectStudyWeek">Perfect Study Week</Label>
+              <Textarea
+                id="perfectStudyWeek"
+                value={tempProfile.perfectStudyWeek || ''}
+                onChange={(e) =>
+                  handleTempProfileChange('perfectStudyWeek', e.target.value)
+                }
+                placeholder="What would be your perfect study week?"
               />
             </div>
           </CardContent>
