@@ -317,19 +317,19 @@ export function Settings() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Settings</h1>
-
-      <div className="grid gap-6">
-        <Card>
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <h1 className="text-3xl font-bold mb-8">Settings</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="col-span-1 md:col-span-2">
           <CardHeader className="flex justify-between p-4 border-b">
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              Student Profile
+              Profile
             </CardTitle>
             <Button 
               onClick={handleSaveProfile} 
-              className="ml-auto"
+              className="w-full md:w-auto"
               disabled={JSON.stringify(tempProfile) === JSON.stringify(profile)}
             >
               Save Profile
@@ -343,7 +343,7 @@ export function Settings() {
                 onValueChange={(value) =>
                   handleTempProfileChange('educationLevel', value)
                 }
-                className="flex space-x-4"
+                className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-4"
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="High School" id="education-high-school" />
@@ -370,7 +370,7 @@ export function Settings() {
 
             <div className="space-y-2">
               <Label>Subjects</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {[
                   "Mathematics",
                   "Science",
@@ -442,7 +442,7 @@ export function Settings() {
 
             <div className="space-y-2">
               <Label>Extracurricular Activities</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {[
                   "Sports",
                   "Music",
@@ -489,7 +489,7 @@ export function Settings() {
 
             <div className="space-y-2">
               <Label>Study Time Preference</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {[
                   "Mornings" as StudyTimeOptions,
                   "Afternoons" as StudyTimeOptions,
@@ -522,28 +522,31 @@ export function Settings() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="schoolStartTime">School Start Time</Label>
-              <Input
-                id="schoolStartTime"
-                type="time"
-                value={tempProfile.schoolStartTime || '08:00'}
-                onChange={(e) =>
-                  handleTempProfileChange('schoolStartTime', e.target.value)
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="schoolEndTime">School End Time</Label>
-              <Input
-                id="schoolEndTime"
-                type="time"
-                value={tempProfile.schoolEndTime || '15:00'}
-                onChange={(e) =>
-                  handleTempProfileChange('schoolEndTime', e.target.value)
-                }
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="schoolStartTime">School Start Time</Label>
+                <Input
+                  id="schoolStartTime"
+                  type="time"
+                  value={tempProfile.schoolStartTime || '08:00'}
+                  onChange={(e) =>
+                    handleTempProfileChange('schoolStartTime', e.target.value)
+                  }
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="schoolEndTime">School End Time</Label>
+                <Input
+                  id="schoolEndTime"
+                  type="time"
+                  value={tempProfile.schoolEndTime || '15:00'}
+                  onChange={(e) =>
+                    handleTempProfileChange('schoolEndTime', e.target.value)
+                  }
+                  className="w-full"
+                />
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -551,31 +554,29 @@ export function Settings() {
                 <Label className="text-lg font-medium">Bedtime</Label>
               </div>
               
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
                   { day: "Weekday", key: "weekday" as keyof typeof tempProfile.bedtime },
                   { day: "Weekend", key: "weekend" as keyof typeof tempProfile.bedtime }
                 ].map((dayObj) => (
                   <Card key={dayObj.key} className="border shadow-sm hover:shadow transition-shadow">
                     <CardHeader className="p-3 pb-0">
-                      <CardTitle className="text-sm font-medium">{dayObj.day}</CardTitle>
+                      <CardTitle className="text-sm">{dayObj.day}</CardTitle>
                     </CardHeader>
-                    <CardContent className="p-3 pt-2 space-y-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor={`${dayObj.key}Bedtime`} className="text-xs text-muted-foreground flex items-center">
-                            <Moon className="h-4 w-4 mr-1.5" /> Bedtime
-                          </Label>
-                          <Input
-                            id={`${dayObj.key}Bedtime`}
-                            type="time"
-                            value={tempProfile.bedtime[dayObj.key] || '22:00'}
-                            onChange={(e) =>
-                              handleTempProfileChange(`bedtime.${dayObj.key}`, e.target.value)
-                            }
-                            className="w-24 h-8 text-xs"
-                          />
-                        </div>
+                    <CardContent className="p-3 pt-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor={`${dayObj.key}Bedtime`} className="text-xs text-muted-foreground flex items-center">
+                          <Moon className="h-4 w-4 mr-1.5" /> Bedtime
+                        </Label>
+                        <Input
+                          id={`${dayObj.key}Bedtime`}
+                          type="time"
+                          value={tempProfile.bedtime[dayObj.key] || '22:00'}
+                          onChange={(e) =>
+                            handleTempProfileChange(`bedtime.${dayObj.key}`, e.target.value)
+                          }
+                          className="w-24 h-8 text-xs"
+                        />
                       </div>
                     </CardContent>
                   </Card>
@@ -594,7 +595,7 @@ export function Settings() {
                     timeManagementRating: numValue
                   }));
                 }}
-                className="flex space-x-4"
+                className="flex flex-wrap gap-3"
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="1" id="time-management-1" />
@@ -657,7 +658,7 @@ export function Settings() {
           </CardContent>
         </Card>
 
-        <Card className="mb-8">
+        <Card className="col-span-1 md:col-span-2">
           <CardHeader className="flex flex-row items-center">
             <Bell className="mr-2 h-5 w-5" />
             <CardTitle>Notifications</CardTitle>
@@ -841,10 +842,10 @@ export function Settings() {
               timeConstraints.map((constraint) => (
                 <div
                   key={constraint.id}
-                  className="flex items-center justify-between p-4 rounded-lg border"
+                  className="flex items-center justify-between gap-2 border p-3 rounded-md"
                 >
-                  <div className="space-y-1">
-                    <h4 className="font-medium">{constraint.title}</h4>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{constraint.title}</p>
                     <p className="text-sm text-muted-foreground">
                       {constraint.daysOfWeek.map(day => 
                         ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]
@@ -861,7 +862,7 @@ export function Settings() {
                       {constraint.priority}
                     </Badge>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
