@@ -52,87 +52,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
         })
       );
 
-      // Events subscription
+      // Events subscription (only regular events, not study sessions)
       const eventsQuery = query(
         collection(db, 'events'),
-        where('userId', '==', auth.currentUser.uid)
+        where('userId', '==', auth.currentUser.uid),
       );
       unsubscribers.push(
         onSnapshot(eventsQuery, (snapshot) => {
-          // Define a type that includes all possible fields from events
-          type RawEventData = {
-            id: string;
-            category?: string;
-            name?: string;
-            description?: string;
-            duration?: number;
-            startTime?: string;
-            endTime?: string;
-            status?: string;
-            priority?: string;
-            completion?: number;
-            notes?: string;
-            isFlexible?: boolean;
-            autoScheduled?: boolean;
-            parentRequestId?: string;
-            source?: string;
-            [key: string]: any; // Allow for other properties
-          };
-          
-          const eventsData = snapshot.docs.map(doc => {
-            const data = doc.data() as Record<string, any>;
-            return {
-              id: doc.id,
-              ...data
-            } as RawEventData;
-          });
+          const eventsData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data() as Record<string, any>
+          })) as Event[];
+          setEvents(eventsData);
+        })
+      );
 
-          // Filter regular events and study sessions from the events collection
-          const regularEvents = eventsData.filter(event => event.category !== 'studysession') as Event[];
-          const studySessionEvents = eventsData.filter(event => event.category === 'studysession').map(event => {
-            // Convert event fields to study session format
-            return {
-              id: event.id,
-              subject: event.name || '',
-              goal: event.description || '',
-              duration: event.duration || (event.endTime && event.startTime ? 
-                Math.round((new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / 60000) : 60),
-              technique: 'pomodoro',
-              status: event.status || 'scheduled',
-              scheduledFor: event.startTime || '',
-              priority: event.priority || 'Medium',
-              startTime: event.startTime || '',
-              endTime: event.endTime || '',
-              completion: event.completion || 0,
-              notes: event.notes || '',
-              sessionMode: 'basic',
-              isFlexible: event.isFlexible || false,
-              autoScheduled: event.autoScheduled || false,
-              parentRequestId: event.parentRequestId || '',
-              source: event.source || 'manual'
-            } as StudySession;
-          });
-
-          setEvents(regularEvents);
-          
-          // Sessions subscription
-          if (auth.currentUser) {
-            const sessionsQuery = query(
-              collection(db, 'studySessions'),
-              where('userId', '==', auth.currentUser.uid)
-            );
-            unsubscribers.push(
-              onSnapshot(sessionsQuery, (snapshot) => {
-                const sessionsData = snapshot.docs.map(doc => ({
-                  id: doc.id,
-                  ...doc.data() as Record<string, any>
-                })) as StudySession[];
-                
-                // Combine regular study sessions with ones from events collection
-                setSessions([...sessionsData, ...studySessionEvents]);
-              })
-            );
-          }
+      // Study sessions subscription from studySessions collection
+      const studySessionsQuery = query(
+        collection(db, 'studySessions'),
+        where('userId', '==', auth.currentUser.uid)
+      );
+      unsubscribers.push(
+        onSnapshot(studySessionsQuery, (snapshot) => {
+          const sessionsData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data() as Record<string, any>
+          })) as StudySession[];
+          setSessions(sessionsData);
         })
       );
 
@@ -338,26 +284,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!auth.currentUser) throw new Error('User not authenticated');
 
       try {
-        // First try to delete from the studySessions collection (regular sessions)
+        // Only use the studySessions collection
         const sessionRef = doc(db, 'studySessions', id);
         await deleteDoc(sessionRef);
       } catch (err) {
-        // Session might not be in studySessions collection
-        console.log('Session not found in studySessions, trying events collection...');
-      }
-      
-      try {
-        // Then check if it's an auto-scheduled session in the events collection
-        const eventRef = doc(db, 'events', id);
-        await deleteDoc(eventRef);
-      } catch (err) {
-        // Session might not be in events collection either
-        console.log('Session not found in events collection');
+        console.error('Error deleting study session:', err);
+        throw new Error(`Failed to delete study session: ${(err as Error).message}`);
       }
 
-      // Remove from local state regardless of which collection it was in
+      // Remove from local state
       setSessions(prevSessions => prevSessions.filter(s => s.id !== id));
-      setEvents(prevEvents => prevEvents.filter(e => e.id !== id));
 
       return { success: true };
     } catch (error: any) {

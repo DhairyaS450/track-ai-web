@@ -5,7 +5,7 @@ import { getEvents } from './events';
 import { getStudySessions } from './sessions';
 import { getUserProfile } from './settings';
 import { SchedulableItem } from '@/types/unified'; // Import SchedulableItem type
-import { addEvent } from './events'; // Import addEvent function instead of createEvent
+import { addStudySession } from './sessions'; // Import addStudySession for correct collection usage
 
 // Define action interface
 export interface ChatbotAction {
@@ -306,7 +306,7 @@ export async function autoScheduleStudySession(itemData: any, duration: number) 
   }
 }
 
-// Process study session actions and create events
+// Process study session actions and create study sessions
 export async function processStudySessionActions(actions: ChatbotAction[]): Promise<any[]> {
   const createdSessions = [];
   
@@ -318,17 +318,20 @@ export async function processStudySessionActions(actions: ChatbotAction[]): Prom
         continue;
       }
       
-      // Prepare session data from the action
+      // Prepare study session data from the action - use correct field names for StudySession type
       const sessionData: any = {
-        name: action.data.subject, // Use name instead of title to match Event type
+        subject: action.data.subject,
         description: action.data.description,
-        startTime: action.data.scheduledFor,
+        scheduledFor: action.data.scheduledFor,
         duration: action.data.duration,
         priority: action.data.priority,
-        status: action.data.status,
-        category: 'studysession',
+        status: action.data.status || 'scheduled',
+        technique: 'pomodoro', // Default technique
+        goal: action.data.description, // Use description as goal
+        completion: 0,
         autoScheduled: true,
-        parentRequestId: action.data.parentRequestId
+        parentRequestId: action.data.parentRequestId,
+        sections: []
       };
       
       // Calculate end time for the session
@@ -349,15 +352,58 @@ export async function processStudySessionActions(actions: ChatbotAction[]): Prom
         sessionData.endTime = endTimeIso;
       }
       
-      // Create the event using the events API
-      const result = await addEvent({
-        ...sessionData,
-        isAllDay: false,
-        isFlexible: false
-      });
+      // Use startTime field for tracking when session actually starts
+      sessionData.startTime = '';
+      
+      // Create default sections for pomodoro technique
+      if (action.data.duration >= 25) {
+        // Create pomodoro sections (25 min work, 5 min break)
+        const numPomodoros = Math.floor(action.data.duration / 30); // Each full pomodoro is 30 min (25+5)
+        const remainingMinutes = action.data.duration % 30;
+        
+        for (let i = 0; i < numPomodoros; i++) {
+          sessionData.sections.push({
+            type: 'work',
+            duration: 25,
+            status: 'pending',
+            completion: 0
+          });
+          
+          if (i < numPomodoros - 1 || remainingMinutes === 0) {
+            // Add break after each work session except maybe the last one
+            sessionData.sections.push({
+              type: 'break',
+              duration: 5,
+              status: 'pending',
+              completion: 0
+            });
+          }
+        }
+        
+        // Add remaining time if needed
+        if (remainingMinutes > 0) {
+          sessionData.sections.push({
+            type: 'work',
+            duration: remainingMinutes,
+            status: 'pending',
+            completion: 0
+          });
+        }
+      } else {
+        // For short sessions, just create one work section
+        sessionData.sections.push({
+          type: 'work',
+          duration: action.data.duration,
+          status: 'pending',
+          completion: 0
+        });
+      }
+      
+      // Create the study session using the dedicated study session API
+      const result = await addStudySession(sessionData);
       
       // Extract the created session from the result
-      const createdSession = result.event;
+      const createdSession = result.session;
       
       createdSessions.push(createdSession);
       console.log(`Created study session with ID: ${createdSession.id}`);
