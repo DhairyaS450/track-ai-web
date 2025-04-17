@@ -5,6 +5,7 @@ import { getEvents } from './events';
 import { getStudySessions } from './sessions';
 import { getUserProfile } from './settings';
 import { SchedulableItem } from '@/types/unified'; // Import SchedulableItem type
+import { addEvent } from './events'; // Import addEvent function instead of createEvent
 
 // Define action interface
 export interface ChatbotAction {
@@ -274,6 +275,21 @@ export async function autoScheduleStudySession(itemData: any, duration: number) 
       autoSchedule: true
     });
     
+    // Now handle the actions returned from the backend
+    if (response.data?.actions?.length > 0) {
+      console.log(`Processing ${response.data.actions.length} actions received from backend`);
+      const createdSessions = await processStudySessionActions(response.data.actions);
+      
+      // Return both the API response and the created sessions
+      return {
+        ...response,
+        data: {
+          ...response.data,
+          sessions: createdSessions
+        }
+      };
+    }
+    
     return response;
   } catch (error: any) {
     console.error('Error auto-scheduling study session:', error);
@@ -288,4 +304,69 @@ export async function autoScheduleStudySession(itemData: any, duration: number) 
     // Throw a user-friendly error
     throw new Error(`Failed to auto-schedule: ${errorMessage}`);
   }
+}
+
+// Process study session actions and create events
+export async function processStudySessionActions(actions: ChatbotAction[]): Promise<any[]> {
+  const createdSessions = [];
+  
+  // Process each action to create study sessions
+  for (const action of actions) {
+    try {
+      if (action.type !== 'CREATE_SESSION') {
+        console.warn(`Skipping unknown action type: ${action.type}`);
+        continue;
+      }
+      
+      // Prepare session data from the action
+      const sessionData: any = {
+        name: action.data.subject, // Use name instead of title to match Event type
+        description: action.data.description,
+        startTime: action.data.scheduledFor,
+        duration: action.data.duration,
+        priority: action.data.priority,
+        status: action.data.status,
+        category: 'studysession',
+        autoScheduled: true,
+        parentRequestId: action.data.parentRequestId
+      };
+      
+      // Calculate end time for the session
+      const startDateTime = new Date(action.data.scheduledFor);
+      
+      // Calculate the end time while preserving timezone format
+      const endDateTime = new Date(startDateTime.getTime() + action.data.duration * 60000);
+      const endTimeIso = endDateTime.toISOString();
+      
+      // Handle timezone preservation
+      const scheduledFor = action.data.scheduledFor;
+      if (scheduledFor.includes('+') || scheduledFor.includes('-')) {
+        // Extract timezone part like "-04:00" from original time
+        const timezonePart = scheduledFor.substring(scheduledFor.length - 6);
+        // Replace Z in ISO string with the extracted timezone
+        sessionData.endTime = endTimeIso.replace('Z', timezonePart);
+      } else {
+        sessionData.endTime = endTimeIso;
+      }
+      
+      // Create the event using the events API
+      const result = await addEvent({
+        ...sessionData,
+        isAllDay: false,
+        isFlexible: false
+      });
+      
+      // Extract the created session from the result
+      const createdSession = result.event;
+      
+      createdSessions.push(createdSession);
+      console.log(`Created study session with ID: ${createdSession.id}`);
+    } catch (error) {
+      console.error('Error creating study session:', error);
+      // Continue with other sessions even if one fails
+    }
+  }
+  
+  console.log(`Successfully created ${createdSessions.length} study sessions`);
+  return createdSessions;
 }
