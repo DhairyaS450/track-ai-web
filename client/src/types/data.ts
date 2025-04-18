@@ -1,11 +1,9 @@
-import { Reminder } from "./deadlines";
 import { Event, StudySession, Task } from ".";
 
 export interface DataContextType {
     tasks: Task[];
     events: Event[];
     sessions: StudySession[];
-    reminders: Reminder[];
     loading: boolean;
     error: string | null;
   
@@ -24,9 +22,4 @@ export interface DataContextType {
     startSession: (id: string) => Promise<{ session: StudySession }>;
     endSession: (id: string, notes?: string) => Promise<{ session: StudySession }>;
     updateSessionSection: (id: string, sectionIndex: number) => Promise<{ success: boolean }>;
-  
-    addReminder: (reminder: Omit<Reminder, 'id' | 'userId' | 'createdAt'>) => Promise<{ reminder: Reminder }>;
-    updateReminder: (id: string, updates: Partial<Reminder>) => Promise<{ reminder: Reminder }>;
-    deleteReminder: (id: string) => Promise<{ success: boolean }>;
-    dismissReminder: (id: string) => Promise<{ success: boolean }>;
   }

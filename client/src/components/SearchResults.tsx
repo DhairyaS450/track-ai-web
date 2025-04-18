@@ -1,4 +1,4 @@
-import { CheckSquare, Bell, BookOpen, Calendar, Edit2, FileText, X } from "lucide-react";
+import { CheckSquare, BookOpen, Calendar, Edit2, FileText, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { format } from "date-fns";
@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 interface SearchResult {
   id: string;
   title: string;
-  type: "task" | "event" | "study" | "reminder";
+  type: "task" | "event" | "study";
   dueDate?: Date;
   completed?: boolean;
   status?: string;
@@ -27,8 +27,8 @@ export function SearchResults({ results, isOpen, onClose, onEdit, onToggleComple
   const groupedResults = results.reduce((acc, result) => {
     const category = result.type === "task" ? "Tasks" : 
                     result.type === "event" ? "Events" : 
-                    result.type === "study" ? "Study Sessions" :
-                    "Reminders";
+                    result.type === "study" ? "Study Sessions" : 
+                    "Other";
     if (!acc[category]) {
       acc[category] = [];
     }
@@ -52,8 +52,6 @@ export function SearchResults({ results, isOpen, onClose, onEdit, onToggleComple
         return <Calendar className="h-4 w-4" />;
       case "Study Sessions":
         return <BookOpen className="h-4 w-4" />;
-      case "Reminders":
-        return <Bell className="h-4 w-4" />;
       default:
         return <FileText className="h-4 w-4" />;
     }
@@ -62,7 +60,6 @@ export function SearchResults({ results, isOpen, onClose, onEdit, onToggleComple
   const getActionIcon = (type: string) => {
     switch (type) {
       case "task":
-      case "reminder":
         return <X className="h-4 w-4" />;
       default:
         return null;
@@ -113,7 +110,7 @@ export function SearchResults({ results, isOpen, onClose, onEdit, onToggleComple
                     >
                       <Edit2 className="h-4 w-4" />
                     </Button>
-                    {(item.type === "task" || item.type === "reminder") && (
+                    {(item.type === "task") && (
                       <Button
                         variant="ghost"
                         size="sm"

@@ -35,10 +35,6 @@ export interface StudySession {
   breakDuration?: number;
   materials?: string;
   priority?: 'High' | 'Medium' | 'Low';
-  reminders?: Array<{
-    type: 'minutes' | 'hours' | 'days';
-    amount: number;
-  }>;
   linkedTaskIds?: string[];
   linkedEventIds?: string[];
   isAIRecommended?: boolean;
@@ -119,5 +115,4 @@ export interface TimeConstraint {
   endDate?: string;     // ISO date string, for non-recurring constraints
 }
 
-export * from './deadlines';
 export * from './data';

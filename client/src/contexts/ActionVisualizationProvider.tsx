@@ -1,7 +1,7 @@
 import { createContext, useContext, ReactNode, useState, useCallback, useMemo } from "react";
-import { StudySession, Task, Event, Reminder } from "@/types";
+import { StudySession, Task, Event } from "@/types";
 
-type EntityType = "Study Session" | "Task" | "Event" | "Reminder";
+type EntityType = "Study Session" | "Task" | "Event";
 type ActionType = "create" | "update" | "delete";
 
 interface ActionDetail {
@@ -18,18 +18,18 @@ interface ActionInfo {
   title: string;
   details: ActionDetail[];
   timestamp: Date;
-  originalData?: StudySession | Task | Event | Reminder;
+  originalData?: StudySession | Task | Event;
 }
 
 interface ActionContextType {
   actions: ActionInfo[];
-  addCreateAction: (entity: StudySession | Task | Event | Reminder, entityType: EntityType) => void;
+  addCreateAction: (entity: StudySession | Task | Event, entityType: EntityType) => void;
   addUpdateAction: (
     entityType: EntityType, 
-    oldEntity: StudySession | Task | Event | Reminder, 
-    newEntity: StudySession | Task | Event | Reminder
+    oldEntity: StudySession | Task | Event, 
+    newEntity: StudySession | Task | Event 
   ) => void;
-  addDeleteAction: (entity: StudySession | Task | Event | Reminder, entityType: EntityType) => void;
+  addDeleteAction: (entity: StudySession | Task | Event, entityType: EntityType) => void;
   clearActions: () => void;
   removeAction: (id: string) => void;
 }
@@ -43,7 +43,7 @@ export function ActionVisualizationProvider({ children }: { children: ReactNode 
     return Math.random().toString(36).substring(2, 11);
   }, []);
 
-  const addCreateAction = useCallback((entity: StudySession | Task | Event | Reminder, entityType: EntityType) => {
+  const addCreateAction = useCallback((entity: StudySession | Task | Event, entityType: EntityType) => {
     const details: ActionDetail[] = [];
     
     // Add entity-specific details based on type
@@ -66,10 +66,6 @@ export function ActionVisualizationProvider({ children }: { children: ReactNode 
       details.push({ label: "Start Time", after: new Date(event.startTime).toLocaleString() });
       details.push({ label: "End Time", after: new Date(event.endTime).toLocaleString() });
       if (event.location) details.push({ label: "Location", after: event.location });
-    } else if (entityType === "Reminder") {
-      const reminder = entity as Reminder;
-      details.push({ label: "Title", after: reminder.title });
-      details.push({ label: "Reminder Time", after: new Date(reminder.reminderTime).toLocaleString() });
     }
 
     const action: ActionInfo = {
@@ -83,7 +79,7 @@ export function ActionVisualizationProvider({ children }: { children: ReactNode 
           ? (entity as Task).title 
           : entityType === "Event" 
             ? (entity as Event).name 
-            : (entity as Reminder).title,
+            : "",
       details,
       timestamp: new Date(),
       originalData: entity
@@ -94,8 +90,8 @@ export function ActionVisualizationProvider({ children }: { children: ReactNode 
 
   const addUpdateAction = useCallback((
     entityType: EntityType, 
-    oldEntity: StudySession | Task | Event | Reminder, 
-    newEntity: StudySession | Task | Event | Reminder
+    oldEntity: StudySession | Task | Event, 
+    newEntity: StudySession | Task | Event
   ) => {
     const details: ActionDetail[] = [];
 
@@ -185,21 +181,6 @@ export function ActionVisualizationProvider({ children }: { children: ReactNode 
       if (oldEvent.location !== newEvent.location) {
         details.push({ label: "Location", before: oldEvent.location, after: newEvent.location });
       }
-    } else if (entityType === "Reminder") {
-      const oldReminder = oldEntity as Reminder;
-      const newReminder = newEntity as Reminder;
-      
-      if (oldReminder.title !== newReminder.title) {
-        details.push({ label: "Title", before: oldReminder.title, after: newReminder.title });
-      }
-      
-      if (oldReminder.reminderTime !== newReminder.reminderTime) {
-        details.push({ 
-          label: "Reminder Time", 
-          before: new Date(oldReminder.reminderTime).toLocaleString(), 
-          after: new Date(newReminder.reminderTime).toLocaleString() 
-        });
-      }
     }
 
     // Only add action if there are actual changes
@@ -215,7 +196,7 @@ export function ActionVisualizationProvider({ children }: { children: ReactNode 
             ? (newEntity as Task).title 
             : entityType === "Event" 
               ? (newEntity as Event).name 
-              : (newEntity as Reminder).title,
+              : "",
         details,
         timestamp: new Date(),
         originalData: oldEntity
@@ -225,7 +206,7 @@ export function ActionVisualizationProvider({ children }: { children: ReactNode 
     }
   }, [generateId]);
 
-  const addDeleteAction = useCallback((entity: StudySession | Task | Event | Reminder, entityType: EntityType) => {
+  const addDeleteAction = useCallback((entity: StudySession | Task | Event, entityType: EntityType) => {
     const details: ActionDetail[] = [];
     
     // Add entity-specific details based on type
@@ -243,10 +224,6 @@ export function ActionVisualizationProvider({ children }: { children: ReactNode 
       const event = entity as Event;
       details.push({ label: "Name", before: event.name });
       details.push({ label: "Date", before: `${new Date(event.startTime).toLocaleString()} - ${new Date(event.endTime).toLocaleString()}` });
-    } else if (entityType === "Reminder") {
-      const reminder = entity as Reminder;
-      details.push({ label: "Title", before: reminder.title });
-      details.push({ label: "Reminder Time", before: new Date(reminder.reminderTime).toLocaleString() });
     }
 
     const action: ActionInfo = {
@@ -260,7 +237,7 @@ export function ActionVisualizationProvider({ children }: { children: ReactNode 
           ? (entity as Task).title 
           : entityType === "Event" 
             ? (entity as Event).name 
-            : (entity as Reminder).title,
+            : "",
       details,
       timestamp: new Date(),
       originalData: entity

@@ -1,8 +1,7 @@
 import { useState, useEffect, ReactNode, useRef, useContext } from 'react';
 import { db, auth } from '@/config/firebase';
 import { collection, query, where, onSnapshot, doc, deleteDoc, addDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
-import { Task, Event, StudySession, Reminder } from '@/types';
-import { format } from 'date-fns';
+import { Task, Event, StudySession } from '@/types';
 import { createContext } from 'react';
 import { DataContextType } from '@/types';
 
@@ -17,7 +16,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
-  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +27,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setTasks([]);
       setEvents([]);
       setSessions([]);
-      setReminders([]);
       setLoading(false);
       return;
     }
@@ -79,21 +76,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ...doc.data() as Record<string, any>
           })) as StudySession[];
           setSessions(sessionsData);
-        })
-      );
-
-      // Reminders subscription
-      const remindersQuery = query(
-        collection(db, 'reminders'),
-        where('userId', '==', auth.currentUser.uid)
-      );
-      unsubscribers.push(
-        onSnapshot(remindersQuery, (snapshot) => {
-          const remindersData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data() as Record<string, any>
-          })) as Reminder[];
-          setReminders(remindersData);
         })
       );
 
@@ -175,24 +157,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       };
 
       const docRef = await addDoc(collection(db, 'events'), eventWithMeta);
-
-      // Create reminders if specified
-      if (eventData.reminders?.length) {
-        for (const reminder of eventData.reminders) {
-          const reminderTime = new Date(new Date(eventData.startTime).getTime() - 
-            (reminder.amount * (reminder.type === 'days' ? 86400000 : 
-                              reminder.type === 'hours' ? 3600000 : 60000)));
-          
-          await addReminder({
-            title: `Reminder: ${eventData.name}`,
-            reminderTime: format(reminderTime, 'yyyy-MM-dd HH:mm:ss'),
-            notificationMessage: `Upcoming event: ${eventData.name}`,
-            status: 'Active',
-            type: 'Quick Reminder',
-            linkedEventId: docRef.id
-          });
-        }
-      }
 
       return { event: { id: docRef.id, ...eventWithMeta } as Event };
     } catch (error: any) {
@@ -370,76 +334,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Reminder functions
-  const addReminder = async (reminderData: Omit<Reminder, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
-    try {
-      if (!auth.currentUser) throw new Error('User not authenticated');
-
-      const now = new Date().toISOString();
-      const reminderWithMeta = {
-        ...reminderData,
-        userId: auth.currentUser.uid,
-        createdAt: now,
-        updatedAt: now,
-        status: 'pending'
-      };
-
-      if (!reminderWithMeta.recurring) {
-        delete reminderWithMeta.recurring;
-      }
-
-      const docRef = await addDoc(collection(db, 'reminders'), reminderWithMeta);
-      return { reminder: { id: docRef.id, ...reminderWithMeta } as Reminder };
-    } catch (error: any) {
-      console.error('Error adding reminder:', error);
-      throw new Error(`Failed to add reminder: ${error.message}`);
-    }
-  };
-
-  const updateReminder = async (id: string, updates: Partial<Reminder>) => {
-    try {
-      if (!auth.currentUser) throw new Error('User not authenticated');
-      const now = new Date().toISOString();
-      const reminderRef = doc(db, 'reminders', id);
-      await updateDoc(reminderRef, {
-        ...updates,
-        updatedAt: now
-      });
-
-      return { reminder: { id, ...updates } as Reminder };
-    } catch (error: any) {
-      console.error('Error updating reminder:', error);
-      throw new Error(`Failed to update reminder: ${error.message}`);
-    }
-  };
-
-  const deleteReminder = async (id: string) => {
-    try {
-      if (!auth.currentUser) throw new Error('User not authenticated');
-
-      const reminderRef = doc(db, 'reminders', id);
-      await deleteDoc(reminderRef);
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error deleting reminder:', error);
-      throw new Error(`Failed to delete reminder: ${error.message}`);
-    }
-  };
-
-  const dismissReminder = async (id: string) => {
-    try {
-      if (!auth.currentUser) throw new Error('User not authenticated');
-      const reminderRef = doc(db, 'reminders', id);
-    await deleteDoc(reminderRef);
-
-      return { success: true };
-    } catch (error: any) {
-      console.error('Error dismissing reminder:', error);
-      throw new Error(`Failed to dismiss reminder: ${error.message}`);
-    }
-  };
-
   // Add a function to handle completing a task with a deadline
   const markTaskComplete = async (taskId: string) => {
     try {
@@ -514,7 +408,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       tasks,
       events,
       sessions,
-      reminders,
       loading,
       error,
 
@@ -529,10 +422,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       deleteSession,
       startSession,
       endSession,
-      addReminder,
-      updateReminder,
-      deleteReminder,
-      dismissReminder,
       markTaskComplete,
       updateSessionSection,
     }}>

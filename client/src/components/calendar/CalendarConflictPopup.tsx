@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { SchedulableItem, ItemType, UnifiedStudySession, UnifiedTask, UnifiedReminder } from "@/types/unified";
+import { SchedulableItem, ItemType, UnifiedStudySession, UnifiedTask } from "@/types/unified";
 import { AlertCircle, CheckCircle } from "lucide-react";
 
 // Import API functions
@@ -399,13 +399,6 @@ export function CalendarConflictPopup({
            startTimeStr = `Deadline: ${formatDate(taskItem.deadline)}, ${formatTime(taskItem.deadline)}`;
         }
     } 
-    // Reminder uses reminderTime
-    else if (item.itemType === 'reminder') { 
-        const reminderItem = item as UnifiedReminder;
-        if (reminderItem.reminderTime) {
-           startTimeStr = `Reminder: ${formatDate(reminderItem.reminderTime)}, ${formatTime(reminderItem.reminderTime)}`;
-        }
-    }
 
     if (endTimeStr) {
       return `${startTimeStr} - ${endTimeStr}`;

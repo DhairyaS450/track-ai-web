@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { postponeStudySession } from "@/api/sessions";
-import { Task, StudySession, Event, Reminder } from "@/types";
+import { Task, StudySession, Event } from "@/types";
 import {
   format,
   isPast,
@@ -53,7 +53,6 @@ export function Dashboard() {
     tasks: allTasks,
     events: allEvents,
     sessions: allSessions,
-    reminders: allReminders,
     loading: loading,
     addTask,
     updateTask,
@@ -65,7 +64,6 @@ export function Dashboard() {
     deleteSession,
     markTaskComplete: markAsComplete,
     deleteEvent,
-    deleteReminder,
   } = useData();
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -84,7 +82,6 @@ export function Dashboard() {
     null
   );
   const setDeadlines = useState<Task[]>([])[1];
-  const setReminders = useState<Reminder[]>([])[1];
   const [sliderValues, setSliderValues] = useState<Record<string, number>>({});
   const { toast } = useToast();
   
@@ -167,16 +164,6 @@ export function Dashboard() {
       setDeadlines(todayDeadlines);
     }
   }, [allTasks, loading, setDeadlines, isTodaySafe, isTomorrowSafe]);
-
-  useEffect(() => {
-    if (!loading) {
-      const todayReminders = allReminders.filter(reminder => 
-        reminder.reminderTime && 
-        (isTodaySafe(reminder.reminderTime) || isTomorrowSafe(reminder.reminderTime))
-      );
-      setReminders(todayReminders);
-    }
-  }, [allReminders, loading, setReminders, isTodaySafe, isTomorrowSafe]);
 
   // Initialize the quote only once when component mounts
   useEffect(() => {
@@ -482,8 +469,6 @@ export function Dashboard() {
           }
           break;
         }
-        // Reminder case if needed in the future
-        // case 'reminder': { ... }
       }
       // Close dialog after saving
       setItemDialogOpen(false);
@@ -957,9 +942,7 @@ export function Dashboard() {
         tasks={allTasks}
         events={allEvents}
         sessions={allSessions}
-        reminders={allReminders}
         loading={loading}
-        deleteReminder={deleteReminder}
         deleteTask={deleteTask}
         deleteEvent={deleteEvent}
         deleteSession={deleteSession}

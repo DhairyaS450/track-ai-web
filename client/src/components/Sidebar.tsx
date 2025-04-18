@@ -1,7 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
-  Calendar,
   LayoutDashboard,
   BookOpen,
   BarChart2,
@@ -58,8 +57,7 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
   const { 
     addTask, 
     addEvent, 
-    addSession, 
-    addReminder,
+    addSession,
   } = useData();
   
   const handleQuickMessage = () => {
@@ -86,9 +84,6 @@ export function Sidebar({ open, onOpenChange }: SidebarProps) {
           break;
         case 'session':
           await addSession(convertedItem);
-          break;
-        case 'reminder':
-          await addReminder(convertedItem);
           break;
       }
       

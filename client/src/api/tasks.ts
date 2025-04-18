@@ -3,7 +3,6 @@ import { db, auth } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, getDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Task } from '@/types/index';
 import { isSameDay, parseISO } from 'date-fns';
-import { createDeadline } from '@/api/deadlines';
 
 // Get Tasks
 // GET /tasks
@@ -102,19 +101,6 @@ export const addTask = async (taskData: Omit<Task, 'id'>) => {
     };
 
     const docRef = await addDoc(tasksRef, taskWithMetadata);
-
-    // Create corresponding deadline
-    if (taskData.deadline) {
-      await createDeadline({
-        title: taskData.title,
-        dueDate: taskData.deadline,
-        priority: taskData.priority,
-        category: taskData.subject || 'General',
-        associatedTaskId: docRef.id,
-        status: 'Pending',
-        source: 'manual'
-      });
-    }
 
     return { 
       task: {

@@ -11,7 +11,6 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { ScrollArea } from "./ui/scroll-area";
 import { 
@@ -19,8 +18,7 @@ import {
   ItemType, 
   UnifiedTask, 
   UnifiedEvent, 
-  UnifiedStudySession, 
-  UnifiedReminder 
+  UnifiedStudySession,
 } from "@/types/unified";
 import { useToast } from "@/hooks/useToast";
 import { 
@@ -35,7 +33,6 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar } from "./ui/calendar";
 import { Checkbox } from "./ui/checkbox";
-import { cn } from "@/lib/utils";
 import { Slider } from "./ui/slider";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { 
@@ -51,7 +48,6 @@ import {
   ChevronUp,
   Trash2
 } from "lucide-react";
-import { getAuth } from "firebase/auth";
 import { 
   TooltipProvider, 
   Tooltip, 
@@ -108,8 +104,7 @@ export function UnifiedItemDialog({
   const [isFlexible, setIsFlexible] = useState(false);
   const [location, setLocation] = useState("");
   const [category, setCategory] = useState("");
-  const [eventReminders, setEventReminders] = useState<Array<{type: 'minutes' | 'hours' | 'days', amount: number}>>([]);
-  
+
   // Study Session-specific fields
   const [goal, setGoal] = useState("");
   const [duration, setDuration] = useState(60);
@@ -123,13 +118,6 @@ export function UnifiedItemDialog({
   const [autoSchedule, setAutoSchedule] = useState(true);
   const [isAutoScheduling, setIsAutoScheduling] = useState(false);
   
-  // Reminder-specific fields
-  const [notificationMessage, setNotificationMessage] = useState("");
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurrenceFrequency, setRecurrenceFrequency] = useState<"Daily" | "Weekly" | "Monthly" | "Yearly" | "Once">("Daily");
-  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
-  const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | undefined>(undefined);
-
   // Determine the effective mode if not explicitly passed (fallback)
   const effectiveMode = mode || (initialItem ? 'edit' : 'create');
 
@@ -185,7 +173,6 @@ export function UnifiedItemDialog({
             setIsFlexible(event.isFlexible);
             setLocation(event.location || "");
             setCategory(event.category || "");
-            setEventReminders(event.reminders || []);
             break; }
           case 'session':
             { const session = initialItem as UnifiedStudySession;
@@ -199,16 +186,6 @@ export function UnifiedItemDialog({
             setSessionMode(session.sessionMode || "basic");
             setSections(session.sections || []);
             setAutoSchedule(session.autoSchedule || true);
-            break; }
-          case 'reminder':
-            { const reminder = initialItem as UnifiedReminder;
-            setNotificationMessage(reminder.notificationMessage || "");
-            if (reminder.recurring) {
-              setIsRecurring(true);
-              setRecurrenceFrequency(reminder.recurring.frequency);
-              setRecurrenceInterval(reminder.recurring.interval);
-              setRecurrenceEndDate(reminder.recurring.endDate ? new Date(reminder.recurring.endDate) : undefined);
-            }
             break; }
         }
       } else if (effectiveMode === 'create') {
@@ -266,7 +243,6 @@ export function UnifiedItemDialog({
     setIsFlexible(false);
     setLocation("");
     setCategory("");
-    setEventReminders([]);
     setGoal("");
     setDuration(60);
     setTechnique("pomodoro");
@@ -274,11 +250,6 @@ export function UnifiedItemDialog({
     setBreakDuration(5);
     setMaterials("");
     setNotes("");
-    setNotificationMessage("");
-    setIsRecurring(false);
-    setRecurrenceFrequency("Daily");
-    setRecurrenceInterval(1);
-    setRecurrenceEndDate(undefined);
     setShowAdvanced(false);
     setSessionMode("basic");
     setSections([]);
@@ -306,14 +277,6 @@ export function UnifiedItemDialog({
     setTimeSlots(newTimeSlots);
   };
 
-  const addReminder = () => {
-    setEventReminders([...eventReminders, { type: 'minutes', amount: 15 }]);
-  };
-
-  const removeReminder = (index: number) => {
-    setEventReminders(eventReminders.filter((_, i) => i !== index));
-  };
-
   const handleSubmit = async () => {
     if (!title) {
       toast({
@@ -324,7 +287,7 @@ export function UnifiedItemDialog({
       return;
     }
 
-    if (!startTime && itemType !== 'reminder') {
+    if (!startTime) {
       toast({
         variant: "destructive",
         title: "Missing information",
@@ -421,7 +384,6 @@ export function UnifiedItemDialog({
             isFlexible,
             location,
             category,
-            reminders: eventReminders,
           } as UnifiedEvent;
           break;
           
@@ -443,20 +405,6 @@ export function UnifiedItemDialog({
             type: "studySession" 
           } as UnifiedStudySession;
           break;
-          
-        case 'reminder':
-          itemData = {
-            ...baseItem,
-            reminderTime: finalStartTime,
-            notificationMessage,
-            recurring: isRecurring ? {
-              frequency: recurrenceFrequency,
-              interval: recurrenceInterval,
-              endDate: recurrenceEndDate ? format(recurrenceEndDate, "yyyy-MM-dd'T'HH:mm") : undefined,
-            } : undefined,
-          } as UnifiedReminder;
-          break;
-          
         default:
           itemData = baseItem as SchedulableItem;
       }
@@ -764,11 +712,10 @@ export function UnifiedItemDialog({
         </DialogHeader>
 
         <Tabs value={itemType} onValueChange={handleTypeChange} className="mt-4">
-          <TabsList className="grid grid-cols-4 mb-4">
+          <TabsList className="grid grid-cols-3 mb-3">
             <TabsTrigger value="task" disabled={effectiveMode === 'edit'}>Task</TabsTrigger>
             <TabsTrigger value="event" disabled={effectiveMode === 'edit'}>Event</TabsTrigger>
             <TabsTrigger value="session" disabled={effectiveMode === 'edit'}>Session</TabsTrigger>
-            <TabsTrigger value="reminder" disabled={effectiveMode === 'edit'}>Reminder</TabsTrigger>
           </TabsList>
 
           <ScrollArea className="h-[50vh] pr-4 overflow-y-auto">
@@ -1058,62 +1005,6 @@ export function UnifiedItemDialog({
                     )}
                   </Button>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-4 pt-4">
-                  <div className="grid gap-2">
-                    <div className="flex items-center justify-between">
-                      <Label>Reminders</Label>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={addReminder}
-                      >
-                        Add Reminder
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      {eventReminders.map((reminder, index) => (
-                        <div key={index} className="flex items-center space-x-2">
-                          <Input
-                            type="number"
-                            value={reminder.amount}
-                            onChange={(e) => {
-                              const newReminders = [...eventReminders];
-                              newReminders[index].amount = parseInt(e.target.value);
-                              setEventReminders(newReminders);
-                            }}
-                            className="w-20"
-                          />
-                          <Select
-                            value={reminder.type}
-                            onValueChange={(value: 'minutes' | 'hours' | 'days') => {
-                              const newReminders = [...eventReminders];
-                              newReminders[index].type = value;
-                              setEventReminders(newReminders);
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="minutes">Minutes</SelectItem>
-                              <SelectItem value="hours">Hours</SelectItem>
-                              <SelectItem value="days">Days</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeReminder(index)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CollapsibleContent>
               </Collapsible>
             </TabsContent>
 
@@ -1437,108 +1328,6 @@ export function UnifiedItemDialog({
                   )}
                 </>
               )}
-            </TabsContent>
-
-            <TabsContent value="reminder" className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="reminder-description">Notification Message</Label>
-                <Textarea
-                  id="reminder-description"
-                  value={notificationMessage}
-                  onChange={(e) => setNotificationMessage(e.target.value)}
-                  placeholder="What should the notification say?"
-                />
-              </div>
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 <div className="grid gap-2">
-                    <Label htmlFor="reminderTime">Reminder Time</Label>
-                    <DateTimePicker
-                      label="Reminder Time"
-                      date={startDate}
-                      onDateChange={handleStartTimeChange}
-                      errorMessage={startTimeError}
-                    />
-                  </div>
-               </div>
-               <div className="flex items-center space-x-2">
-                 <Checkbox
-                   id="recurring"
-                   checked={isRecurring}
-                   onCheckedChange={(checked: boolean) => setIsRecurring(checked)}
-                 />
-                 <label
-                   htmlFor="recurring"
-                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                 >
-                   Recurring Reminder
-                 </label>
-               </div>
-               {isRecurring && (
-                 <div className="space-y-4">
-                   <div className="grid gap-2">
-                     <Label htmlFor="recurrenceFrequency">Frequency</Label>
-                     <Select
-                       value={recurrenceFrequency}
-                       onValueChange={(value) => setRecurrenceFrequency(value as "Daily" | "Weekly" | "Monthly" | "Yearly")}
-                     >
-                       <SelectTrigger id="recurrenceFrequency">
-                         <SelectValue placeholder="Select frequency" />
-                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="Daily">Daily</SelectItem>
-                         <SelectItem value="Weekly">Weekly</SelectItem>
-                         <SelectItem value="Monthly">Monthly</SelectItem>
-                         <SelectItem value="Yearly">Yearly</SelectItem>
-                       </SelectContent>
-                     </Select>
-                   </div>
-
-                   <div className="grid gap-2">
-                     <Label htmlFor="recurrenceInterval">Interval</Label>
-                     <Input
-                       id="recurrenceInterval"
-                       type="number"
-                       min={1}
-                       value={recurrenceInterval}
-                       onChange={(e) => setRecurrenceInterval(Math.max(1, e.target.valueAsNumber))}
-                       placeholder="Enter interval"
-                     />
-                   </div>
-
-                   <div className="grid gap-2">
-                     <Label htmlFor="recurrenceEndDate">End Date (Optional)</Label>
-                     <Popover>
-                       <PopoverTrigger asChild>
-                         <Button
-                           variant={"outline"}
-                           className={cn(
-                             "w-full pl-3 text-left font-normal",
-                             !recurrenceEndDate && "text-muted-foreground"
-                           )}
-                         >
-                           {recurrenceEndDate ? (
-                             format(recurrenceEndDate, "PPP")
-                           ) : (
-                             <span>Pick an end date</span>
-                           )}
-                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                         </Button>
-                       </PopoverTrigger>
-                       <PopoverContent className="w-auto p-0" align="start">
-                         <Calendar
-                           mode="single"
-                           selected={recurrenceEndDate}
-                           onSelect={(date: Date | null) => setRecurrenceEndDate(date || undefined)}
-                           disabled={(date: Date) =>
-                             date < new Date(new Date().setHours(0, 0, 0, 0))
-                           }
-                           initialFocus
-                         />
-                       </PopoverContent>
-                     </Popover>
-                   </div>
-                 </div>
-               )}
             </TabsContent>
           </ScrollArea>
         </Tabs>

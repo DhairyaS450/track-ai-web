@@ -2,7 +2,6 @@
 import { db, auth } from '@/config/firebase';
 import { Event } from '@/types';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, getDoc } from '@firebase/firestore';
-import { createReminder } from '@/api/deadlines';
 
 // Helper functions for local storage
 // const getLocalEvents = (): Event[] => {
@@ -91,25 +90,6 @@ export const addEvent = async (eventData: Omit<Event, 'id'>) => {
 
     const docRef = await addDoc(eventsRef, eventWithMetadata);
     console.log('Event added successfully with ID:', docRef.id);
-
-    // Create reminders if specified
-    if (eventData.reminders?.length) {
-      for (const reminder of eventData.reminders) {
-        const reminderTime = new Date(new Date(eventData.startTime).getTime() - 
-          (reminder.amount * (reminder.type === 'days' ? 86400000 : 
-                            reminder.type === 'hours' ? 3600000 : 60000)));
-        
-        await createReminder({
-          title: `Reminder: ${eventData.name}`,
-          reminderTime: reminderTime.toISOString(),
-          notificationMessage: `Upcoming event: ${eventData.name}`,
-          status: 'Active',
-          type: 'Quick Reminder',
-          linkedEventId: docRef.id
-        });
-      }
-    }
-
 
     return { 
       event: {

@@ -74,7 +74,6 @@ export function Chatbot() {
     addSession: addStudySession, 
     updateSession: updateStudySession, 
     deleteSession: deleteStudySession, sessions,
-    addReminder, updateReminder, deleteReminder, reminders
   } = useData();
   
   const { 
@@ -252,13 +251,6 @@ export function Chatbot() {
                 }
                 break;
               }
-              case 'CREATE_REMINDER': {
-                const reminderResult = await addReminder(action.data);
-                if (reminderResult?.reminder) {
-                  addCreateAction(reminderResult.reminder, "Reminder");
-                }
-                break;
-              }
               case 'UPDATE_TASK': {
                 const oldTask = tasks.find(t => t.id === action.data.id);
                 if (oldTask) {
@@ -289,16 +281,6 @@ export function Chatbot() {
                 }
                 break;
               }
-              case 'UPDATE_REMINDER': {
-                const oldReminder = reminders.find(r => r.id === action.data.id);
-                if (oldReminder) {
-                  const updResult = await updateReminder(action.data.id, action.data);
-                  if (updResult) {
-                    addUpdateAction("Reminder", oldReminder, { ...oldReminder, ...action.data });
-                  }
-                }
-                break;
-              }
               case 'DELETE_TASK': {
                 const taskToDelete = tasks.find(t => t.id === action.data.id);
                 if (taskToDelete) {
@@ -323,15 +305,6 @@ export function Chatbot() {
                 }
                 break;
               }
-              case 'DELETE_REMINDER': {
-                const reminderToDelete = reminders.find(r => r.id === action.data.id);
-                if (reminderToDelete) {
-                  await deleteReminder(action.data.id);
-                  addDeleteAction(reminderToDelete, "Reminder");
-                }
-                break;
-              }
-              
               default:
                 console.log(`Unknown action type: ${action.type}`);
             }
@@ -370,13 +343,6 @@ export function Chatbot() {
               }
               break;
             }
-            case 'CREATE_REMINDER': {
-              const reminderResult = await addReminder(action.data);
-              if (reminderResult?.reminder) {
-                addCreateAction(reminderResult.reminder, "Reminder");
-              }
-              break;
-            }
             case 'UPDATE_TASK': {
               const oldTask = tasks.find(t => t.id === action.data.id);
               if (oldTask) {
@@ -407,16 +373,6 @@ export function Chatbot() {
               }
               break;
             }
-            case 'UPDATE_REMINDER': {
-              const oldReminder = reminders.find(r => r.id === action.data.id);
-              if (oldReminder) {
-                const updResult = await updateReminder(action.data.id, action.data);
-                if (updResult) {
-                  addUpdateAction("Reminder", oldReminder, { ...oldReminder, ...action.data });
-                }
-              }
-              break;
-            }
             case 'DELETE_TASK': {
               const taskToDelete = tasks.find(t => t.id === action.data.id);
               if (taskToDelete) {
@@ -438,14 +394,6 @@ export function Chatbot() {
               if (sessionToDelete) {
                 await deleteStudySession(action.data.id);
                 addDeleteAction(sessionToDelete, "Study Session");
-              }
-              break;
-            }
-            case 'DELETE_REMINDER': {
-              const reminderToDelete = reminders.find(r => r.id === action.data.id);
-              if (reminderToDelete) {
-                await deleteReminder(action.data.id);
-                addDeleteAction(reminderToDelete, "Reminder");
               }
               break;
             }

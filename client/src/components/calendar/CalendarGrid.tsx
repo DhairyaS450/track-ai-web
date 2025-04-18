@@ -20,7 +20,7 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Task, Event, StudySession, Reminder } from "@/types";
+import { Task, Event, StudySession } from "@/types";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -37,10 +37,9 @@ interface CalendarGridProps {
   events: Event[];
   tasks: Task[];
   sessions: StudySession[];
-  reminders: Reminder[];
   deadlines: Task[];
   onAddItem: () => void;
-  onItemClick: (item: Task | Event | StudySession | Reminder) => void;
+  onItemClick: (item: Task | Event | StudySession) => void;
   onConflictClick?: (items: (Task | Event | StudySession)[]) => void;
   ignoredConflictIds: Set<string>;
   onTimeSlotClick?: (date: Date) => void; // Add prop for time slot clicks
@@ -68,7 +67,6 @@ export function CalendarGrid({
   events,
   tasks,
   sessions,
-  reminders,
   deadlines,
   onAddItem,
   onItemClick,
@@ -84,7 +82,6 @@ export function CalendarGrid({
     events: events || [],
     tasks: tasks || [],
     sessions: sessions || [],
-    reminders: reminders || [],
     deadlines: deadlines || []
   });
   
@@ -94,7 +91,6 @@ export function CalendarGrid({
       events: Event[],
       tasks: Task[],
       sessions: StudySession[],
-      reminders: Reminder[],
       deadlines: Task[]
     }> = {};
     let hasUpdates = false;
@@ -111,10 +107,6 @@ export function CalendarGrid({
       updates.sessions = sessions;
       hasUpdates = true;
     }
-    if (reminders.length > 0) {
-      updates.reminders = reminders;
-      hasUpdates = true;
-    }
     if (deadlines.length > 0) {
       updates.deadlines = deadlines;
       hasUpdates = true;
@@ -123,13 +115,12 @@ export function CalendarGrid({
     if (hasUpdates) {
       setCachedData(prev => ({ ...prev, ...updates }));
     }
-  }, [events, tasks, sessions, reminders, deadlines]);
+  }, [events, tasks, sessions, deadlines]);
   
   // Use cached data as fallback when props are empty
   const effectiveEvents = events.length > 0 ? events : cachedData.events;
   const effectiveTasks = tasks.length > 0 ? tasks : cachedData.tasks;
   const effectiveSessions = sessions.length > 0 ? sessions : cachedData.sessions;
-  const effectiveReminders = reminders.length > 0 ? reminders : cachedData.reminders;
   const effectiveDeadlines = deadlines.length > 0 ? deadlines : cachedData.deadlines;
 
   // Store previous view type to detect changes
@@ -411,29 +402,6 @@ export function CalendarGrid({
       item: session
     }));
 
-    // Standard logic for point-in-time reminders
-    const dayReminders = effectiveReminders.filter(reminder => {
-      if (!reminder.reminderTime) return false;
-      
-      const reminderTime = new Date(reminder.reminderTime);
-      const reminderDate = new Date(reminderTime);
-      reminderDate.setHours(0, 0, 0, 0);
-      
-      // Reminders should only appear on their exact day
-      return reminderDate.getTime() === targetTimestamp;
-    }).map(reminder => ({
-      id: reminder.id,
-      title: reminder.title,
-      start: new Date(reminder.reminderTime),
-      end: addMinutes(new Date(reminder.reminderTime), 30),
-      type: "reminder" as const,
-      isAllDay: false,
-      isReminder: true,
-      color: "yellow",
-      priority: "Medium", // Default priority for reminders
-      item: reminder
-    }));
-
     // Standard logic for point-in-time deadlines
     const dayDeadlines = effectiveDeadlines.filter(deadline => {
       if (!deadline.deadline) return false;
@@ -456,7 +424,7 @@ export function CalendarGrid({
       item: deadline
     }));
 
-    const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines]
+    const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayDeadlines]
       .sort((a, b) => a.start.getTime() - b.start.getTime());
     
     console.log(`Total items found for ${format(targetDate, "yyyy-MM-dd")}: ${allItems.length}`);
@@ -561,14 +529,14 @@ export function CalendarGrid({
     for (let i = 0; i < items.length; i++) {
       const item1 = items[i];
 
-      // Skip all-day events and non-conflicting item types (deadlines and reminders)
-      if (item1.isAllDay || item1.type === "deadline" || item1.type === "reminder" || !item1.id) continue;
+      // Skip all-day events and non-conflicting item types (deadlines)
+      if (item1.isAllDay || item1.type === "deadline" || !item1.id) continue;
 
       for (let j = i + 1; j < items.length; j++) {
         const item2 = items[j];
 
-        // Skip all-day events and non-conflicting item types (deadlines and reminders)
-        if (item2.isAllDay || item2.type === "deadline" || item2.type === "reminder" || !item2.id) continue;
+        // Skip all-day events and non-conflicting item types (deadlines)
+        if (item2.isAllDay || item2.type === "deadline" || !item2.id) continue;
 
         // ** Check if this specific pair is ignored **
         const conflictCheckId = getConflictCheckId(item1.id, item2.id, userId);
@@ -651,9 +619,6 @@ export function CalendarGrid({
       case "session":
         typeStyles = "bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300";
         break;
-      case "reminder":
-        typeStyles = "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300";
-        break;
       case "deadline":
         typeStyles = "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300";
         break;
@@ -678,7 +643,6 @@ export function CalendarGrid({
           priorityStyles = type === "event" ? "border-blue-400" :
                           type === "task" ? "border-green-400" :
                           type === "session" ? "border-purple-400" :
-                          type === "reminder" ? "border-yellow-400" :
                           type === "deadline" ? "border-red-400" : "border-gray-400";
       }
     } else {
@@ -686,7 +650,6 @@ export function CalendarGrid({
       priorityStyles = type === "event" ? "border-blue-400" :
                       type === "task" ? "border-green-400" :
                       type === "session" ? "border-purple-400" :
-                      type === "reminder" ? "border-yellow-400" :
                       type === "deadline" ? "border-red-400" : "border-gray-400";
     }
     
@@ -897,7 +860,7 @@ export function CalendarGrid({
                                       e.stopPropagation();
                                       const conflicts = conflictPairs.get(event.id) || [];
                                       const items = conflicts.map(item => item.item).filter(
-                                        item => item.type !== 'deadline' && item.type !== 'reminder'
+                                        item => item.type !== 'deadline'
                                       );
                                       onConflictClick(items);
                                     }}
@@ -1132,7 +1095,7 @@ export function CalendarGrid({
                                   e.stopPropagation();
                                   const conflicts = conflictPairs.get(event.id) || [];
                                   const items = conflicts.map(item => item.item).filter(
-                                    item => item.type !== 'deadline' && item.type !== 'reminder'
+                                    item => item.type !== 'deadline'
                                   );
                                   onConflictClick(items);
                                 }}
@@ -1169,7 +1132,6 @@ export function CalendarGrid({
                   events={effectiveEvents}
                   tasks={effectiveTasks}
                   sessions={effectiveSessions}
-                  reminders={effectiveReminders}
                   deadlines={effectiveDeadlines}
                   onItemClick={onItemClick}
                   getTypeStyles={getTypeStyles}
@@ -1192,7 +1154,6 @@ function ScheduleView({
   events,
   tasks,
   sessions,
-  reminders,
   deadlines,
   onItemClick,
   getTypeStyles,
@@ -1204,7 +1165,6 @@ function ScheduleView({
   events: Event[];
   tasks: Task[];
   sessions: StudySession[];
-  reminders: Reminder[];
   deadlines: Task[];
   onItemClick: (item: any) => void;
   getTypeStyles: (type: string, priority?: string) => string;
@@ -1403,31 +1363,6 @@ function ScheduleView({
       item: session
     }));
   
-  // Process reminders with the same logic
-  const dayReminders = reminders
-    .filter(reminder => {
-      if (!reminder.reminderTime) return false;
-      
-      const reminderTime = new Date(reminder.reminderTime);
-      const reminderDate = new Date(reminderTime);
-      reminderDate.setHours(0, 0, 0, 0);
-      
-      // Reminders appear only on their exact day
-      return reminderDate.getTime() === targetTimestamp;
-    })
-    .map(reminder => ({
-      id: reminder.id,
-      title: reminder.title,
-      start: new Date(reminder.reminderTime),
-      end: addMinutes(new Date(reminder.reminderTime), 30),
-      type: "reminder" as const,
-      isAllDay: false,
-      isReminder: true,
-      color: "yellow",
-      priority: "Medium", // Default priority for reminders
-      item: reminder
-    }));
-  
   // Process deadlines with the same logic
   const dayDeadlines = deadlines
     .filter(deadline => {
@@ -1453,7 +1388,7 @@ function ScheduleView({
     }));
   
   // Combine all items 
-  const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayReminders, ...dayDeadlines];
+  const allItems = [...dayEvents, ...dayTasks, ...daySessions, ...dayDeadlines];
   console.log(`Schedule view - total items found for ${format(targetDate, "yyyy-MM-dd")}: ${allItems.length}`);
   
   if (allItems.length === 0) {

@@ -4,7 +4,7 @@ import { useData } from "@/contexts/DataProvider";
 export interface SearchResult {
   id: string;
   title: string;
-  type: "task" | "event" | "study" | "reminder";
+  type: "task" | "event" | "study";
   dueDate?: Date;
   completed?: boolean;
   status?: string;
@@ -16,7 +16,7 @@ export async function searchItems(
 ): Promise<SearchResult[]> {
   if (!searchQuery.trim() || !auth.currentUser) return [];
 
-  const { tasks, events, sessions, reminders } = data;
+  const { tasks, events, sessions } = data;
   const results: SearchResult[] = [];
   const query = searchQuery.toLowerCase();
 
@@ -54,19 +54,6 @@ export async function searchItems(
         title: session.subject,
         type: "study",
         dueDate: session.scheduledFor ? new Date(session.scheduledFor) : undefined,
-      });
-    }
-  });
-
-  // Search reminders
-  reminders.forEach((reminder) => {
-    if (reminder.title?.toLowerCase().includes(query)) {
-      results.push({
-        id: reminder.id,
-        title: reminder.title,
-        type: "reminder",
-        dueDate: reminder.reminderTime ? new Date(reminder.reminderTime) : undefined,
-        status: reminder.status,
       });
     }
   });

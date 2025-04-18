@@ -24,7 +24,7 @@ interface HeaderProps {
 export function Header({ onMenuClick }: HeaderProps) {
   const { toast } = useToast();
   const data = useData();
-  const { tasks, events, sessions, reminders, deleteTask, dismissReminder } = data;
+  const { tasks, events, sessions, deleteTask } = data;
   const navigate = useNavigate();
   const { handleSaveItem } = useItemManager();
   const [date, setDate] = useState(new Date());
@@ -91,10 +91,6 @@ export function Header({ onMenuClick }: HeaderProps) {
           item = sessions.find(session => session.id === id);
           itemType = "session";
           break;
-        case "reminder":
-          item = reminders.find(reminder => reminder.id === id);
-          itemType = "reminder";
-          break;
         default:
           throw new Error(`Unknown item type: ${type}`);
       }
@@ -121,9 +117,6 @@ export function Header({ onMenuClick }: HeaderProps) {
         case "task":
           await deleteTask(id);
           break;
-        case "reminder":
-          await dismissReminder(id);
-          break;
       }
       
       // Refresh search results
@@ -132,14 +125,14 @@ export function Header({ onMenuClick }: HeaderProps) {
 
       toast({
         title: "Success",
-        description: `${type === "reminder" ? "Dismissed" : "Completed"} successfully`,
+        description: `Completed successfully`,
       });
     } catch (error) {
       console.error(`Error handling ${type}:`, error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: `Failed to ${type === "reminder" ? "dismiss" : "complete"} ${type}`,
+        description: `Failed to complete ${type}`,
       });
     }
   };

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Task, StudySession, Event, Reminder } from "@/types"; // SchedulableItem is likely local
+import { Task, StudySession, Event } from "@/types"; // SchedulableItem is likely local
 import { addDays, startOfWeek, format } from "date-fns";
 import { useToast } from "@/hooks/useToast";
 import { useItemManager } from "@/hooks/useItemManager";
@@ -18,10 +18,8 @@ interface CalendarProps {
   tasks?: Task[];
   events?: Event[];
   sessions?: StudySession[];
-  reminders?: Reminder[];
   loading?: boolean;
   ignoredConflictIds?: Set<string>;
-  deleteReminder?: (id: string) => Promise<any>;
   deleteTask?: (id: string) => Promise<any>;
   deleteEvent?: (id: string) => Promise<any>;
   deleteSession?: (id: string) => Promise<any>;
@@ -34,10 +32,8 @@ export function Calendar({
   tasks: allTasks = [],
   events: allEvents = [],
   sessions: allSessions = [],
-  reminders: allReminders = [],
   loading = false,
   ignoredConflictIds = new Set<string>(),
-  deleteReminder = async () => {},
   deleteTask = async () => {},
   deleteEvent = async () => {},
   deleteSession = async () => {},
@@ -54,7 +50,7 @@ export function Calendar({
   // State for UnifiedItemDialog
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SchedulableItem | null>(null);
-  const [initialItemType, setInitialItemType] = useState<"task" | "event" | "session" | "reminder">("task");
+  const [initialItemType, setInitialItemType] = useState<"task" | "event" | "session">("task");
   const [initialDialogDate, setInitialDialogDate] = useState<Date | null>(null);
 
   // State for conflict handling
@@ -69,12 +65,11 @@ export function Calendar({
 
   // Optimize data filtering with proper memoization
   const filteredData = useMemo(() => {
-    if (!allTasks || !allEvents || !allSessions || !allReminders) {
+    if (!allTasks || !allEvents || !allSessions) {
       return {
         tasks: [],
         events: [],
         sessions: [],
-        reminders: [],
         deadlines: []
       };
     }
@@ -184,12 +179,6 @@ export function Calendar({
         return (sessionStart <= endTime && sessionEnd >= startTime);
       }),
       
-      reminders: allReminders.filter(reminder => {
-        if (!reminder.reminderTime) return false;
-        const reminderTime = new Date(reminder.reminderTime).getTime();
-        return (reminderTime >= startTime && reminderTime <= endTime);
-      }),
-      
       deadlines: allTasks.filter(task => {
         if (!task.deadline) return false;
         
@@ -213,10 +202,10 @@ export function Calendar({
         return (deadlineTime >= startTime && deadlineTime <= endTime);
       })
     };
-  }, [allTasks, allEvents, allSessions, allReminders, dateRange]);
+  }, [allTasks, allEvents, allSessions, dateRange]);
 
   // Remove individual state variables and use the memoized data
-  const { tasks, events, sessions, reminders, deadlines } = filteredData;
+  const { tasks, events, sessions, deadlines } = filteredData;
 
   // Memoize handlers to prevent unnecessary re-renders
   const handleDateRangeChange = useCallback((start: Date, end: Date) => {
@@ -227,14 +216,14 @@ export function Calendar({
     setDate(newDate);
   }, []);
 
-  const handleAddItem = useCallback((type?: "task" | "event" | "session" | "reminder") => {
+  const handleAddItem = useCallback((type?: "task" | "event" | "session") => {
     setSelectedItem(null);
     setInitialItemType(type || "task");
     setItemDialogOpen(true);
   }, []);
 
-  const handleItemClick = useCallback((item: Task | Event | StudySession | Reminder) => {
-    let itemType: "task" | "event" | "session" | "reminder";
+  const handleItemClick = useCallback((item: Task | Event | StudySession) => {
+    let itemType: "task" | "event" | "session";
     
     if ('name' in item) {
       // Event
@@ -242,9 +231,6 @@ export function Calendar({
     } else if ('subject' in item && 'scheduledFor' in item) {
       // Study session
       itemType = "session";
-    } else if ('title' in item && 'reminderTime' in item) {
-      // Reminder
-      itemType = "reminder";
     } else {
       // Task or deadline
       itemType = "task";
@@ -281,10 +267,6 @@ export function Calendar({
             await deleteSession(itemId);
             toast({ title: "Success", description: "Study session deleted successfully" });
             break;
-          case 'reminder':
-            await deleteReminder(itemId);
-            toast({ title: "Success", description: "Reminder deleted successfully" });
-            break;
         }
         setItemDialogOpen(false);
         setSelectedItem(null);
@@ -297,7 +279,7 @@ export function Calendar({
         description: "Failed to delete item",
       });
     }
-  }, [selectedItem, deleteTask, deleteEvent, deleteSession, deleteReminder, toast]);
+  }, [selectedItem, deleteTask, deleteEvent, deleteSession, toast]);
 
   // Conflict handling functions
   const handleConflictClick = useCallback((items: (Task | Event | StudySession)[]) => {
@@ -312,7 +294,7 @@ export function Calendar({
 
     // Convert items to unified format before setting state
     const unifiedItems = items.map(item => {
-        let itemType: "task" | "event" | "session"; // Reminders shouldn't cause scheduling conflicts
+        let itemType: "task" | "event" | "session";
         if ('name' in item) {
             itemType = "event";
         } else if ('subject' in item && 'scheduledFor' in item) {
@@ -406,7 +388,6 @@ export function Calendar({
       events={events}
       tasks={tasks}
       sessions={sessions}
-      reminders={reminders}
       deadlines={deadlines}
       onAddItem={() => handleAddItem()}
       onItemClick={handleItemClick}
@@ -414,7 +395,7 @@ export function Calendar({
       onTimeSlotClick={handleGridTimeSlotClick}
       ignoredConflictIds={ignoredConflictIds}
     />
-  ), [date, deadlines, events, handleAddItem, handleConflictClick, handleDateRangeChange, handleDateSelect, handleGridTimeSlotClick, handleItemClick, reminders, sessions, tasks, ignoredConflictIds]);
+  ), [date, deadlines, events, handleAddItem, handleConflictClick, handleDateRangeChange, handleDateSelect, handleGridTimeSlotClick, handleItemClick, sessions, tasks, ignoredConflictIds]);
 
   return (
     <div className="space-y-6">

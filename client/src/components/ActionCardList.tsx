@@ -1,14 +1,14 @@
 import { useActionVisualization } from "@/contexts/ActionVisualizationProvider";
 import { ActionCard } from "./ActionCard";
 import { useData } from "@/contexts/DataProvider";
-import { StudySession, Task, Event, Reminder } from "@/types";
+import { StudySession, Task, Event } from "@/types";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, X, ChevronDown, ChevronUp, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { UnifiedItemDialog } from "./UnifiedItemDialog";
-import { ItemType, SchedulableItem, UnifiedStudySession, UnifiedTask, UnifiedEvent, UnifiedReminder } from "@/types/unified";
+import { ItemType, SchedulableItem, UnifiedStudySession, UnifiedTask, UnifiedEvent } from "@/types/unified";
 
 export function ActionCardList() {
   const { actions, removeAction } = useActionVisualization();
@@ -16,7 +16,6 @@ export function ActionCardList() {
     addSession, 
     addTask,
     addEvent,
-    addReminder
   } = useData();
   
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +24,7 @@ export function ActionCardList() {
   const [itemToEdit, setItemToEdit] = useState<SchedulableItem | null>(null);
   const [itemType, setItemType] = useState<ItemType>("task");
 
-  const handleUndo = async (actionId: string, entityType: string, originalData: StudySession | Task | Event | Reminder) => {
+  const handleUndo = async (actionId: string, entityType: string, originalData: StudySession | Task | Event) => {
     try {
       setError(null);
       if (entityType === "Study Session") {
@@ -34,10 +33,7 @@ export function ActionCardList() {
         await addTask(originalData as Task);
       } else if (entityType === "Event") {
         await addEvent(originalData as Event);
-      } else if (entityType === "Reminder") {
-        await addReminder(originalData as Reminder);
       }
-      
       // Remove the action card after successful restoration
       removeAction(actionId);
     } catch (error) {
@@ -46,7 +42,7 @@ export function ActionCardList() {
     }
   };
 
-  const convertToUnifiedItem = (entityType: string, entity: StudySession | Task | Event | Reminder): SchedulableItem => {
+  const convertToUnifiedItem = (entityType: string, entity: StudySession | Task | Event): SchedulableItem => {
     const now = new Date().toISOString();
     
     if (entityType === "Study Session") {
@@ -110,23 +106,6 @@ export function ActionCardList() {
         isFlexible: event.isFlexible || false,
         location: event.location || ""
       } as UnifiedEvent;
-    } else if (entityType === "Reminder") {
-      const reminder = entity as Reminder;
-      return {
-        id: reminder.id,
-        title: reminder.title,
-        description: reminder.notificationMessage || "",
-        startTime: reminder.reminderTime,
-        endTime: reminder.reminderTime,
-        priority: "Medium",
-        status: "pending",
-        itemType: "reminder",
-        userId: "",
-        createdAt: now,
-        // Reminder specifics
-        reminderTime: reminder.reminderTime,
-        notificationMessage: reminder.notificationMessage
-      } as UnifiedReminder;
     }
     
     // Default fallback (should never happen)
@@ -148,7 +127,7 @@ export function ActionCardList() {
     actionId: string, 
     entityType: string, 
     entityId: string,
-    originalData: StudySession | Task | Event | Reminder
+    originalData: StudySession | Task | Event
   ) => {
     try {
       setError(null);
@@ -158,7 +137,6 @@ export function ActionCardList() {
       if (entityType === "Study Session") type = "session";
       else if (entityType === "Task") type = "task";
       else if (entityType === "Event") type = "event";
-      else if (entityType === "Reminder") type = "reminder";
       
       // Convert the entity to a format that UnifiedItemDialog can understand
       const unifiedItem = convertToUnifiedItem(entityType, originalData);
@@ -246,11 +224,11 @@ export function ActionCardList() {
                       action.id,
                       action.entityType,
                       action.entityId,
-                      action.originalData as StudySession | Task | Event | Reminder
+                      action.originalData as StudySession | Task | Event
                     ) 
                   : undefined}
                 onUndo={action.actionType === "delete" && action.originalData 
-                  ? () => handleUndo(action.id, action.entityType, action.originalData as StudySession | Task | Event | Reminder) 
+                  ? () => handleUndo(action.id, action.entityType, action.originalData as StudySession | Task | Event) 
                   : undefined
                 }
               />

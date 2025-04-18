@@ -5,7 +5,7 @@ import { RecurrencePattern } from "./recurrence";
 // Status types that apply across all items
 export type ItemStatus = 'scheduled' | 'todo' | 'in-progress' | 'completed' | 'cancelled' | 'pending';
 export type ItemPriority = 'High' | 'Medium' | 'Low';
-export type ItemType = 'task' | 'event' | 'session' | 'deadline' | 'reminder';
+export type ItemType = 'task' | 'event' | 'session';
 
 // Base interface for all schedulable items
 export interface SchedulableItem {
@@ -13,7 +13,7 @@ export interface SchedulableItem {
   title: string;
   description: string;
   startTime: string;      // ISO time string
-  endTime?: string;       // Optional for tasks/reminders
+  endTime?: string;       // Optional for tasks
   priority: ItemPriority;
   status: ItemStatus;
   itemType: ItemType;
@@ -45,10 +45,6 @@ export interface UnifiedEvent extends SchedulableItem {
   isFlexible: boolean;
   location?: string;
   category?: string;
-  reminders?: {
-    type: 'days' | 'hours' | 'minutes';
-    amount: number;
-  }[];
   associatedTaskIds?: string[];
   calendarId?: string;    // For external calendar integration
 }
@@ -84,17 +80,6 @@ export interface UnifiedStudySession extends SchedulableItem {
   }>;
 }
 
-export interface UnifiedReminder extends SchedulableItem {
-  itemType: 'reminder';
-  reminderTime: string;   // For compatibility
-  notificationMessage?: string;
-  recurring?: {
-    frequency: 'Once' | 'Daily' | 'Weekly' | 'Monthly' | 'Yearly';
-    interval: number;
-    endDate?: string;
-  };
-}
-
 // Helper functions to convert between unified and legacy models
 export function convertToUnified(item: any, itemType: ItemType): SchedulableItem {
   // Implementation will depend on your existing data structure
@@ -102,7 +87,7 @@ export function convertToUnified(item: any, itemType: ItemType): SchedulableItem
     id: item.id,
     title: item.title || item.name || item.subject || '',
     description: item.description || item.goal || '',
-    startTime: item.startTime || item.scheduledFor || item.deadline || item.dueDate || item.reminderTime,
+    startTime: item.startTime || item.scheduledFor || item.deadline || item.dueDate,
     endTime: item.endTime,
     priority: item.priority || 'Medium',
     status: item.status || 'scheduled',
@@ -121,8 +106,6 @@ export function convertToUnified(item: any, itemType: ItemType): SchedulableItem
       return { ...base, ...item, itemType } as UnifiedEvent;
     case 'session':
       return { ...base, ...item, itemType } as UnifiedStudySession;
-    case 'reminder':
-      return { ...base, ...item, itemType } as UnifiedReminder;
     default:
       return base;
   }
@@ -179,7 +162,6 @@ export function convertFromUnified(unifiedItem: SchedulableItem): any {
         isFlexible: event.isFlexible || false,
         location: event.location || "",
         category: event.category || "",
-        reminders: event.reminders || [],
         associatedTaskIds: event.associatedTaskIds || [],
       }; 
     }
@@ -206,29 +188,6 @@ export function convertFromUnified(unifiedItem: SchedulableItem): any {
         breakInterval: session.breakInterval || 25,
         breakDuration: session.breakDuration || 5,
         completion: session.progress || 0,
-      }; 
-    }
-      
-      
-    case 'reminder': {
-      const reminder = cleanedItem as UnifiedReminder;
-      const { 
-        itemType: _, 
-        userId: __, 
-        endTime: ___, 
-        startTime: ____, 
-        ...reminderFields 
-      } = reminder;
-      
-      return {
-        ...reminderFields,
-        reminderTime: reminder.reminderTime || reminder.startTime,
-        notificationMessage: reminder.notificationMessage || "",
-        recurring: reminder.recurring || undefined,
-        status: reminder.status || "Active",
-        type: "Quick Reminder",
-        createdAt: reminder.createdAt,
-        updatedAt: reminder.updatedAt || reminder.createdAt,
       }; 
     }
       

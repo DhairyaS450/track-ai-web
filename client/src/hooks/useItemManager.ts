@@ -6,14 +6,13 @@ import {
   SchedulableItem,
   UnifiedTask,
   UnifiedEvent,
-  UnifiedReminder,
   UnifiedStudySession,
   convertFromUnified
 } from "@/types/unified";
 
 /**
  * Custom hook that provides functionality to save and manage schedulable items
- * This centralizes the logic to create, update, and manage tasks, events, study sessions and reminders
+ * This centralizes the logic to create, update, and manage tasks, events, study sessions
  */
 export function useItemManager() {
   const { toast } = useToast();
@@ -25,8 +24,6 @@ export function useItemManager() {
     updateEvent,
     addSession,
     updateSession,
-    addReminder,
-    updateReminder
   } = useData();
 
   /**
@@ -104,24 +101,6 @@ export function useItemManager() {
           }
           break;
         }
-        
-        case 'reminder': {
-          const reminder = item as UnifiedReminder;
-          if (reminder.id) {
-            await updateReminder(reminder.id, originalItem);
-            toast({
-              title: "Success",
-              description: "Reminder updated successfully",
-            });
-          } else {
-            await addReminder(originalItem);
-            toast({
-              title: "Success",
-              description: "Reminder created successfully",
-            });
-          }
-          break;
-        }
       }
       
       return true; // Indicate success
@@ -135,7 +114,7 @@ export function useItemManager() {
       
       return false; // Indicate failure
     }
-  }, [allTasks, addEvent, addReminder, addSession, addTask, toast, updateEvent, updateReminder, updateSession, updateTask]);
+  }, [allTasks, addEvent, addSession, addTask, toast, updateEvent, updateSession, updateTask]);
 
   return {
     handleSaveItem
